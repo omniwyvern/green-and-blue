@@ -45,6 +45,7 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
 
 
 ## Architecture and Organization
+THIS PART IS BASICALLY UNREADABLE ON GITHUB PREVIEW BUT IF YOU VIEW IT AS RAW TEXT IT'S FINE
 
 index.html                       skeleton containers only, makes completely new things easier to add. Also imports all the stylesheets
 css/                             one file per subject. Tons of files, but makes it easier to find specific styling
