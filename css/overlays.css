@@ -1,0 +1,173 @@
+#settings-button,
+#guide-button,
+#dev-button,
+#recenter-button {
+    position: fixed;
+    bottom: 16px;
+    z-index: 500;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 2px 8px var(--shadow);
+}
+#settings-button:hover,
+#dev-button:hover,
+#guide-button:hover,
+#recenter-button:hover { border-color: var(--accent); }
+
+#settings-button,
+#dev-button,
+#guide-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 20px;
+    line-height: 1;
+}
+#settings-button { 
+    left: 14px; 
+}
+#dev-button {
+    left: 14px;
+    top: 570px;
+    font-size: 18px;
+    color: var(--text-dim);
+}
+#guide-button {
+    left: 70px;
+    font-size: 17px;
+}
+
+#recenter-button {
+    right: 16px;
+    padding: 9px 14px;
+    border-radius: 6px;
+}
+#recenter-button[hidden] { display: none; }
+
+#zoom-controls {
+    position: fixed;
+    right: 16px;
+    bottom: 61px;
+    z-index: 500;
+    display: flex;
+    gap: 6px;
+}
+#zoom-controls[hidden] { display: none; }
+
+#zoom-controls button {
+    width: 34px;
+    height: 34px;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px var(--shadow);
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+#zoom-controls button:hover:not(:disabled) { border-color: var(--accent); }
+#zoom-controls button:active:not(:disabled) { transform: scale(0.94); }
+#zoom-controls button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+}
+.modal-overlay[hidden] { display: none; }
+
+.settings-window {
+    width: min(420px, calc(100vw - 32px));
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 12px 40px var(--shadow);
+    padding: 18px 20px 20px;
+    color: var(--text);
+}
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+.settings-header h2 { margin: 0; font-size: 18px; }
+
+.settings-close {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+}
+.settings-close:hover { color: var(--text); }
+
+.settings-section { margin-bottom: 16px; }
+.settings-label { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+.settings-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.settings-button-secondary,
+.settings-button-danger {
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.settings-button-secondary:hover { border-color: var(--accent); }
+.settings-button-secondary.active { border-color: var(--accent); color: var(--text); background: var(--panel); }
+
+.settings-button-danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 50%, var(--border));
+}
+.settings-button-danger:hover { border-color: var(--danger); }
+.settings-button-danger.armed {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #fff;
+    font-weight: 600;
+}
+
+.settings-status { font-size: 12px; color: var(--text-dim); min-height: 16px; }
+
+.guide-window { width: min(500px, calc(100vw - 32px)); }
+
+.guide-body {
+    max-height: min(52vh, 420px);
+    overflow-y: auto;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text-dim);
+}
+.guide-body p { margin: 0 0 10px; }
+.guide-body p:last-child { margin-bottom: 0; }
+.guide-body b { color: var(--text); font-weight: 600; }
+
+.guide-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+}
+.guide-progress { font-size: 12px; color: var(--text-dim); }
+.guide-nav { display: flex; gap: 8px; }
+.guide-nav button[hidden] { display: none; }

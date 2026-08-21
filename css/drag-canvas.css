@@ -1,0 +1,52 @@
+.drag-canvas-viewport {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    background-color: var(--canvas-bg);
+    background-image: radial-gradient(var(--canvas-line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.drag-canvas-viewport:active { cursor: grabbing; }
+
+.drag-canvas-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+    transform-origin: 0 0;
+}
+
+.canvas-coords {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 60;
+    pointer-events: none;
+    padding: 4px 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: pre;
+}
+
+.sub-window {
+    position: absolute;
+    width: 220px;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+}
+.sub-window-title { font-weight: 600; margin-bottom: 6px; }
+.sub-window-body { font-size: 13px; color: var(--text-dim); }
+.sub-window.clickable { cursor: pointer; }
+.sub-window.clickable:hover { border-color: var(--accent); }
+

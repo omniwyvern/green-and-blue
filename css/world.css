@@ -1,0 +1,101 @@
+.drag-canvas-viewport.world-map {
+    background-color: #0b1f2e;
+    background-size: auto;
+    background-image: linear-gradient(to bottom,
+        #0b1f2e 0%,
+        #123449 45%,
+        #1b4a45 78%,
+        #235c3f 100%);
+}
+.drag-canvas-viewport.world-map::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -30%;
+    width: 90%;
+    height: 90%;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at 50% 100%,
+        rgba(90, 220, 170, 0.32) 0%,
+        rgba(60, 170, 190, 0.16) 40%,
+        transparent 70%);
+    animation: world-breathe 9s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+@keyframes world-breathe {
+    from { opacity: 0.55; transform: translateX(-50%) scale(0.94); }
+    to   { opacity: 1;    transform: translateX(-50%) scale(1.06); }
+}
+
+.hex-tile {
+    --hex: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    --hex-border: #26313b;
+    position: absolute;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.hex-tile:hover { z-index: 50; }
+
+.hex-shape {
+    position: absolute;
+    inset: 0;
+    clip-path: var(--hex);
+    background: var(--hex-border);
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform 0.16s ease;
+}
+
+.hex-face {
+    position: absolute;
+    inset: 2px;
+    clip-path: var(--hex);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.hex-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #eaf6ff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    font-variant-numeric: tabular-nums;
+}
+
+.hex-unlocked .hex-face { background: #4d4c3b; }
+.hex-unlocked:hover .hex-face { background: #555444; }
+.hex-unlocked.grass-stage-1 .hex-face { background: #3a4e3b; }
+.hex-unlocked.grass-stage-2 .hex-face { background: #334e2b; }
+
+.hex-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.tile-grass {
+    width: 72%;
+    height: 72%;
+    display: block;
+}
+.grass-soil { fill: rgba(0, 0, 0, 0.28); }
+.grass-blade {
+    fill: none;
+    stroke: #6fcf7f;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+}
+.grass-seedleaf { fill: #6fcf7f; }
+.grass-head { fill: #d9e69a; }
+.grass-stage-0 .grass-blade { stroke: #9fd6a4; stroke-width: 2; }
+.grass-stage-2 .grass-blade { stroke: #7fe08f; stroke-width: 2.8; }
+

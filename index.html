@@ -1,0 +1,80 @@
+<!-- index.html
+It's the main game file, standard HTML stuff.
+ 
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+<title>Green and Blue</title>
+
+<!-- Foundation of the game -->
+<link rel="stylesheet" href="css/base.css">           <!-- theme variables, reset, body -->
+
+<!-- The core of a layer -->
+<link rel="stylesheet" href="css/navigation.css">     <!-- category bar, sidebar, sub-layer flyout -->
+<link rel="stylesheet" href="css/layer.css">          <!-- layer/sub-layer panels, header, resource chips -->
+<link rel="stylesheet" href="css/upgrades.css">       <!-- upgrade grid, drawers, scene wrapper -->
+
+<!-- The World map -->
+<link rel="stylesheet" href="css/world.css">          <!-- the World's backdrop and its hex tiles -->
+<link rel="stylesheet" href="css/terrain.css">        <!-- what each kind of ground looks like on a tile -->
+<link rel="stylesheet" href="css/transform.css">      <!-- turning tiles into other tiles -->
+<link rel="stylesheet" href="css/canvas-hud.css">     <!-- the fixed controls over a drag canvas -->
+<link rel="stylesheet" href="css/interactions.css">   <!-- the tools inside the HUD: gather, grow, rain -->
+
+<!-- Layers with their own page -->
+<link rel="stylesheet" href="css/environment.css">    <!-- the ground's reference page -->
+<link rel="stylesheet" href="css/evolution.css">      <!-- the prestige layer -->
+<link rel="stylesheet" href="css/banners.css">        <!-- the Cards page and its banner stage -->
+<link rel="stylesheet" href="css/cards.css">          <!-- a card itself, and the collection -->
+<link rel="stylesheet" href="css/pond.css">           <!-- the water, what lives in it, burst timers -->
+
+<!-- Drag canvases and the skill trees on them -->
+<link rel="stylesheet" href="css/drag-canvas.css">    <!-- viewport, dot grid, sub-windows -->
+<link rel="stylesheet" href="css/nodes.css">          <!-- the nodes, their states and tooltips -->
+<link rel="stylesheet" href="css/node-effects.css">   <!-- auras, and Life's split face -->
+
+<!-- Above everything -->
+<link rel="stylesheet" href="css/overlays.css">       <!-- corner buttons, settings and guide windows -->
+</head>
+<body>
+    <div id="category-bar"></div>
+
+    <div id="app">
+        <div id="sidebar"></div>
+        <div id="sidebar-flyout"></div>
+        <div id="canvas"></div>
+    </div>
+
+    <!-- Overlay above game. Settings button / menu and the recenter button -->
+    <button id="settings-button" title="Settings" aria-label="Settings">&#9881;</button>
+    <button id="guide-button" title="About this layer" aria-label="About this layer">&#9432;</button>
+    <button id="dev-button" title="Dev tools" aria-label="Dev tools">&#9874;</button>
+    <div id="zoom-controls">
+        <button id="zoom-out-button" title="Zoom out" aria-label="Zoom out">&#8722;</button>
+        <button id="zoom-in-button" title="Zoom in" aria-label="Zoom in">&#43;</button>
+    </div>
+    <button id="recenter-button" title="Return to start">&#8982; Recenter</button>
+    <div id="settings-overlay" class="modal-overlay" hidden></div>
+
+    <!-- COMMENT THIS OUT IF YOU DON'T WANT DEV TOOLS TO DISPLAY! -->
+    <div id="dev-overlay" class="modal-overlay" hidden></div>
+
+
+    <div id="guide-overlay" class="modal-overlay" hidden></div>
+
+    <!-- break_eternity and makes Decimal work for giant numbers. For ease of coding, files have the alias D in place of Decimal -->
+    <script src="scripts/utils/break_eternity.min.js"></script>
+
+    
+    <!-- type="module" is for proper import/export
+     Unfortunately browsers don't like running it locally, so you have to
+     get the vscode live server addon or run it through a local python server
+    -->
+    <script type="module" src="scripts/main.js"></script>
+</body>
+</html>

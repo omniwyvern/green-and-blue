@@ -1,0 +1,66 @@
+.environment-scene { overflow-y: auto; }
+
+.environment-page {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+}
+
+.environment-summary {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+.environment-page .cards-heading { margin-top: 8px; }
+
+.recipe-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.recipe-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.recipe-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+.recipe-arrow { color: var(--life); font-size: 16px; }
+.recipe-text { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+.recipe-cost { color: var(--danger); }
+.recipe-free { color: var(--green); }
+
+.recipe-row.locked { border-style: dashed; opacity: 0.75; }
+.recipe-row.locked .recipe-arrow { color: var(--text-dim); }
+.recipe-hint { color: var(--gold); }
+
+.terrain-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.terrain-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px 8px 8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    opacity: 0.45;
+}
+.terrain-row.has-some { opacity: 1; border-color: var(--life); }
+.terrain-facts { display: flex; flex-direction: column; gap: 1px; }
+.terrain-count { font-size: 12px; font-variant-numeric: tabular-nums; }
+.terrain-rate { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+

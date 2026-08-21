@@ -1,0 +1,70 @@
+:root,
+:root[data-theme="dark"] {
+    --bg: #14171c;
+    --panel: #1d232b;
+    --panel-light: #2d3948;
+    --border: #333c47;
+    --text: #e8ecef;
+    --text-dim: #b5b5b5;
+    --accent: #4a90d9;
+    --green: #3aa876;
+    --blue: #4a90d9;
+    --life: #35d0d0;
+    --danger: #d9534a;
+    --gold: #f2c14e;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --art-grass: #5aa84f;
+    --art-algae: #4bbd85;
+    --art-water: #4a90d9;
+    --art-fish: #7fc8ff;
+    --art-cloud: #93b7d6;
+    --art-rain: #58a8e8;
+    --art-sun: var(--gold);
+    --canvas-bg: var(--bg);
+    --canvas-line: var(--border);
+}
+
+:root[data-theme="light"] {
+    --bg: #f2f4f7;
+    --panel: #ffffff;
+    --panel-light: #e8ecf1;
+    --border: #979797;
+    --text: #1b2027;
+    --text-dim: #888c90;
+    --accent: #2f6fb5;
+    --green: #2f8b5e;
+    --blue: #2f6fb5;
+    --life: #12a3a3;
+    --danger: #c23b32;
+    --gold: #b8860b;
+    --shadow: rgba(15, 25, 40, 0.18);
+    --art-grass: #3f8a3a;
+    --art-algae: #2f9268;
+    --art-water: #2f6fb5;
+    --art-fish: #3f86c4;
+    --art-cloud: #6b8fae;
+    --art-rain: #2f8fd0;
+    --art-sun: var(--gold);
+    --canvas-bg: #c2ccd8;
+    --canvas-line: #94a3b5;
+}
+
+:root {
+    --sidebar-width: 130px;
+    --flyout-inset: 106px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "SF Mono", Menlo,
+        Consolas, "Liberation Mono", monospace;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
