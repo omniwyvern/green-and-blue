@@ -52,7 +52,7 @@ const STAGE_SECONDS = [30, 20, 10];
 // transforming a tile next to long-since-mature grass doesn't spread into it the same instant.
 const BLOCKED_WAIT_SECONDS = 10;
 const NEIGHBOUR_BONUS = 0.05;   // Faster per adjacent grassy tile.
-const GROWTH_PER_LEVEL = 0.25;  // Also per level of the Richer Soil card.
+const GROWTH_PER_LEVEL = 0.10; 
 
 export const LAND_COST = () => ({ greenEssence: D(2e6), blueEssence: D(2e6) });
 
