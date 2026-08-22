@@ -23,13 +23,13 @@ import { greenMultiplier } from "./grassSublayer.js";
 const TURBULENCE_MAX = 100;
 const SETTLE_PER_SECOND = 10;   // How fast the water returns to calm when left alone
 const STIR_PER_CLICK = 5;     // Turbulence added per click, before upgrades
-const STIR_PER_LEVEL = 3;      // Turbulence per level of Stronger Currents
+const STIR_PER_LEVEL = 2;      // Turbulence per level of Stronger Currents
 
 const BASE_PRODUCTION = D(5);  // Blue Essence/sec in perfectly calm water
 const TURBULENCE_BONUS = 7;    // Fully turbulent water produces (1 + this) times as much
-const PRODUCTION_PER_LEVEL = 0.25;
 
 // Pond upgrades change these 
+const PRODUCTION_PER_LEVEL = 0.25;
 const TURBULENCE_BONUS_PER_LEVEL = 2;  // Steeper payoff from rough water (storm channels)
 const BALANCE_RANGE_PER_LEVEL = 0.05;  // How far off even still counts as even (wider margins)
 const MAX_BALANCE_TOLERANCE = 0.5;     // Previous one is capped, since at 1 every pond would count as even
@@ -43,7 +43,7 @@ const coreNode = (id) => !!getLayerState("cores").purchasedUpgrades[id];
 
 const BIOMASS_MARGIN_SHARE = 0.5;
 
-const PEAK_REDUCTION_PER_LEVEL = 0.09;
+const PEAK_REDUCTION_PER_LEVEL = 0.1;
 const MIN_PRODUCTION_PEAK = 0.3;
 
 const DISTURBED_AT = 33;
@@ -58,34 +58,36 @@ const SURFACE_CYCLE_PX = 360;
 const BASE_CAPACITY = 2;
 
 const ALGAE_GROWTH = 0.04;
-const ALGAE_PER_LEVEL = 0.5;
+const ALGAE_PER_LEVEL = 0.25;
 
 const FISH_GROWTH = 0.05;       // Fish per second in fully turbulent water, nothing in calm
-const FISH_PER_LEVEL = 0.5;
+const FISH_PER_LEVEL = 0.25;
 
 const FISH_APPETITE = 0.02;     // Algae eaten per fish per second
 const FEEDING_PER_LEVEL = 0.15;
 const FOOD_PER_FISH = 0.2;
 const STARVATION_PER_SECOND = 0.15;
 
-const ALGAE_WEIGHT_PER_LEVEL = 0.12;
-const FISH_WEIGHT_PER_LEVEL = 0.12;
-const OXYGEN_PER_LEVEL = 0.04;
+const ALGAE_WEIGHT_PER_LEVEL = 0.15;
+const FISH_WEIGHT_PER_LEVEL = 0.15;
+const OXYGEN_PER_LEVEL = 0.05;
 
-const SURGE_BELOW = 0.08;
-const SURGE_SECONDS = 8;
-const SURGE_COOLDOWN = 25;
+// Both bursts are set off by hand from the pond's corner box, and both work the same way.
+// Levels don't make a burst stronger, they only shorten the wait between them.
+const BURST_SECONDS = 8;
+// Growth per second while running, as a fraction of capacity. The two aren't equal because
+// a Frenzy stacks on top of what rough water already gives the fish, while the algae are
+// starting from nothing at the turbulence a burst is usually set off at.
+const SPORES_GROWTH = 0.15;
+const FRENZY_GROWTH = 0.105;
+const BURST_COOLDOWN = 30;       // The wait at the first level, once the burst has finished
+const COOLDOWN_PER_LEVEL = 3;
+const MIN_BURST_COOLDOWN = 15;
+const BURST_MAX_LEVEL = 6;       // The unlock, then five levels of three seconds each
 
-const BURST_GROWTH_PER_LEVEL = 0.075;
 
-
-const FISH_PEAK_REDUCTION_PER_LEVEL = 0.09;
+const FISH_PEAK_REDUCTION_PER_LEVEL = 0.1;
 const MIN_FISH_PEAK = 0.3;
-
-const FRENZY_CLICKS = 8;              // Clicks needed
-const FRENZY_WINDOW = 3;              // How long since the last one they may arrive
-const FRENZY_SECONDS = 8;
-const FRENZY_COOLDOWN = 25;
 
 const ALGAE_CROWDING = 0.2; // Fraction of algae's growth that can push into occupied space
 
@@ -185,12 +187,20 @@ function spriteCounts(s) {
 }
 
 
+// Which upgrade owns each burst, and where its two timers live on the pond's state.
+const BURSTS = {
+    spores: { upgrade: "dormantSpores", running: "algaeSurge", ready: "algaeSurgeReady" },
+    frenzy: { upgrade: "feedingFrenzy", running: "fishSurge", ready: "fishSurgeReady" },
+};
+
+const burstCooldown = (s, key) => Math.max(MIN_BURST_COOLDOWN,
+    BURST_COOLDOWN - COOLDOWN_PER_LEVEL * (getLevel(s, BURSTS[key].upgrade) - 1));
+
 const sporesActive = (s) => (s.algaeSurge || 0) > 0;
 const frenzyActive = (s) => (s.fishSurge || 0) > 0;
 
-const burstGrowth = (s, level) => BURST_GROWTH_PER_LEVEL * s.capacity * level;
-const sporesBonus = (s) => sporesActive(s) ? burstGrowth(s, getLevel(s, "dormantSpores")) : 0;
-const frenzyBonus = (s) => frenzyActive(s) ? burstGrowth(s, getLevel(s, "feedingFrenzy")) : 0;
+const sporesBonus = (s) => sporesActive(s) ? SPORES_GROWTH * s.capacity : 0;
+const frenzyBonus = (s) => frenzyActive(s) ? FRENZY_GROWTH * s.capacity : 0;
 
 
 const algaeGrowth = (s) => ALGAE_GROWTH * s.capacity
@@ -201,41 +211,16 @@ const algaeGrowth = (s) => ALGAE_GROWTH * s.capacity
         + shoreExchange())                                // Fertile Waters
     + sporesBonus(s);
 
-// A player who kept clicking would never get out of a Frenzy.
 function tickSurges(s, dt) {
     s.algaeSurge = Math.max(0, (s.algaeSurge || 0) - dt);
     s.algaeSurgeReady = Math.max(0, (s.algaeSurgeReady || 0) - dt);
     s.fishSurge = Math.max(0, (s.fishSurge || 0) - dt);
     s.fishSurgeReady = Math.max(0, (s.fishSurgeReady || 0) - dt);
-
-    s.fishClickWindow = Math.max(0, (s.fishClickWindow || 0) - dt);
-    if (s.fishClickWindow <= 0) s.fishClicks = 0;
-
-    if (getLevel(s, "dormantSpores") === 0) return;
-    if (s.sporesOff) return;
-    if (s.algaeSurge > 0 || s.algaeSurgeReady > 0) return;
-    if (s.algae >= SURGE_BELOW * s.capacity) return;
-
-    s.algaeSurge = SURGE_SECONDS;
-    s.algaeSurgeReady = SURGE_SECONDS + SURGE_COOLDOWN;
 }
 
 // Every click on the water, whether or not anything happens.
 function registerStir(s) {
     if (!tidalActive()) s.turbulence = Math.min(turbulenceCeiling(), s.turbulence + stirPerClick(s));
-
-    if ((s.fishClickWindow || 0) <= 0) s.fishClicks = 0;
-    s.fishClicks = (s.fishClicks || 0) + 1;
-    s.fishClickWindow = FRENZY_WINDOW;
-
-    if (getLevel(s, "feedingFrenzy") === 0) return;
-    if (s.frenzyOff) return;
-    if (s.fishClicks < FRENZY_CLICKS) return;
-    if ((s.fishSurge || 0) > 0 || (s.fishSurgeReady || 0) > 0) return;
-
-    s.fishSurge = FRENZY_SECONDS;
-    s.fishSurgeReady = FRENZY_SECONDS + FRENZY_COOLDOWN;
-    s.fishClicks = 0;
 }
 
 // Maelstrom card stuff.
@@ -245,12 +230,22 @@ function payMaelstrom(s, layer) {
     addResource(layer, "blueEssence", pondBlue(s).mul(seconds));
 }
 
-function toggleBurst(s, key) {
-    const flag = key === "spores" ? "sporesOff" : "frenzyOff";
-    s[flag] = !s[flag];
-    if (!s[flag]) return;
-    if (key === "spores") s.algaeSurge = 0;
-    else s.fishSurge = 0;
+// Clicking a burst sets it off, and clicking it again cuts it short. Cutting it short
+// starts the cooldown from there rather than from where the burst would have ended, so
+// stopping early is never worse than letting it run out.
+function useBurst(s, key) {
+    const burst = BURSTS[key];
+    if (getLevel(s, burst.upgrade) === 0) return;
+
+    if ((s[burst.running] || 0) > 0) {
+        s[burst.running] = 0;
+        s[burst.ready] = burstCooldown(s, key);
+        return;
+    }
+    if ((s[burst.ready] || 0) > 0) return;
+
+    s[burst.running] = BURST_SECONDS;
+    s[burst.ready] = BURST_SECONDS + burstCooldown(s, key);
 }
 // Turbulence as the fish see it.
 const fishPeak = (s) => Math.max(MIN_FISH_PEAK, 1 - FISH_PEAK_REDUCTION_PER_LEVEL * getLevel(s, "hardyStock"));
@@ -383,7 +378,6 @@ function production(s) {
 const algaeFull = (s) => s.capacity > 0 && s.algae >= s.capacity - 0.001;
 const bloomBonus = (s) => algaeFull(s) ? cardBonus("algaeFullGreen") : 0;
 
-// Oxygenation card stuff.
 const oxygenShare = (s) => OXYGEN_PER_LEVEL * getLevel(s, "oxygenation");
 
 // The pond's two essence rates as they're paid out
@@ -520,10 +514,10 @@ export const POND_VIEW = {
             });
 
             el.querySelector(".pond-balance").addEventListener("pointerdown", (e) => {
-                const button = e.target.closest(".timer-power");
+                const button = e.target.closest(".balance-timer");
                 if (!button) return;
                 e.stopPropagation();
-                toggleBurst(getLayerState(layer.stateKey), button.dataset.toggle);
+                useBurst(getLayerState(layer.stateKey), button.dataset.key);
             });
 
             // Driven through the Web Animations API rather than CSS animations since it changes every frame.
@@ -578,31 +572,31 @@ export const POND_VIEW = {
             upgrades: {
                 strongerCurrents: {
                     title: "Stronger Currents",
-                    description: "Each click stirs the water up more.",
+                    description: "Each click stirs the water up +40% more.",
                     max: 5,
                     cost: (s, level) => ({ blueEssence: D(300).mul(D(2).pow(level)) }),
                 },
                 richerWaters: {
                     title: "Richer Waters",
-                    description: "The pond passively produces more, at any turbulence.",
+                    description: "The pond passively produces +25% more, at any turbulence.",
                     max: 25,
                     cost: (s, level) => ({ blueEssence: D(400).mul(D(1.21).pow(level)) }),
                 },
                 stormChannels: {
                     title: "Storm Channels",
-                    description: "Rough water is worth more. Steepens the payoff for stirring, without changing what calm water gives.",
+                    description: "Rough water is worth +25% more. Steepens the payoff for stirring, without changing what calm water gives.",
                     max: 10,
                     cost: (s, level) => ({ blueEssence: D(1400).mul(D(1.45).pow(level)) }),
                 },
                 sensitiveCurrents: {
                     title: "Sensitive Currents",
-                    description: "The water gives its best at lower turbulence. The cap doesn't move - the peak just gets easier to reach.",
-                    max: 7,
+                    description: "The water gives its best at lower turbulence. Blue Essence gives peak production at 10% less turbulence.",
+                    max: 5,
                     cost: (s, level) => ({ blueEssence: D(1800).mul(D(1.55).pow(level)) }),
                 },
                 wideMargins: {
                     title: "Wide Margins",
-                    description: "Widens what counts as balanced, so a pond that's merely close gets the full Symbiosis bonus.",
+                    description: "Widens what counts as balanced by 5% for Blue Essence production, and 2.5% for Biomass production.",
                     hidden: () => !coreNode("pondSymbiosis"),
                     max: 8,
                     cost: (s, level) => ({
@@ -620,32 +614,32 @@ export const POND_VIEW = {
             upgrades: {
                 fertileWater: {
                     title: "Fertile Water",
-                    description: "Algae spreads faster into whatever room the pond has left.",
+                    description: "Algae spreads +25% faster into whatever room the pond has left.",
                     max: 10,
                     cost: (s, level) => ({ biomass: D(60).mul(D(1.3).pow(level)) }),
                 },
                 denseMats: {
                     title: "Dense Mats",
-                    description: "Each algae is worth more Green Essence.",
+                    description: "Each algae is worth +50% more Green Essence.",
                     max: 25,
                     cost: (s, level) => ({ biomass: D(45).mul(D(1.14).pow(level)) }),
                 },
                 nutrientDense: {
                     title: "Nutrient Dense",
-                    description: "Algae counts for more than it is when the pond works out its biomass, without taking up any more room.",
+                    description: "Algae counts for 15% more than it is when the pond works out its biomass, without taking up any more room.",
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },
                 oxygenation: {
                     title: "Oxygenation",
-                    description: "Part of what the algae makes comes out as Blue Essence as well. Doesn't cost the Green.",
+                    description: "5% of what the algae makes comes out as Blue Essence as well. Doesn't cost the Green.",
                     max: 10,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.26).pow(level)) }),
                 },
                 dormantSpores: {
                     title: "Dormant Spores",
-                    description: `When the algae is all but gone, what's left of it grows back hard for ${SURGE_SECONDS} seconds. Needs ${SURGE_COOLDOWN} seconds to settle before it can happen again.`,
-                    max: 5,
+                    description: `Wake the spores from the pond bed by hand: algae grows back hard for ${BURST_SECONDS} seconds, with a cooldown of ${BURST_COOLDOWN}. Click it again to cut it short. Each level after the first takes ${COOLDOWN_PER_LEVEL} seconds off the wait.`,
+                    max: BURST_MAX_LEVEL,
                     cost: (s, level) => ({ biomass: D(260).mul(D(1.55).pow(level)) }),
                 },
                 unlockAlgaeBloom: {
@@ -667,37 +661,37 @@ export const POND_VIEW = {
             upgrades: {
                 spawningGrounds: {
                     title: "Spawning Grounds",
-                    description: "Fish breed faster in rough water. Still nothing at all in calm water.",
+                    description: "Fish breed +25% faster in rough water. Still nothing at all in calm water.",
                     max: 10,
                     cost: (s, level) => ({ biomass: D(70).mul(D(1.3).pow(level)) }),
                 },
                 biggerSchools: {
                     title: "Bigger Schools",
-                    description: "Each fish adds more to the pond's Blue Essence production.",
+                    description: "Each fish boosts the pond's Blue Essence production by +15%.",
                     max: 25,
                     cost: (s, level) => ({ biomass: D(48).mul(D(1.14).pow(level)) }),
                 },
                 efficientFeeders: {
                     title: "Efficient Feeders",
-                    description: "Fish eat less algae, so a school supports itself on less.",
+                    description: "Fish eat 15% less algae, so a school supports itself on less.",
                     max: 5,
                     cost: (s, level) => ({ biomass: D(160).mul(D(1.7).pow(level)) }),
                 },
                 hardyStock: {
                     title: "Hardy Stock",
-                    description: "Fish breed at their best in calmer water than they used to need. Still nothing in water that's perfectly still.",
-                    max: 7,
+                    description: "Fish breed at their best in 10% calmer water than they used to need. Still nothing in water that's perfectly still.",
+                    max: 5,
                     cost: (s, level) => ({ biomass: D(160).mul(D(1.4).pow(level)) }),
                 },
                 feedingFrenzy: {
                     title: "Feeding Frenzy",
-                    description: `${FRENZY_CLICKS} stirs in quick succession sends the school wild for ${FRENZY_SECONDS} seconds. Needs ${FRENZY_COOLDOWN} seconds to settle before it can happen again.`,
-                    max: 5,
+                    description: `Send the school wild by hand for ${BURST_SECONDS} seconds with a cooldown of ${BURST_COOLDOWN}. Click it again to cut it short. Each level after the first takes ${COOLDOWN_PER_LEVEL} seconds off the wait.`,
+                    max: BURST_MAX_LEVEL,
                     cost: (s, level) => ({ biomass: D(260).mul(D(1.55).pow(level)) }),
                 },
                 richRoe: {
                     title: "Rich Roe",
-                    description: "Fish count for more than they are when the pond works out its biomass, without taking up any more room.",
+                    description: "Fish count for +15% more than they are when the pond works out its biomass, without taking up any more room.",
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },
@@ -720,14 +714,10 @@ registerLayer("pond", {
         capacity: BASE_CAPACITY,
         algae: 0,
         fish: 0,
-        algaeSurge: 0,      
-        algaeSurgeReady: 0,  
-        fishSurge: 0,     
+        algaeSurge: 0,
+        algaeSurgeReady: 0,
+        fishSurge: 0,
         fishSurgeReady: 0,
-        fishClicks: 0,   
-        fishClickWindow: 0,
-        sporesOff: false,
-        frenzyOff: false,
         tideSeconds: 0,
     },
 
@@ -806,43 +796,33 @@ const FISH_ICON = `
     </svg>`;
 
 // Balance indicator, the percentage bar for fish/algae.
-const POWER_ICON = `
-    <svg class="timer-power-icon" viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M8 2.4 V 7.6"/>
-        <path d="M4.6 4.4 A 4.6 4.6 0 1 0 11.4 4.4"/>
-    </svg>`;
-
+// The whole row is the button, since there's nothing else in it to click.
 const timerMarkup = (key, label) => `
-    <div class="balance-timer" data-key="${key}" style="display: none">
+    <button class="balance-timer" type="button" data-key="${key}" style="display: none">
         <div class="timer-fill"></div>
         <span class="timer-name">${label}</span>
         <span class="timer-state"></span>
-        <button class="timer-power" type="button" data-toggle="${key}">${POWER_ICON}</button>
-    </div>
+    </button>
 `;
 
+const TIMER_HINTS = {
+    running: "Click to cut it short.",
+    cooling: "Still settling.",
+    ready: "Click to set it off.",
+};
 
-function updateTimer(row, owned, off, remaining, cooldownLeft, burstSeconds, cooldownSeconds) {
+function updateTimer(row, owned, remaining, cooldownLeft, cooldownSeconds) {
     if (!owned) {
         row.style.display = "none";
         return;
     }
     row.style.display = "";
 
-    if (off) {
-        row.dataset.state = "off";
-        setText(row.querySelector(".timer-state"), cooldownLeft > 0 ? `${Math.ceil(cooldownLeft)}s` : "Off");
-        const bar = row.querySelector(".timer-fill");
-        const width = cooldownLeft > 0 ? `${(1 - cooldownLeft / cooldownSeconds) * 100}%` : "100%";
-        if (bar.style.width !== width) bar.style.width = width;
-        return;
-    }
-
     let state, text, fill;
     if (remaining > 0) {
         state = "running";
         text = `${remaining.toFixed(1)}s`;
-        fill = remaining / burstSeconds;
+        fill = remaining / BURST_SECONDS;
     } else if (cooldownLeft > 0) {
         state = "cooling";
         text = `${Math.ceil(cooldownLeft)}s`;
@@ -853,7 +833,10 @@ function updateTimer(row, owned, off, remaining, cooldownLeft, burstSeconds, coo
         fill = 1;
     }
 
-    if (row.dataset.state !== state) row.dataset.state = state;
+    if (row.dataset.state !== state) {
+        row.dataset.state = state;
+        row.title = TIMER_HINTS[state];
+    }
     setText(row.querySelector(".timer-state"), text);
     const width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
     const bar = row.querySelector(".timer-fill");
@@ -889,9 +872,9 @@ function updateBalance(host, s) {
     else fishTag.removeAttribute("title");
 
     updateTimer(host.querySelector('[data-key="spores"]'), getLevel(s, "dormantSpores") > 0,
-        !!s.sporesOff, s.algaeSurge || 0, s.algaeSurgeReady || 0, SURGE_SECONDS, SURGE_COOLDOWN);
+        s.algaeSurge || 0, s.algaeSurgeReady || 0, burstCooldown(s, "spores"));
     updateTimer(host.querySelector('[data-key="frenzy"]'), getLevel(s, "feedingFrenzy") > 0,
-        !!s.frenzyOff, s.fishSurge || 0, s.fishSurgeReady || 0, FRENZY_SECONDS, FRENZY_COOLDOWN);
+        s.fishSurge || 0, s.fishSurgeReady || 0, burstCooldown(s, "frenzy"));
 
     host.title = `${s.algae.toFixed(2)} algae and ${s.fish.toFixed(2)} fish, in a pond that holds ${Math.floor(s.capacity)}`;
 }
