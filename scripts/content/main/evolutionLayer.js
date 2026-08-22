@@ -15,6 +15,7 @@ import {
     CARDS, SLOTS, COPIES_TO_COMBINE, collection, cardEntry, cardName, cardArt, rarityOf, knownCard,
     comboStatus, rollDraw, collectCard, equipCard, unequipSlot, firstFreeSlot,
     BANNERS, BANNER_IDS, bannerArt,
+    loadoutLocked, lockLoadout, releaseLoadout,
 } from "./cards.js";
 
 // One point per tile grown all the way to mature. Partly-grown tiles count for nothing.
@@ -26,6 +27,10 @@ const DRAW_COST_SCALE = D(1.2);   // Per draw already taken on that banner
 
 let armEvo = false; // For when you reset but won't gain any points
 
+// THIS NEEDS TO CHANGE A LOT
+// needs to factor in the other tiles
+// but since they only reset the growth and state of them and not the tile itself
+// this is gonna be complicated
 export const pointsOnEvolve = () => POINTS_PER_MATURE_TILE.mul(matureTiles(getLayerState("world")).length);
 
 // Each banner scales its price separately based on how many cards you've drawn from it.
@@ -40,6 +45,7 @@ const drawCost = (s) => ({ evolutionPoints: costOf(s.banner, bannerDraws(s)) });
 
 // The actual reset. Rests growing things, and map size.
 function resetLivingThings() {
+    // Pond
     const pond = getLayerState("pond");
     pond.algae = 0;
     pond.fish = 0;
@@ -52,16 +58,24 @@ function resetLivingThings() {
     pond.fishClickWindow = 0;
 
     const world = getLayerState("world");
-    world.tiles = { [ORIGIN_TILE]: true };
+    //world.tiles = { [ORIGIN_TILE]: true };
     world.grass = {};
-    world.terrain = {};
-    world.moisture = {};
+    //world.terrain = {};
+
+    // Precipitation
+    world.moisture = {}; // Resets precipitation and buildup
     world.snowpack = {};
-    world.weatherMeter = 0;
     world.weatherSeconds = 0;
     world.weatherTotal = 0;
     world.weatherTile = null;
-    // Which kind was loaded is a preference rather than progress, so it survives the reset.
+    world.weatherPower = 0;
+    world.weatherSoak = 0;
+
+    // The cloud itself, which is charge that was paid for and doesn't survive the reset either.
+    const cloud = getLayerState("precipitation");
+    cloud.charge = 0;
+    cloud.stability = 1;
+
     world.selectedTile = null;
     world.transformFodder = [];
 }
@@ -81,11 +95,12 @@ registerLayer("evolution", {
     initialState: {
         cards: {},                              // { id: { level, copies } }
         equipped: new Array(SLOTS).fill(null),
-        draw: null,                             // Three card ids waiting to be chosen between
-        draws: 0,                               // Lifetime draws, across every banner
-        unlockedCards: [],                      // Locked cards that something has opened up
-        banner: null,                           // Which pool you're drawing from, null = picking one
-        bannerDraws: {},                        // Draws per banner, which is what prices the next one
+        draw: null,                             // Three card ids waiting to be chosen between.
+        draws: 0,                               // Lifetime draws, across every banner.
+        unlockedCards: [],                      // Locked cards that something has opened up.
+        banner: null,                           // Which pool you're drawing from, null = picking one.
+        bannerDraws: {},                        // Draws per banner, which is what prices the next one.
+        loadoutLocked: false,                   // Equipped cards do nothing until locked in, and stay locked in for the evolution.
     },
 
     subLayers: {
@@ -106,10 +121,10 @@ registerLayer("evolution", {
                             <div class="evolve-note"></div>
                             <div class="evolve-terms">
                                 <div class="evolve-keeps"><b>Kept:</b> the Cores tree, Pond upgrades,
-                                    Grass upgrades, and your cards.</div>
-                                <div class="evolve-loses"><b>Reset:</b> algae, fish, grass, rain, and
-                                    the map back to its middle tile. The next world has to be claimed
-                                    and sown again.</div>
+                                    Grass upgrades, and your collection of cards.</div>
+                                <div class="evolve-loses"><b>Reset:</b> Algae, fish, and grass tiles.
+                                    Life needs to be sown again, with cards to lock in and a grass to choose
+                                    before the first seed is planted.</div>
                             </div>
                         </div>
                     `;
@@ -125,6 +140,7 @@ registerLayer("evolution", {
                             }
                         addResource(layer, "evolutionPoints", gain);
                         resetLivingThings();
+                        releaseLoadout();
                         armEvo = false;
                         }
 
@@ -168,6 +184,7 @@ registerLayer("evolution", {
                                 <div class="cards-section">
                                     <div class="cards-heading">Equipped <span class="cards-sub"></span></div>
                                     <div class="cards-slots"></div>
+                                    <div class="cards-lockin"></div>
                                     <div class="cards-combos"></div>
                                 </div>
                                 <div class="cards-section">
@@ -185,10 +202,11 @@ registerLayer("evolution", {
 
                 update(el, s, layer) {
                     const signature = JSON.stringify([s.cards, s.equipped, s.draw, s.banner,
-                                                      s.bannerDraws, s.unlockedCards]);
+                                                      s.bannerDraws, s.unlockedCards, s.loadoutLocked]);
                     if (el.__signature !== signature) {
                         el.__signature = signature;
                         buildSlots(el, s);
+                        buildLockIn(el, s);
                         buildCollection(el, s);
                         buildCombos(el, s);
                         buildStage(el, s, layer);
@@ -443,9 +461,10 @@ function buildDraw(host, el, s, layer) {
             btn.addEventListener("click", () => {
                 collectCard(id, s);
                 s.draw = null;
-                // The draw goes into a free slot if there is one
+                // The draw goes into a free slot if there is one, and if the loadout is still
+                // open - a card drawn mid-evolution waits for the next one.
                 const free = firstFreeSlot(s);
-                if (free !== -1) equipCard(id, free, s);
+                if (free !== -1 && !loadoutLocked(s)) equipCard(id, free, s);
             });
             row.appendChild(btn);
         }
@@ -480,15 +499,47 @@ function buildSlots(el, s) {
     collection(s);
     setText(el.querySelector(".cards-sub"), `${(s.equipped || []).filter(Boolean).length}/${SLOTS}`);
 
+    const locked = loadoutLocked(s);
     for (let slot = 0; slot < SLOTS; slot++) {
         const stored = (s.equipped || [])[slot];
         const id = knownCard(stored) ? stored : null;
         const box = document.createElement("button");
-        box.className = `card-slot${id ? " filled" : ""}`;
-        box.innerHTML = id ? cardFace(id, cardEntry(id, s), "in-slot") : `<span class="slot-empty">Empty</span>`;
-        if (id) box.addEventListener("click", () => unequipSlot(slot, s));
+        box.className = `card-slot${id ? " filled" : ""}${locked ? " locked" : ""}`;
+        box.innerHTML = id ? cardFace(id, cardEntry(id, s), "in-slot") : `<span class="slot-empty">${locked ? "Left empty" : "Empty"}</span>`;
+        if (id && !locked) box.addEventListener("click", () => unequipSlot(slot, s));
         host.appendChild(box);
     }
+}
+
+// The one commitment on this page. Until it is made the equipped cards are worth nothing, and
+// once it is made they are the run's cards until the next evolution.
+function buildLockIn(el, s) {
+    const host = el.querySelector(".cards-lockin");
+    host.innerHTML = "";
+
+    if (loadoutLocked(s)) {
+        host.className = "cards-lockin locked";
+        host.innerHTML = `<span class="lockin-state">Locked in for this evolution.</span>`
+            + `<span class="lockin-note">Evolving is what frees them again.</span>`;
+        return;
+    }
+
+    host.className = "cards-lockin";
+    const equipped = (s.equipped || []).filter(Boolean).length;
+
+    const btn = document.createElement("button");
+    btn.className = "lockin-button";
+    btn.textContent = "Lock in for this evolution";
+    btn.disabled = equipped === 0;
+    btn.addEventListener("click", () => lockLoadout(s));
+
+    const note = document.createElement("span");
+    note.className = "lockin-note";
+    note.textContent = equipped === 0
+        ? "Equip a card first. Cards do nothing until they are locked in."
+        : "Swap them freely. They do nothing until they are locked in.";
+
+    host.append(btn, note);
 }
 
 const levelOf = (id, s) => (cardEntry(id, s) || { level: 1 }).level;
@@ -532,11 +583,12 @@ function buildCollection(el, s) {
 
 function collectionCard(id, s) {
     const equipped = (s.equipped || []).includes(id);
+    const locked = loadoutLocked(s);
     const btn = document.createElement("button");
-    btn.className = `collection-card${equipped ? " equipped" : ""}`;
+    btn.className = `collection-card${equipped ? " equipped" : ""}${locked ? " locked" : ""}`;
     btn.innerHTML = cardFace(id, cardEntry(id, s));
     btn.addEventListener("click", () => {
-        if (equipped) return;
+        if (equipped || locked) return;
         // Into the first free slot, or over the first slot if they're all taken.
         const free = firstFreeSlot(s);
         equipCard(id, free === -1 ? 0 : free, s);

@@ -252,7 +252,7 @@ export const TERRAIN_ART = {
         ${tree(30, 29, 0.86)}
         ${tree(20, 31, 1.22)}`),
 
-    // Dense forest, it's like forest but -get this- it's denser (there are more trees).
+    // Dense forest, it's like forest but get this it's denser (there are more trees).
     "dense-forest": svg("dense-forest", `
         <ellipse class="terrain-soil" cx="20" cy="33" rx="17.5" ry="3.2"/>
         <g class="terrain-back">

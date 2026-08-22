@@ -90,12 +90,18 @@
 .grass-soil { fill: rgba(0, 0, 0, 0.28); }
 .grass-blade {
     fill: none;
-    stroke: #6fcf7f;
+    stroke: var(--blade, #6fcf7f);
     stroke-width: 2.4;
     stroke-linecap: round;
 }
-.grass-seedleaf { fill: #6fcf7f; }
+.grass-seedleaf { fill: var(--blade, #6fcf7f); }
 .grass-head { fill: #d9e69a; }
-.grass-stage-0 .grass-blade { stroke: #9fd6a4; stroke-width: 2; }
-.grass-stage-2 .grass-blade { stroke: #7fe08f; stroke-width: 2.8; }
+.grass-stage-0 .grass-blade {
+    stroke: color-mix(in srgb, var(--blade, #6fcf7f) 62%, #ffffff);
+    stroke-width: 2;
+}
+.grass-stage-2 .grass-blade {
+    stroke: color-mix(in srgb, var(--blade, #6fcf7f) 80%, #b6ffc4);
+    stroke-width: 2.8;
+}
 

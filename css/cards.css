@@ -118,6 +118,38 @@
 }
 .card-slot.filled { border: none; cursor: pointer; }
 .card-slot.filled:hover .card-face { border-color: var(--danger); box-shadow: none; }
+/* A locked-in slot is settled, so it stops offering to be taken out. */
+.card-slot.locked { cursor: default; }
+.card-slot.locked.filled:hover .card-face { border-color: var(--rarity-color, var(--border)); }
+
+/* ---------- Locking the loadout in ---------- */
+
+.cards-lockin {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+.lockin-button {
+    padding: 8px 16px;
+    background: var(--panel);
+    border: 1px solid #b06ad0;
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.12s ease, box-shadow 0.3s ease;
+}
+.lockin-button:hover:not(:disabled) { background: var(--panel-light); box-shadow: 0 0 14px -6px #b06ad0; }
+.lockin-button:disabled { opacity: 0.5; cursor: default; border-color: var(--border); }
+
+.lockin-state { font-size: 13px; color: #c98ae0; }
+.lockin-note { font-size: 12px; color: var(--text-dim); }
+
+.collection-card.locked { cursor: default; }
+.collection-card.locked:hover .card-face { background: var(--panel); }
 
 .cards-collection { display: flex; flex-direction: column; gap: 14px; }
 .collection-group { --banner-color: var(--border); }

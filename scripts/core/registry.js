@@ -97,6 +97,7 @@ function buildUpgradeGroups(label, upgrades, drawers) {
  *                                    
  * @param {function} [def.overlay]
  * @param {string} [def.viewportClass]
+ * @param {string} [def.canvasClass]
  * @param {function} [def.onCanvasClick]
  * @param {object} [def.hud]
  * @param {object} [def.defaultView]
@@ -113,7 +114,7 @@ export function registerLayer(id, def) {
     const { categoryId, group = null, name, color = "#4a90d9", canvasType = null, order = 0,
         upgrades = {}, drawers = null, subWindows = {}, nodes = {}, subLayers: rawSubLayers = null,
         resources = {}, indicators = {}, initialState = {}, defaultView = null,
-        scene = null, note = null,
+        scene = null, note = null, canvasClass = null,
         tiles = null, overlay = null, viewportClass = null, onCanvasClick = null, hud = null,
         onTick = null, attention = null, startUnlocked = true, absorbedBy = null } = def;
 
@@ -183,6 +184,7 @@ export function registerLayer(id, def) {
                 defaultView: subDef.defaultView || null,
                 scene: subDef.scene || null,
                 note: subDef.note || null,
+                canvasClass: subDef.canvasClass || null,
             };
         }
     } else {
@@ -208,6 +210,10 @@ export function registerLayer(id, def) {
         hud: subLayers ? null : hud,
         scene: subLayers ? null : scene,
         note: subLayers ? null : note,
+        // The static canvas's answer to viewportClass: a class on the canvas itself, for a
+        // layer that wants to lay its scene and its upgrades out differently to the default
+        // of "scene over everything".
+        canvasClass: subLayers ? null : canvasClass,
         subLayers,
     };
     categories[categoryId].layerIds.push(id);

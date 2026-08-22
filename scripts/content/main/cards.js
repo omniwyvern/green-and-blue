@@ -6,6 +6,7 @@
 //  evolution.cards[id] = { level, copies }   The collection
 //  evolution.equipped  = [id|null, ...]      Which are equipped
 //  evolution.draw      = [id, id, id]|null   Draw choice waiting to be chosen
+//  evolution.loadoutLocked = bool            Whether the equipped cards have been locked in
 // "mods" are what one copy at level 1 is worth, level N is worth N times that.
 // Combos are on top of everything if you have the required cards equipped.
 
@@ -874,13 +875,14 @@ export function comboStatus(s = evolutionState()) {
 // mods is what one level is worth, multiplies up with the card at +30% per level
 export function cardBonus(key) {
     const s = evolutionState();
+    if (!loadoutLocked(s)) return 0;
     let total = 0;
 
     for (const id of equippedIds(s)) {
         const card = CARDS[id];
         const entry = cardEntry(id, s);
         if (!card || !entry) continue;
-        total += (card.mods?.[key] || 0) * (entry.level-1 + ((entry.level-1) / 3));
+        total += (card.mods?.[key] || 0) * (entry.level + ((entry.level-1) / 3));
         total += card.modsFlat?.[key] || 0;
     }
     for (const combo of effectiveCombos(s)) total += combo.mods?.[key] || 0;
@@ -931,6 +933,7 @@ export function collectCard(id, s = evolutionState()) {
 }
 
 export function equipCard(id, slot, s = evolutionState()) {
+    if (loadoutLocked(s)) return false;
     if (!s.equipped) s.equipped = new Array(SLOTS).fill(null);
     const existing = s.equipped.indexOf(id);
     if (existing !== -1) s.equipped[existing] = null;
@@ -938,8 +941,29 @@ export function equipCard(id, slot, s = evolutionState()) {
 }
 
 export function unequipSlot(slot, s = evolutionState()) {
+    if (loadoutLocked(s)) return false;
     if (s.equipped) s.equipped[slot] = null;
 }
 
 export const firstFreeSlot = (s = evolutionState()) =>
     (s.equipped || []).findIndex(id => !id);
+
+// ---------- Locking the loadout in ----------
+//
+// Cards can be swapped as much as you like, but they are worth nothing until they are locked
+// in, and locking in lasts the whole evolution. So a loadout is a decision about the run
+// ahead rather than something re-picked around whatever is happening at the time.
+
+export const loadoutLocked = (s = evolutionState()) => !!s.loadoutLocked;
+
+// Refuses an empty loadout, since that would spend the run's one lock-in on nothing.
+export function lockLoadout(s = evolutionState()) {
+    if (loadoutLocked(s) || equippedIds(s).length === 0) return false;
+    s.loadoutLocked = true;
+    return true;
+}
+
+// Evolving is the only thing that hands the cards back.
+export function releaseLoadout(s = evolutionState()) {
+    s.loadoutLocked = false;
+}

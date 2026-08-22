@@ -18,6 +18,7 @@ import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
 import { shoreGrassTiles } from "./worldMap.js";
+import { greenMultiplier } from "./grassSublayer.js";
 
 const TURBULENCE_MAX = 100;
 const SETTLE_PER_SECOND = 10;   // How fast the water returns to calm when left alone
@@ -33,9 +34,9 @@ const TURBULENCE_BONUS_PER_LEVEL = 2;  // Steeper payoff from rough water (storm
 const BALANCE_RANGE_PER_LEVEL = 0.05;  // How far off even still counts as even (wider margins)
 const MAX_BALANCE_TOLERANCE = 0.5;     // Previous one is capped, since at 1 every pond would count as even
 
-const DEEP_BASIN_CAPACITY = 1;         // pondDeep: room for one more of anything
-const CHOPPY_SETTLE_CUT = 0.26;        // pondChoppy: fraction off the settling rate
-const SYMBIOSIS_BONUS = 1.5;           // pondSymbiosis: production multiplier at perfect balance
+const DEEP_BASIN_CAPACITY = 1;         // pondDeep, room for one more of anything
+const CHOPPY_SETTLE_CUT = 0.26;        // pondChoppy, fraction off the settling rate
+const SYMBIOSIS_BONUS = 1.5;           // pondSymbiosis, production multiplier at perfect balance
 const MIN_SETTLE = 0.25;               // The water always calms eventually, whatever is bought
 
 const coreNode = (id) => !!getLayerState("cores").purchasedUpgrades[id];
@@ -54,7 +55,7 @@ const RAY_PERIOD_MS = 11000;        // Time for each cycle based on light ray sp
 const SURFACE_CYCLE_PX = 360;
 
 
-const BASE_CAPACITY = 1.5;
+const BASE_CAPACITY = 2;
 
 const ALGAE_GROWTH = 0.04;
 const ALGAE_PER_LEVEL = 0.5;
@@ -65,7 +66,7 @@ const FISH_PER_LEVEL = 0.5;
 const FISH_APPETITE = 0.02;     // Algae eaten per fish per second
 const FEEDING_PER_LEVEL = 0.15;
 const FOOD_PER_FISH = 0.2;
-const STARVATION_PER_SECOND = 0.06;
+const STARVATION_PER_SECOND = 0.15;
 
 const ALGAE_WEIGHT_PER_LEVEL = 0.12;
 const FISH_WEIGHT_PER_LEVEL = 0.12;
@@ -141,9 +142,14 @@ const turbulenceFraction = (s) =>
 
 const freeSpace = (s) => Math.max(0, s.capacity - s.algae - s.fish);
 
-// How many fish + algae can be drawn total
+// How many fish + algae can be drawn total. Little bit bigger than capacity so the pond doesn't look empty
 const MAX_SPRITES = 14;
 const spriteBudget = (capacity) => Math.min(MAX_SPRITES, Math.floor(capacity) + 1);
+
+const pondSlots = (capacity) => Math.max(1, Math.min(MAX_SPRITES - 1, Math.floor(capacity)));
+
+const shareOfSlots = (amount, living, slots) =>
+    amount > 0 ? Math.max(1, Math.round(amount / living * slots)) : 0;
 
 function spriteCounts(s) {
     const algae = Math.max(0, s.algae);
@@ -152,18 +158,21 @@ function spriteCounts(s) {
     if (living <= 0 || s.capacity <= 0) return { algae: 0, fish: 0 };
 
     const budget = spriteBudget(s.capacity);
-    const fullness = Math.min(1, living / s.capacity);
+    const slots = pondSlots(s.capacity);
+    const wantAlgae = shareOfSlots(algae, living, slots);
+    const wantFish = shareOfSlots(fish, living, slots);
+    if (wantAlgae + wantFish <= budget) return { algae: wantAlgae, fish: wantFish };
 
     // Only one of them is actually in the pond.
-    if (algae <= 0 || fish <= 0) {
-        const only = Math.min(budget, Math.max(1, Math.round(fullness * budget)));
-        return algae > 0 ? { algae: only, fish: 0 } : { algae: 0, fish: only };
+    if (wantAlgae <= 0 || wantFish <= 0) {
+        const only = Math.min(budget, wantAlgae + wantFish);
+        return wantAlgae > 0 ? { algae: only, fish: 0 } : { algae: 0, fish: only };
     }
     // Not enough budget to show both, so the bigger population gets the pond.
     if (budget < 2) return algae >= fish ? { algae: 1, fish: 0 } : { algae: 0, fish: 1 };
 
-    // If the pond size decreases, take off populations evenly
-    const extra = Math.min(budget, Math.max(2, Math.round(fullness * budget))) - 2;
+    // Past the budget the two of them share what's left by population, one of each guaranteed.
+    const extra = budget - 2;
     const algaeShare = algae / living * extra;
     const fishShare = extra - algaeShare;
     let toAlgae = Math.floor(algaeShare);
@@ -295,8 +304,8 @@ function biomassProduction(s) {
 
 
 // Biomass bonuses (what it affects).
-const MULT_PER_DECADE = 0.35;
-const MULT_ACCEL = 1.25;      // >1, so later decades are worth more than earlier ones
+const MULT_PER_DECADE = 0.4;
+const MULT_ACCEL = 1.3;      // >1, so later decades are worth more than earlier ones
 const SOFTCAP_BONUS = 6;      // Where the curve bends (around 5e9 biomass)
 const SOFTCAP_SCALE = 6;      // How much excess is worth one "unit" past the bend
 const SOFTCAP_POWER = 0.35;   // How hard it's damped past bend
@@ -322,7 +331,7 @@ const evenness = (s) => {
     return living <= 0 ? 0 : 2 * Math.min(s.algae, s.fish) / living;
 };
 
-// Mostly wide margins stuff.
+// Mostly wide margins card stuff.
 const balanceTolerance = (s) => Math.min(MAX_BALANCE_TOLERANCE, BALANCE_RANGE_PER_LEVEL * getLevel(s, "wideMargins"));
 const balanceFactor = (s) => Math.min(1, evenness(s) / (1 - balanceTolerance(s)));
 const balanceMultiplier = (s) => 1 + (coreNode("pondSymbiosis") ? SYMBIOSIS_BONUS : 0) * balanceFactor(s);
@@ -381,7 +390,8 @@ const oxygenShare = (s) => OXYGEN_PER_LEVEL * getLevel(s, "oxygenation");
 const pondGreen = (s) => greenProduction(s)
     .mul(1 + bloomBonus(s))
     .mul(balanceMultiplier(s))
-    .mul(biomassMultiplier());
+    .mul(biomassMultiplier())
+    .mul(greenMultiplier());
 
 const pondBlue = (s) => production(s)
     .mul(balanceMultiplier(s))
@@ -396,9 +406,6 @@ function waterState(s) {
 
 const lifeBought = () => !!getLayerState("cores").purchasedUpgrades.life;
 
-// Both take empty space first, then whichever has higher growth pushes into the other's space.
-// The pond can't lock since each can always grow a little bit when the pond is full,
-// and the fish don't grow in calm waters.
 function tickPond(s, dt, layer) {
     tickSurges(s, dt);
 
@@ -873,6 +880,14 @@ function updateBalance(host, s) {
     setWidth(fills[0], s.algae / capacity);
     setWidth(fills[1], s.fish / capacity);
 
+    // Flashes the fish red while there's not enough algae to go around and they're dying off.
+    const starving = starvation(s) > 0;
+    const fishTag = host.querySelector('[data-kind="fish"] .balance-tag');
+    fishTag.toggleAttribute("data-starving", starving);
+    // Removed rather than blanked, so the pond's own tooltip isn't swallowed by an empty one.
+    if (starving) fishTag.title = "Not enough algae - the fish are starving.";
+    else fishTag.removeAttribute("title");
+
     updateTimer(host.querySelector('[data-key="spores"]'), getLevel(s, "dormantSpores") > 0,
         !!s.sporesOff, s.algaeSurge || 0, s.algaeSurgeReady || 0, SURGE_SECONDS, SURGE_COOLDOWN);
     updateTimer(host.querySelector('[data-key="frenzy"]'), getLevel(s, "feedingFrenzy") > 0,
@@ -1031,11 +1046,21 @@ const FRONDS = [
 
 const between = (low, high) => low + Math.random() * (high - low);
 
+// Where the nth clump stands. Halves, then quarters, then eighths, so however many are in the
+// pond they're spread over it evenly - stepping along by a fixed gap instead wrapped around and
+// dropped the fourth clump nearly on top of the first.
+const ALGAE_FROM = 6, ALGAE_SPAN = 76;
+function clumpLeft(index) {
+    let fraction = 0;
+    for (let n = index, place = 0.5; n > 0; n >>= 1, place /= 2) fraction += (n & 1) * place;
+    return ALGAE_FROM + ALGAE_SPAN * fraction;
+}
+
 function buildAlgae(index) {
     const el = document.createElement("div");
     el.className = "pond-algae-clump";
     el.dataset.fadeGrow = "1"; // Works off of fadeKeyframes
-    el.style.left = `${6 + (index * 29) % 76}%`;
+    el.style.left = `${clumpLeft(index).toFixed(1)}%`;
     el.style.transformOrigin = "50% 100%"; // Grows up from the bottom
 
     // Algae size is rolled on fading in so they're a bit more varied.

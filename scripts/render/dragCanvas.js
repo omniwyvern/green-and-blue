@@ -29,6 +29,10 @@ const DRAG_ROOM = 4;
 const ZOOM_STEPS = [0.6, 0.75, 0.9, 1, 1.1, 1.25];
 const DEFAULT_ZOOM_STEP = ZOOM_STEPS.indexOf(1);
 
+// How far apart two fingers have to move before a pinch takes a zoom step. The steps are fixed,
+// so a pinch can't scale smoothly - it takes a step and then measures again from there.
+const PINCH_STEP = 1.22;
+
 // How far out past the nodes that you can pan, so that you have some space but you won't
 // be able to just pan super far away. Goes off viewport size, so horizontal and vertical
 // work better plus probably works better for different screen sizes
@@ -69,6 +73,8 @@ class DragCanvas {
         this.zoomStep = DEFAULT_ZOOM_STEP;
         this.isDragging = false;
         this.lastPointer = { x: 0, y: 0 };
+        this.pointers = new Map(); // Live touches on the canvas, so two of them can be a pinch.
+        this.pinchSpan = 0;
         this.subWindowEls = {};
         this.nodeEls = {};
         this.connectorEls = {};
@@ -110,6 +116,9 @@ class DragCanvas {
 
     _bindDragEvents() {
         this.viewport.addEventListener("pointerdown", (e) => {
+            this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (this.pointers.size >= 2) return this._startPinch();
+
             this.pressing = true;
             this.isDragging = false;
             this.movedWhileDown = false;
@@ -119,6 +128,8 @@ class DragCanvas {
 
         this.viewport.addEventListener("pointermove", (e) => {
             this.pointerClient = { x: e.clientX, y: e.clientY };
+            if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (this.pointers.size >= 2) return this._pinchMove();
 
             if (this.pressing && !this.isDragging
                 && Math.abs(e.clientX - this.pressOrigin.x) + Math.abs(e.clientY - this.pressOrigin.y) > DRAG_ROOM) {
@@ -166,9 +177,46 @@ class DragCanvas {
         });
         this._resizeObserver.observe(this.viewport);
 
-        const stopDragging = () => { this.pressing = false; this.isDragging = false; };
+        const stopDragging = (e) => {
+            this.pointers.delete(e.pointerId);
+            this.pressing = false;
+            this.isDragging = false;
+        };
         this.viewport.addEventListener("pointerup", stopDragging);
         this.viewport.addEventListener("pointercancel", stopDragging);
+    }
+
+    // Two fingers down is a pinch rather than a drag, so whatever the first one was doing stops.
+    // movedWhileDown stays set so lifting off doesn't land as a click on whatever was underneath.
+    _startPinch() {
+        this.pressing = false;
+        this.isDragging = false;
+        this.movedWhileDown = true;
+        this.pinchSpan = this._pinchSpan();
+    }
+
+    _pinchPair() {
+        const [a, b] = this.pointers.values();
+        return [a, b];
+    }
+
+    _pinchSpan() {
+        const [a, b] = this._pinchPair();
+        return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    _pinchMove() {
+        const span = this._pinchSpan();
+        if (!this.pinchSpan || !span) return;
+
+        const ratio = span / this.pinchSpan;
+        const direction = ratio > PINCH_STEP ? 1 : ratio < 1 / PINCH_STEP ? -1 : 0;
+        if (!direction) return;
+
+        // Measured from here on, so a long pinch keeps stepping instead of stopping at one.
+        this.pinchSpan = span;
+        const [a, b] = this._pinchPair();
+        if (this.stepZoom(direction, (a.x + b.x) / 2, (a.y + b.y) / 2)) refreshCanvasControls();
     }
 
     _buildSubWindows() {

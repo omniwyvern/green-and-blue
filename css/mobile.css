@@ -1,0 +1,101 @@
+@media (max-width: 700px) {
+    :root {
+        --sidebar-width: 94px;
+        --flyout-inset: 78px;
+        --page-pad: 12px;
+
+        --corner-size: 34px;
+        --corner-edge: 10px;
+    }
+
+    #category-bar { padding: 2px 6px; gap: 3px; }
+    .category-button { padding: 5px 10px; font-size: 12px; }
+
+    #sidebar { padding: 5px; gap: 3px; }
+    .sidebar-group + .sidebar-group { margin-top: 6px; padding-top: 6px; }
+    .sidebar-group-label { font-size: 9px; padding: 0 2px 1px; }
+    .layer-tab {
+        padding: 9px 5px;
+        font-size: 10px;
+        border-left-width: 2px;
+        overflow-wrap: anywhere;
+    }
+
+    #sidebar-flyout { width: 72px; padding: 5px; }
+    .sub-layer-tab {
+        padding: 8px 4px;
+        font-size: 9px;
+        border-left-width: 2px;
+        overflow-wrap: anywhere;
+    }
+
+    #nav-toggle { width: 20px; height: 46px; }
+
+    .layer-header {
+        gap: 12px;
+        padding: 6px 10px;
+        font-size: 11px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+        mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+    }
+    .layer-header::-webkit-scrollbar { display: none; }
+    .resource-chip { flex: none; white-space: nowrap; }
+    .resource-value { min-width: 0; }
+
+    .upgrade-drawer { --drawer-height: min(210px, 40vh); }
+    .drawer-tabs {
+        padding-left: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .drawer-tabs::-webkit-scrollbar { display: none; }
+    .drawer-handle { flex: none; padding: 7px 10px; font-size: 11px; }
+    .drawer-chevron { font-size: 15px; }
+    .hud-drawer-handle { height: 26px; }
+
+    .upgrade-grid { grid-template-columns: 1fr; gap: 8px; }
+    .canvas-note { padding-top: 10px; font-size: 12px; }
+
+    .recipe-row { padding: 10px; }
+    .recipe-line { flex-direction: column; gap: 4px; }
+    .recipe-line .transform-inputs,
+    .recipe-line .transform-outputs { width: 100%; }
+    .recipe-arrow { transform: rotate(90deg); }
+    .terrain-list { gap: 8px; }
+
+    .pond-scene { --pond-corner-width: 0px; }
+    .pond-balance {
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        width: auto;
+    }
+    .pond-readout { top: 64px; padding: 0 10px; }
+    .pond-state { font-size: 15px; }
+    .pond-rate { font-size: 11px; }
+
+    .transform-window { width: 168px; padding: 9px; }
+    .transform-preview { min-height: 0; }
+    .transform-note { min-height: 0; }
+
+    .cards-stage { min-height: 0; }
+    .cards-lower { gap: 12px; }
+
+    .evolve-panel { padding: 0 14px; }
+    .evolve-button { min-width: 0; padding: 18px 22px; }
+    .evolve-verb { font-size: 19px; }
+
+    #settings-button,
+    #guide-button,
+    #dev-button { font-size: 17px; }
+    #recenter-button { padding: 7px 10px; font-size: 12px; }
+}
+
+@media (hover: none) {
+    .resource-chip:active .resource-tooltip { display: block; }
+    .node:active .node-tooltip { display: block; }
+    .hex-tile:active .hex-tooltip { opacity: 1; }
+}

@@ -13,6 +13,7 @@ import { claimedTiles, matureTiles } from "./worldMap.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
 import { biomassMultiplier, BIOMASS_RESOURCE } from "./pondSublayer.js";
 import { openBiome } from "./ecosystemSublayer.js";
+import { greenMultiplier, growthGain, earnGrowth, CORE_GROWTH_PER_GROWTH } from "./grassSublayer.js";
 import { getResource, onSpend, registerCostGroup } from "../../core/resources.js";
 import { nodeBuyable } from "../../core/nodes.js";
 
@@ -33,53 +34,67 @@ const CHARGE_SECONDS = 5;   // Baseline time to fill the charge meter
 const BLUE_BASE = D(4);     // Essence given for clicking with full charge before the 2x full charge bonus
 const FULL_BONUS = D(2);    // Essence mult for full charge click
 
-
-// For the Resonance unlock. Consecutive full-charge clicks are counted, and give +1% speed to a cap of 25%.
-const CONSEC_SPEED_PER = 0.01;
-const CONSEC_SPEED_CAP = 0.25;
+const CONSEC_SPEED_PER = 0.01; // For resonance unlock, give +1% speed per consecutive full-charge click.
+const CONSEC_SPEED_CAP = 0.25; // The resonance unlock's speed cap. Requires 25 consec. clicks for it.
 const CONSEC_MAXED_AT = CONSEC_SPEED_CAP / CONSEC_SPEED_PER;
-
-// How long the meter can sit full before the consecutive chain is over.
-const CONSEC_WINDOW_SECONDS = 3.25;
+const CONSEC_WINDOW_SECONDS = 3; // Time before consec. chain ending while sitting at full charge.
 
 
-// This is here because some of the cards that give minuses cause lots of problems (dividing by zero) without it
-const cardCut = (key) => 1 / (1 + cardBonus(key));
-
-// Overgrowth card. Green production increases when left alone, reset when you spend green.
-const OVERGROWTH_CAP = 2;                 // +200% cap so it doesn't get out of hand
+// Card things.
+const cardCut = (key) => 1 / (1 + cardBonus(key)); // Cards that give minuses sometimes divided by 0 without this
+const OVERGROWTH_CAP = 2; // Overgrowth card. Green prod. increases up to +200%, reset when you spend green
 const overgrowthBonus = (s) => Math.min(OVERGROWTH_CAP, cardBonus("overgrowth") * (s.idleSeconds || 0));
+// Feedback loop card. Blue core consecutive full-charge clicks increase green prod.
+const feedbackBonus = (s) => cardBonus("feedbackLoop") * (Number(s.consecFullActivations) || 0); 
 
-// Feedback loop card. Blue core's consecutive full-charge clicks increase green core production.
-const feedbackBonus = (s) => cardBonus("feedbackLoop") * (Number(s.consecFullActivations) || 0);
-
-// Pressure valve card. Full meter converts over-cap charge to a green multiplier, spent when clicked
-// Controlled Overflow changes what the valve is just reading it
-const PRESSURE_CAP = 2;
-const valveBonus = (s) => cardActive("controlledOverflow")
+// I might have implemented this one wrong idk.
+const PRESSURE_CAP = 2; // Pressure valve card. Full meter converts over-cap charge to green mult, spent when clicked.
+const valveBonus = (s) => cardActive("controlledOverflow")  // Controlled Overflow makes it not spend, just checks it.
     ? Math.min(PRESSURE_CAP, cardBonus("pressureValve") * Math.max(0, s.charge - chargeCap()))
     : Math.min(PRESSURE_CAP, s.valveBonus || 0);
 
 // How much charge the meter holds. Increased by a few cards and things.
 const chargeCap = () => 1 + cardBonus("chargeCapacity");
 
-const growthNeeded = (s) => GROWTH_BASE.mul(GROWTH_SCALE.pow((s.growthStage-1))).mul(cardCut("growthNeeded"));
 
-// Some stuff increases the growth stage cap by a percentage, this makes sure it rounds properly since no half growth stage
+const stageCost = (stage) => GROWTH_BASE.mul(GROWTH_SCALE.pow(stage - 1)); // Growth stage cost, so sacrifice can ask.
+const growthNeeded = (s) => stageCost(s.growthStage).mul(cardCut("growthNeeded"));
+
+// Some stuff increases the growth stage cap by a percentage, this makes sure the stage is always a whole number.
 function stageCap(s) {
     const bonus = cardBonus("stageCap");
     if (bonus <= 0) return Number(s.growthStageCap);
     return Number(s.growthStageCap) + Math.max(1, Math.round(Number(s.growthStageCap) * bonus));
 }
 
+// Grass sublayer can sacrifice green core growth stages for growth, these make sure the sacrifice
+// gives proper points, reduces it to the right stage, and that you actually can sacrifice them.
+export const canSacrificeStage = (s) => s.growthStage > 1;
+
+export const sacrificeValue = (s) =>
+    growthGain(stageCost(s.growthStage - 1).div(CORE_GROWTH_PER_GROWTH));
+
+export function sacrificeStage() {
+    const s = getLayerState("cores");
+    if (!canSacrificeStage(s)) return false;
+
+    earnGrowth(stageCost(s.growthStage - 1).div(CORE_GROWTH_PER_GROWTH));
+    s.growthStage--;
+
+    // Same thing as production increase per growth stage equation, but backwards.
+    [s.greenProdPrev, s.greenProdCurr] = [s.greenProdCurr.sub(s.greenProdPrev), s.greenProdPrev];
+    return true;
+}
+
+
 // For the overgrowth card, there's a thing above about it.
 onSpend((resourceId) => {
     if (resourceId === "greenEssence") getLayerState("cores").idleSeconds = 0;
 });
 
-// Biomass multiplier applies to essence wherever it's produced, and card mult is summed up before being counted
+// Biomass multiplier applies to essence wherever it's produced, and card mult is summed up before being counted.
 const greenProduction = (s) => s.greenProdCurr.mul(s.baseProductionMult)
-    .mul(s.stageProdMult.mul(s.growthStage).add(1)).mul(biomassMultiplier())
+    .mul(s.stageProdMult.mul(s.growthStage).add(1)).mul(biomassMultiplier()).mul(greenMultiplier())
     .mul(1 + cardBonus("greenProduction") + overgrowthBonus(s) + feedbackBonus(s) + valveBonus(s));
 
 const blueBase = (s) => BLUE_BASE.add(s.baseBonus);
@@ -93,12 +108,12 @@ function clickValue(s) {
     return value
 }
 
-// Cards can increase charge cap so everything just uses this to see if charge is full
+// Cards can increase charge cap so everything just uses this to see if charge is full.
 const isFullCharge = (s) => s.charge >= chargeCap() - 1e-9;
 
 const owned = (s, id) => !!s.purchasedUpgrades[id];
 
-// Some upgrades gost both essences, so this shortens it when they're the same amount
+// Some upgrades gost both essences, so this shortens the text when they're the same amount.
 registerCostGroup({
     ids: ["greenEssence", "blueEssence"],
     name: "G&B Essence",
@@ -116,69 +131,68 @@ registerLayer("cores", {
     resources: {
         greenEssence: { name: "Green Essence", color: "#3aa876" },
         blueEssence: { name: "Blue Essence", color: "#4a90d9" },
-        biomass: { ...BIOMASS_RESOURCE, from: "pond", hidden: (s) => !owned(s, "life") }, // Hidden until you have some
+        biomass: { ...BIOMASS_RESOURCE, from: "pond", hidden: (s) => !owned(s, "life") }, // Hidden until you have some.
     },
 
     initialState: {
-        growth: D(0),                 // Progress toward the next growth stage
+        growth: D(0),                 // Progress toward the next growth stage.
         growthStage: 1,
         growthRateMult: D(1),
         growthStageCap: STAGE_CAP,
         
         baseProductionMult: D(1),
-        greenProdPrev: GREEN_START,   // For the green production math
+        greenProdPrev: GREEN_START,   // For the green production math.
         greenProdCurr: GREEN_START,
         stageProdMult: D(0),
 
         charge: 0,
         chargeTime: CHARGE_SECONDS,
+        chargeRate: 0,
         baseBonus: 0,
         
         fullChargeBonus: FULL_BONUS, 
         startingFullCharge: 0,
 
-        consecFullActivations: D(0),   // How many consecutive times the meter was spent completely full
+        consecFullActivations: D(0),   // How many consecutive times the meter was spent completely full.
         consecCounter: D(0),
         consecBonus: D(0),
         consecSpeedBonus: 0,
 
-        idleSeconds: 0,   // Time since Green was last spent, for the overgrowth card
-        valveBonus: 0,    // Green multiplier banked by a full meter, for the pressure valve card
+        idleSeconds: 0,   // Time since Green was last spent, for the overgrowth card.
+        valveBonus: 0,    // Green multiplier banked by a full meter, for the pressure valve card.
     },
 
     onTick(dt, layer) {
         const s = getLayerState(layer.id);
 
-        // Gives green essence before advancing stages, so the tick's time is credited at the rate during it.
         s.resources.greenEssence = s.resources.greenEssence.add(greenProduction(s).mul(dt));
 
-        // For overgrowth card. Counts idle time whether or not the card is equipped.
         s.idleSeconds = (s.idleSeconds || 0) + dt;
 
-        // "while" rather than "if" so if dt is really big, it can go through several stages at once if needed
-        // Only adds growth if the growth stage isn't at its cap, otherwise sets it to 0 (multiply by 0 instead of other thing because of previous errors).
-        s.growthStage < stageCap(s) ? s.growth = s.growth.add(s.growthRateMult.mul(1 + cardBonus("coreGrowth")).mul(dt)) : s.growth = D(0);
+        // "while" rather than "if" so if dt is really big, it can go through several stages at once if needed.
+        // Only adds growth if the growth stage isn't at its cap, otherwise sets it to 0
+        s.growthStage < stageCap(s) ? s.growth = s.growth.add(s.growthRateMult.mul(1 + cardBonus("coreGrowth")).mul(dt)): s.growth = D(0);
         while (s.growth.gte(growthNeeded(s))) {
             s.growth = s.growth.sub(growthNeeded(s));
             s.growthStage++;
             [s.greenProdPrev, s.greenProdCurr] = [s.greenProdCurr, s.greenProdCurr.add(s.greenProdPrev)];
         }
 
-        // Blue charge refills, and is modified by ripple charge
-        // Not the same logic as growth rate because I'm stupid (but don't want to break it)
-        const chargeRate = (1 / s.chargeTime)
+        // Blue charge refills, and is modified by ripple charge.
+        // Not consistent with the same logic as growth rate because I'm stupid (but don't want to break it).
+        s.chargeRate = (1 / s.chargeTime)
             * (1 + Math.min(CONSEC_SPEED_CAP, s.consecSpeedBonus * Number(s.consecFullActivations)))
             * (1 + cardBonus("chargeRate"));
-        s.charge = s.charge + chargeRate * dt;
+        s.charge = s.charge + s.chargeRate * dt;
 
         const cap = chargeCap();
         if (s.charge >= cap) {
-            // Overflow card makes it keep filling up past the cap
+            // Overflow card makes it keep filling up past the cap.
             const overflow = cardBonus("chargeOverflow");
             s.charge = overflow > 0 ? cap + (s.charge - cap) * overflow : cap;
 
             // Pressure valve card banks a what a full meter is still charging.
-            // Skipped under Controlled Overflow, which reads the charge instead of banking it
+            // Skipped under Controlled Overflow, which reads the charge instead of banking it.
             if (cardBonus("pressureValve") > 0 && !cardActive("controlledOverflow")) {
                 s.valveBonus = Math.min(PRESSURE_CAP,
                     (s.valveBonus || 0) + cardBonus("pressureValve") * chargeRate * dt);
@@ -193,7 +207,7 @@ registerLayer("cores", {
        return s.charge
     },
 
-    // If a major node is visible, prerequisites are met, and you can afford it, the cores tab flashes
+    // If a major node is visible, prerequisites are met, and you can afford it, the cores tab flashes.
     attention: (s, layer) => Object.keys(layer.nodes)
         .filter(id => layer.nodes[id].kind === "major" && nodeBuyable(layer, id, s)),
 
@@ -206,13 +220,16 @@ registerLayer("cores", {
             title: "Green Core",
             color: "#22b47c",
             position: { x: -200, y: 0 },
-            description: "Grows on its own. Filling the growth meter advances a stage, and each stage raises Green Essence production.",
+            description: "Grows on its own, increasing production as it advances stages.\n",
             meter: (s) => s.growth.div(growthNeeded(s)).toNumber(),
             value: (s) => s.growthStage < stageCap(s) ? `Stage ${s.growthStage}` : `Stage ${s.growthStage} [CAPPED]`,
-            detail: (s) => `${formatNumber(greenProduction(s))}/s\n` + ``,
-            tooltip: (s) => `Grows on its own. Filling the growth meter advances a stage.\n`
-                + `Producing ${formatNumber(greenProduction(s))} Green Essence/s at stage ${s.growthStage}.\n`
-                + `Next stage: ${formatNumber(s.growth)} / ${formatNumber(growthNeeded(s))} growth.`,
+            detail: (s) => `${formatNumber(greenProduction(s))} GE/s\n` + ``,
+            tooltip: (s) => s.growthStage < stageCap(s) 
+            ? `${formatNumber(greenProduction(s))} GE/s at stage ${s.growthStage}\n\n`
+                + `${formatNumber((growthNeeded(s).sub(s.growth)).div(s.growthRateMult.mul(1 + cardBonus("coreGrowth"))))}s until next stage` 
+            : `${formatNumber(greenProduction(s))} GE/s at stage ${s.growthStage}\n\n`
+                + `Cannot grow more [CAPPED] `
+            // Changed display to core growth for clarity, because grass layer has "growth" now.
         },
         greenGrow: {
             kind: "unlock",
@@ -220,7 +237,7 @@ registerLayer("cores", {
             title: "Quick Growth",
             color: "#22b47c",
             position: { x: -400, y: -100 },
-            description: "Increases growth speed by +25%.",
+            description: "Increases the Green Core's growth speed by 25%.",
             cost: () => ({ greenEssence: D(100) }),
             onPurchase(s) { s.growthRateMult = s.growthRateMult.add(.25); },
         },
@@ -230,7 +247,7 @@ registerLayer("cores", {
             title: "Quicker Growth",
             color: "#22b47c",
             position: { x: -525, y: -175 },
-            description: "Increases growth speed multiplier by another +25%.",
+            description: "Adds 25% to the growth speed multiplier.",
             cost: () => ({ greenEssence: D(150) }),
             onPurchase(s) { s.growthRateMult = s.growthRateMult.add(.25); },
         },
@@ -240,7 +257,7 @@ registerLayer("cores", {
             title: "Quickest Growth",
             color: "#22b47c",
             position: { x: -675, y: -225 },
-            description: "Increases growth speed multiplier by +50%.",
+            description: "Adds 50% to the growth speed multiplier.",
             cost: () => ({ greenEssence: D(250) }),
             onPurchase(s) { s.growthRateMult = s.growthRateMult.add(.5); },
         },
@@ -307,7 +324,7 @@ registerLayer("cores", {
             description: "Doubles growth generation.",
             hidden: (s) => !owned(s, "world"),
             cost: () => ({ greenEssence: D(8000) }),
-            onPurchase(s) { s.growthRateMult = s.growthRateMult.mul(3); },
+            onPurchase(s) { s.growthRateMult = s.growthRateMult.mul(2); },
         },
 
 
@@ -321,17 +338,18 @@ registerLayer("cores", {
             description: "Charges on its own. Click to spend the meter for Blue Essence.",
             meter: (s) => Math.min(1, s.charge / chargeCap()),
             value: (s) => `${Math.floor(s.charge * 100)}%`,
-            detail: (s) => `+${formatNumber(clickValue(s))}`,
+            detail: (s) => `+${formatNumber(clickValue(s))} BE`,
             // Combo counter, it isn't shown until you have an unlock that needs it.
             badge: (s) => {
                 if (!(s.consecSpeedBonus > 0 || Number(s.consecBonus) > 0)) return null;
                 const combo = Number(s.consecFullActivations) || 0;
                 return combo < 1 ? null : { text: `${combo}`, full: combo >= CONSEC_MAXED_AT };
             },
-            tooltip: (s) => `Click to spend the meter for Blue Essence - the fuller it is, the more you get,\n`
-                + `and a completely full meter pays double.\n`
-                + `Activating now: +${formatNumber(clickValue(s))} Blue Essence.\n`,
-                //+ `Consecutive full activations: ${s.consecFullActivations} (+${formatNumber(s.consecFullActivations.mul(CONSEC_CLICK_BONUS))} to base payout).`,
+            tooltip: (s) => `+${formatNumber(D(blueBase(s)).mul(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))} BE at 100% charge\n\n`
+                + `+${formatNumber(s.chargeRate * 100)}% charge/s`,
+
+                //.mul(D(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))
+
             onClick(s) {
                 s.resources.blueEssence = s.resources.blueEssence.add(clickValue(s));
                 const full = isFullCharge(s);
@@ -354,9 +372,9 @@ registerLayer("cores", {
             title: "Quick Current",
             color: "#2f92ee",
             position: { x: 400, y: 0 },
-            description: "Increases the blue core's charge speed by +10%.",
+            description: "Increases the Blue Core's charge speed by 10%.",
             cost: () => ({ blueEssence: D(50) }),
-            onPurchase(s) { s.chargeTime = 4.5; },
+            onPurchase(s) { s.chargeTime = 4.545; },
         },
         blueQuicker: {
             kind: "unlock",
@@ -364,7 +382,7 @@ registerLayer("cores", {
             title: "Quicker Current",
             color: "#2f92ee",
             position: { x: 525, y: 0 },
-            description: "Adds 15% more charge speed to the blue core.",
+            description: "Adds 15% to the charge speed multiplier.",
             cost: () => ({ blueEssence: D(100) }),
             onPurchase(s) { s.chargeTime = 4; },
         },
@@ -374,9 +392,9 @@ registerLayer("cores", {
             title: "Quickest Current",
             color: "#2f92ee",
             position: { x: 650, y: 0 },
-            description: "Adds 25% more charge speed to the blue core.",
+            description: "Adds 25% more to the charge speed multiplier.",
             cost: () => ({ blueEssence: D(500) }),
-            onPurchase(s) { s.chargeTime = 3; },
+            onPurchase(s) { s.chargeTime = 3.333; },
         },
         blueOverflow: {
             kind: "unlock",
@@ -520,7 +538,8 @@ registerLayer("cores", {
             split: true,
             aura: "life",
             position: { x: 0, y: 150 },
-            description: "Green and blue combine for the first time. Something has started growing...\n",
+            description: "Green and Blue combine for the first time. Something has started growing...\n\n"
+                        + "Increases the Green Core's stage cap by 1.",
             cost: () => ({ greenEssence: D(100), blueEssence: D(100) }),
             onPurchase(s) {
                 getLayerState("world").unlocked = true;

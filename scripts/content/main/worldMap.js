@@ -1,33 +1,40 @@
 // worldMap.js
 //
 // The data of the world map and things in it. The world layer is the view of things and
-// the land layer shows data on stuff, they don't need to import each other
+// the land layer shows data on stuff, they don't need to import each other.
 //
 // The world's save slot stores stuff like:
-// world.tiles[id] = true                a claimed tile
-// world.grass[id] = { stage, progress } if grass is on the tile, plus its growth stage
-// world.terrain[id] = "water"           what the ground itself has become, if anything
-// world.moisture[id] = 0..1             how wet bare ground has got, on its way to water
+// world.tiles[id] = true                A claimed tile.
+// world.grass[id] = { stage, progress } If grass is on the tile, plus its growth stage.
+// world.terrain[id] = "water"           What the ground itself has become, if anything.
+// world.moisture[id] = 0..1             How wet bare ground has got, on its way to water.
 //
 // Tiles can have multiple things in them (permanently or temporaryly) so they get
 // their own map as well as grass. Makes things a little bit easier I think maybe
+
 // !!!! MAYBE CHANGE LATER !!!!
 // might be a thing for tiles that shows what all they have in them
+// Also might just change some of this. I don't think too many things will coexist. Maybe.
 
 
 import { state, getLayerState } from "../../core/state.js";
 import { D } from "../../utils/decimal.js";
 import { hexesWithin, neighboursOf } from "../../utils/hex.js";
 import { cardBonus, cardActive } from "./cards.js";
+import {
+    grassSpeedMultiplier, grassOutputMultiplier, earnSpreadGrowth, grassSeedStart,
+} from "./grassSublayer.js";
+// The cloud itself lives on the Precipitation layer - the map only runs what it hands over.
+import { addCharge, driftingEvent } from "./precipitationSublayer.js";
 
-export const MAP_RADIUS = 1;    // Radius 1 is a center tile and one on each of its six faces
-export const TILE_SIZE = 60;    // Tile size (center to corner) in canvas units
+export const MAP_RADIUS = 1;    // Radius 1 is a center tile and one on each of its six faces.
+export const TILE_SIZE = 60;    // Tile size (center to corner) in canvas units.
 
 export const MAP = hexesWithin(MAP_RADIUS);
 const IN_MAP = new Set(MAP.map(t => t.id));
 
 // Transformations work in tile ids (that's what a selection is)
-// Neighbour math is in {q, r}
+// Hex tiles, works off of axial coordinates (q along row, r down and to the right)
 const TILE_BY_ID = new Map(MAP.map(t => [t.id, t]));
 export const tileById = (id) => TILE_BY_ID.get(id) || null;
 
@@ -40,21 +47,19 @@ export const STAGE_NAMES = ["Seed", "Growing", "Mature"];
 
 
 // How many seconds the grass growth stages take. Last one is the wait time before mature grass spreads.
-// !!!! THIS NEEDS TO CHANGE LATER !!!!
-// need to make it be wait time once it has an available tile
-// the whole reason I had the mature waiting time was so it wouldn't hit mature and instantly spread
-// but this makes it effectively do that
 const STAGE_SECONDS = [30, 30, 30];
+// Mature grass that's been boxed in waits this long once a tile finally opens up, so unlocking or
+// transforming a tile next to long-since-mature grass doesn't spread into it the same instant.
+const BLOCKED_WAIT_SECONDS = 10;
 const NEIGHBOUR_BONUS = 0.05;   // Faster per adjacent grassy tile.
 const GROWTH_PER_LEVEL = 0.25;  // Also per level of the Richer Soil card.
 
 export const LAND_COST = () => ({ greenEssence: D(2e6), blueEssence: D(2e6) });
 
 // !!!! MAYBE CHANGE THIS !!!!
-// Green Essence per second, per tile, by stage - grass is worth more as it fills in.
+// Green Essence per second, per tile, by stage
 export const STAGE_OUTPUT = [0, 20, 50];
-const OUTPUT_PER_LEVEL = 0.5;   // per level of Deeper Roots.
-// might change grass to be producing "biomass" which could do something else, idk
+const OUTPUT_PER_LEVEL = 0.5;   // per level of greener blades.
 
 
 // How much the next tile cost. It's stored here because rain is priced off of it.
@@ -68,10 +73,10 @@ export const tileCost = (s) => ({
 export const PRECIPITATION = {
     rain: {
         name: "Rain",
-        store: "moisture",   // which map on the world's slot holds its build-up
-        becomes: "water",    // what a tile that has had a bellyful of it turns into
-        makes: "water",      // ...and what that is MADE of - see shedsPrecipitation
-        growsGrass: true,    // rain hurries grass along under it; snow does nothing for it
+        store: "moisture",   // Which map on the world's slot holds rain buildup.
+        becomes: "water",
+        makes: "water",      // What the precipitation is made of, some tiles shed a type.
+        growsGrass: true,    // Grass growth speeds up if it's being rained on.
     },
     snow: {
         name: "Snow",
@@ -87,25 +92,26 @@ export const PRECIPITATION_KINDS = Object.keys(PRECIPITATION);
 // Which kind of precipitation is loaded. Falls back to rain so a save before snow doesn't cause problems.
 export const precipitationKind = (s) => (PRECIPITATION[s.weatherKind] ? s.weatherKind : "rain");
 
-export const PRECIPITATION_PER_CLICK = 0.1;
 export const PRECIPITATION_SECONDS = 25;
-const GROWTH_BOOST = 3;         // How much faster rain makes grass grow.
 
-// Gathering weather is paid for in Blue Essence, currently the cost is off of whatever the next tile would be.
-// !!!! THIS WILL CHANGE ONCE I PROPERLY MAKE THE PRECIPITATION LAYER !!!!
-const PRECIPITATION_COST_OF_TILE = 0.06;
-export const precipitationCost = (s) => ({
-    // Divided rather than subtracted, so no stack of Light Drizzles can make rain free.
-    blueEssence: tileCost(s).greenEssence.mul(PRECIPITATION_COST_OF_TILE).div(1 + cardBonus("rainCost")),
-});
+const GROWTH_BOOST = 3;
+export const PRODUCTION_BOOST = 0.25;
+
+const CHARGE_COST_OF_TILE = 0.6;
+export const chargeCost = (s) =>
+    // Divided rather than subtracted, so no stack of Light Drizzles can make a cloud free.
+    tileCost(s).greenEssence.mul(CHARGE_COST_OF_TILE).div(1 + cardBonus("rainCost"));
 
 
 // Tracks how many uses of precipitation are needed to transform the tile, by tier.
 // So bare ground, water, or snow only need 1, but everything else needs 3/4/5 depending on tier.
+
+// Kinds can also override with their own number, which is just grass that does that for now.
 export const ACTIVATIONS_BY_TIER = [1, 3, 4, 5];
 
 export const tierOf = (kind) => TERRAIN[kind].tier || 0;
-export const activationsFor = (s, id) => ACTIVATIONS_BY_TIER[tierOf(tileKind(s, id))];
+export const activationsForKind = (kind) => TERRAIN[kind].activations || ACTIVATIONS_BY_TIER[tierOf(kind)];
+export const activationsFor = (s, id) => activationsForKind(tileKind(s, id));
 
 
 
@@ -115,10 +121,36 @@ export const shedsPrecipitation = (s, id, kind) =>
 // Slower buildup loss than precipitation gives.
 export const BUILDUP_LOST_PER_SECOND = 0.0025;
 
+// Tiles naturally drain/melt so this is a little bit of wiggle room for precipitation to account for it.
+const GAP_SECONDS_COVERED = 20;
+
+// This makes it actually wiggle room and not just a discount.
+const MOST_OF_A_RUN = 0.95;
+
+const buildupAim = (activations) => Math.max(
+    1 / (1 + (activations - 1) * GAP_SECONDS_COVERED * BUILDUP_LOST_PER_SECOND),
+    (activations - 1) / (activations * MOST_OF_A_RUN),
+);
+
+// What a whole tile's worth of buildup really costs, drain between clouds included.
+export const soakScale = (s, id) => {
+    const activations = activationsFor(s, id);
+    return activations * buildupAim(activations);
+};
+
+// How much a cloud is worth to ground that is already wet. This thins the production boost
+// only - the water a release leaves behind is unaffected. Tuned off the middle intensity onto a
+// forest: the first is worth a quarter again on what the tile makes, the one straight after it
+// about seven percent.
+const SATURATION = 0.09;        // How full the ground has to be for a cloud to be worth half
+const SATURATION_POWER = 1.5;   // How sharply it falls away past that
+export const wetnessFactor = (s, id, kind) =>
+    1 / (1 + Math.pow(buildupOn(s, id, kind) / SATURATION, SATURATION_POWER));
+
 export const TERRAIN = {
     // Precursors terrain, it's not really terrain.
     bare:   { name: "Bare ground", stored: false, tier: 0 },
-    grass:  { name: "Grass",       stored: false, tier: 1 },
+    grass:  { name: "Grass",       stored: false, tier: 1, activations: 2 },
     water:  { name: "Water",       stored: true,  tier: 0, madeOf: "water" },
     snow:   { name: "Snow",        stored: true,  tier: 0, madeOf: "ice" },
 
@@ -391,9 +423,14 @@ const freeNeighbours = (s, tile) =>
 export const isPrecipitating = (s) => (s.weatherSeconds || 0) > 0;
 export const precipitatingOn = (s, id) => isPrecipitating(s) && s.weatherTile === id;
 
+// Whatever the event hadn't handed over yet is given up with it, so calling a cloud off early
+// is a real choice rather than a free way to stop a tile short of flooding.
 export function stopPrecipitation(s) {
     s.weatherSeconds = 0;
+    s.weatherTotal = 0;
     s.weatherTile = null;
+    s.weatherPower = 0;
+    s.weatherSoak = 0;
 }
 
 // Checks what kind of precipitation is actively falling.
@@ -405,37 +442,15 @@ export function setPrecipitationKind(s, kind) {
     return true;
 }
 
-// Clicking on the cloud, doesn't do anything while it's falling without the cloud break card.
-export function clickPrecipitation(s, pay) {
-    if (isPrecipitating(s)) {
-        if (cardActive("cloudBreak")) {
-            stopPrecipitation(s);
-            return true;
-        }
-        return false;
-    }
-
-    if ((s.weatherMeter || 0) >= 1) {
-        // If the meter is full, clicking it while selecting a tile activates it.
-        if (!s.selectedTile || !isClaimed(s, s.selectedTile)) return false;
-        startPrecipitation(s, s.selectedTile);
-        s.weatherMeter = 0;
-        return true;
-    }
-
-    if (!pay(precipitationCost(s))) return false;
-
-    // Rounds meter gain cause otherwise it goes to like .999999 and says it's not full.
-    const gathered = PRECIPITATION_PER_CLICK * (1 + cardBonus("rainCharge"));
-    s.weatherMeter = Math.min(1, Math.round(((s.weatherMeter || 0) + gathered) * 1000) / 1000);
-    return true;
-}
-
-export function startPrecipitation(s, id) {
+// Letting a cloud go. The cloud is what decides what a release is worth - this takes the event
+// it hands over and runs it: how long it falls for, how hard, and how much water it owes the
+// ground while it does.
+export function startPrecipitation(s, id, event) {
     s.weatherTile = id;
-    // Makes the duration bar account for card bonuses that increase duration.
-    s.weatherTotal = PRECIPITATION_SECONDS * (1 + cardBonus("rainDuration"));
-    s.weatherSeconds = s.weatherTotal;
+    s.weatherTotal = event.seconds;
+    s.weatherSeconds = event.seconds;
+    s.weatherPower = event.strength;
+    s.weatherSoak = event.soak;
 
     // For the seedstorm card.
     if (PRECIPITATION[precipitationKind(s)].growsGrass
@@ -448,25 +463,26 @@ export function startPrecipitation(s, id) {
 export function tickPrecipitation(s, dt) {
     if (!isPrecipitating(s)) return;
     const kind = precipitationKind(s);
+    // The water owed goes with the time served rather than with the frame, so the part tick an
+    // event ends on hands over its share and not a whole one.
+    const slice = Math.min(dt, s.weatherSeconds);
+
     // Precipitation doesn't build up until the environment unlock is bought.
-    if (environmentBought()) {
-        const fallen = buildupRate(s, s.weatherTile) * dt;
+    if (environmentBought() && s.weatherTotal > 0) {
+        const fallen = (s.weatherSoak || 0) * (slice / s.weatherTotal);
         soak(s, s.weatherTile, fallen, kind);
         // For the gathering storm card.
-        if (cardBonus("moistureCharge") > 0) {
-            s.weatherMeter = Math.min(1, (s.weatherMeter || 0) + fallen * cardBonus("moistureCharge"));
-        }
+        if (cardBonus("moistureCharge") > 0) addCharge(fallen * cardBonus("moistureCharge"));
     }
+
     s.weatherSeconds = Math.max(0, s.weatherSeconds - dt);
     if (s.weatherSeconds === 0) s.weatherTile = null;
     else if (cardActive("monsoon")) followTheLand(s);
 }
 
-// How fast what's falling builds up on what's under it.
-const buildupRate = (s, id) =>
-    1 / (PRECIPITATION_SECONDS * activationsFor(s, id))
-    * (1 + cardBonus("moistureRate") + (grassOn(s, id) ? 0 : cardBonus("rainSoak")))
-    * (cardActive("soakDuration") ? 1 + cardBonus("rainDuration") : 1);
+// What the cloud overhead is worth to the tile under it, as a fraction on top of what it makes.
+export const weatherBoostOn = (s, id) =>
+    precipitatingOn(s, id) ? PRODUCTION_BOOST * (s.weatherPower || 0) : 0;
 
 // For the monsoon card.
 function followTheLand(s) {
@@ -531,7 +547,7 @@ export function tickBuildup(s, dt) {
 export function setTerrain(s, id, kind) {
     if (!s.terrain) s.terrain = {};
     if (kind === "bare") delete s.terrain[id];
-    else s.terrain[id] = kind;
+    else { s.terrain[id] = kind; seeTerrain(s, kind); }
 
     if (s.grass) delete s.grass[id];
     for (const weather of PRECIPITATION_KINDS) {
@@ -540,11 +556,35 @@ export function setTerrain(s, id, kind) {
     }
 }
 
+// WHAT THE PLAYER HAS EVER HAD. Recorded by setTerrain, which is the one way ground ever
+// changes, so it doesn't matter how the tile came about - a transformation, a cloud flooding
+// it, the dev tool - if it has ever existed on the map, it's in here. Kept as its own record
+// rather than read off the map, because the map only says what's there NOW and a kind you
+// made and then transformed away is still one you've seen.
+export function seeTerrain(s, kind) {
+    if (!TERRAIN[kind] || !TERRAIN[kind].stored) return;
+    if (!s.seenTerrain) s.seenTerrain = {};
+    s.seenTerrain[kind] = true;
+}
+
+// Bare ground and grass aren't stored terrain and can't be missed, so they never count as
+// undiscovered. Anything standing on the map counts too and is written down as it's found:
+// that's what carries a save made before this was being recorded, and it means nothing the
+// player is currently looking at can ever be called unknown.
+export function hasSeenKind(s, kind) {
+    if (!TERRAIN[kind] || !TERRAIN[kind].stored) return true;
+    if ((s.seenTerrain || {})[kind]) return true;
+    if (!terrainTiles(s).some(id => s.terrain[id] === kind)) return false;
+    seeTerrain(s, kind);
+    return true;
+}
+
 export function terrainProduction(s) {
     const total = { greenEssence: 0, blueEssence: 0 };
     for (const id of terrainTiles(s)) {
         const output = TERRAIN_OUTPUT[s.terrain[id]];
-        for (const resourceId in output) total[resourceId] += output[resourceId];
+        const boost = 1 + weatherBoostOn(s, id);
+        for (const resourceId in output) total[resourceId] += output[resourceId] * boost;
     }
     return total;
 }
@@ -643,9 +683,15 @@ function sameMultiset(a, b) {
 export const fodderResult = (recipe) =>
     recipe.leaves || (recipe.consumes ? "bare" : recipe.output);
 
+// A recipe whose inputs are ALL the kind it leaves behind doesn't cost anything either -
+// whichever of them ends up as fodder is already that kind and comes back out of it untouched.
+// Deep ocean is the one that works this way: six oceans, one of which deepens.
+const fodderUntouched = (recipe) => recipe.inputs.every(kind => kind === fodderResult(recipe));
+
 // Whether running it costs the player the tiles fed in. Anything that doesn't hand them back
-// as the output is spending them, however far back down it puts them.
-export const fodderSpends = (recipe) => fodderResult(recipe) !== recipe.output;
+// unchanged is spending them, however far back down it puts them.
+export const fodderSpends = (recipe) =>
+    fodderResult(recipe) !== recipe.output && !fodderUntouched(recipe);
 
 // The same fact in words, in the two lengths the game needs it: long for the preview window
 // while you're picking tiles, short for the row on the reference page. Both live here beside
@@ -654,6 +700,7 @@ export const fodderSpends = (recipe) => fodderResult(recipe) !== recipe.output;
 export function fodderNote(recipe) {
     const left = fodderResult(recipe);
     if (left === recipe.output) return "Nothing is spent - they come up with it.";
+    if (fodderUntouched(recipe)) return "Nothing is spent - the rest are left as they are.";
     if (left === "bare") return "The tiles fed in are spent, and left as bare ground.";
     return `The tiles fed in drop back to ${TERRAIN[left].name.toLowerCase()}.`;
 }
@@ -661,6 +708,7 @@ export function fodderNote(recipe) {
 export function fodderSummary(recipe) {
     const left = fodderResult(recipe);
     if (left === recipe.output) return "Spends nothing - the tiles fed in are carried up too.";
+    if (fodderUntouched(recipe)) return "Spends nothing - the tiles fed in are left as they are.";
     if (left === "bare") return "Spends the tiles fed in.";
     return `Spends the tiles fed in back down to ${TERRAIN[left].name.toLowerCase()}.`;
 }
@@ -705,6 +753,21 @@ export function selectTile(s, id) {
 
 export const clearTransform = (s) => selectTile(s, null);
 
+// Standing moisture is worth something to grass on its own, separate from anything falling on
+// it. Damp is best, sodden is worse than dry.
+const DAMP_BANDS = [
+    { upTo: 0.10, rate: 1 },
+    { upTo: 0.30, rate: 1.2 },
+    { upTo: 0.50, rate: 1.1 },
+    { upTo: 0.70, rate: 1 },
+    { upTo: Infinity, rate: 0.9 },
+];
+
+export const dampGrowth = (s, id) => {
+    const wet = moistureOn(s, id);
+    return DAMP_BANDS.find(band => wet < band.upTo).rate;
+};
+
 // How quickly grass matures through each stage.
 export function growthRate(s, tile, stage = SEED) {
     // Green Dominion card swaps the neighbour count for the size of all connected ones.
@@ -715,17 +778,20 @@ export function growthRate(s, tile, stage = SEED) {
 
     const fromUpgrades = 1 + GROWTH_PER_LEVEL * level("richerSoil");
     const falling = fallingKind(s);
+    // How hard it's coming down, not just whether it is - a drizzle is worth a fraction of what
+    // a downpour is, and either one onto ground that's already wet is worth less again.
     const helping = falling && PRECIPITATION[falling].growsGrass && s.weatherTile === tile.id;
-    const fromRain = helping ? rainBoost() : 1;
+    const fromRain = helping ? 1 + (GROWTH_BOOST - 1) * (s.weatherPower || 0) : 1;
+    const fromDamp = dampGrowth(s, tile.id);
     const fromCards = 1 + cardBonus("grassGrowth");
     const devFastGrass = !!state.settings.enableFastGrass == true ? 28 : 0 // Dev tool to make grass grow really fast.
 
     const seconds = STAGE_SECONDS[stage] / (stage === MATURE ? 1 + cardBonus("matureWait") : 1);
-    return (fromNeighbours * fromUpgrades * fromRain * fromCards) / (seconds - devFastGrass);
+    // Which grass is being grown, and the milestones that hurry all of them along.
+    const fromGrass = grassSpeedMultiplier();
+    return (fromNeighbours * fromUpgrades * fromRain * fromDamp * fromCards * fromGrass)
+        / (seconds - devFastGrass);
 }
-
-// Rain's effect on the grass under it, which the weather cards increase.
-const rainBoost = () => GROWTH_BOOST * (1 + cardBonus("rainBoost"));
 
 // For the full canopy card.
 function canopyBonus(s) {
@@ -747,7 +813,7 @@ function ageBonus(s, id) {
 }
 
 export function production(s) {
-    const perLevel = 1 + OUTPUT_PER_LEVEL * level("deeperRoots") + cardBonus("grassOutput") + canopyBonus(s);
+    const perLevel = 1 + OUTPUT_PER_LEVEL * level("greenerBlades") + cardBonus("grassOutput") + canopyBonus(s);
     // For the fertile waters card.
     const fromAlgae = cardBonus("shoreExchange") > 0
         ? cardBonus("shoreExchange") * (getLayerState("pond").algae || 0) : 0;
@@ -755,9 +821,11 @@ export function production(s) {
     let total = 0;
     for (const id of grassTiles(s)) {
         const shore = fromAlgae > 0 && onShore(s, id) ? fromAlgae : 0;
-        total += STAGE_OUTPUT[s.grass[id].stage] * (perLevel + ageBonus(s, id) + shore);
+        total += STAGE_OUTPUT[s.grass[id].stage] * (perLevel + ageBonus(s, id) + shore)
+            * (1 + weatherBoostOn(s, id));
     }
-    return total;
+    // Which grass is being grown, and the milestones that make all of them worth more.
+    return total * grassOutputMultiplier();
 }
 
 
@@ -809,9 +877,16 @@ export function tickGrass(dt) {
         if (grass.stage === MATURE) {
             grass.matureFor = (grass.matureFor || 0) + dt;   // For the deep roots card.
             // For the wildfire growth card.
-            if (cardActive("noMatureWait")) grass.progress = 1;
+            if (cardActive("noMatureWait")) {
+                grass.progress = 1;
+                grass.blockedWait = 0;
+            } else if (freeNeighbours(s, tile).length === 0) {
+                grass.blockedWait = BLOCKED_WAIT_SECONDS;    // Nowhere to go, so arm the wait for when a tile opens.
+            } else if (grass.blockedWait > 0) {
+                grass.blockedWait = Math.max(0, grass.blockedWait - dt);
+            }
             grass.progress = Math.min(1, grass.progress);
-            if (grass.progress >= 1) ready.push(tile);
+            if (grass.progress >= 1 && !(grass.blockedWait > 0)) ready.push(tile);
         }
     }
 
@@ -858,10 +933,16 @@ export function tickGrass(dt) {
             s.grass[target.id] = { stage: SEED, progress: seedProgress() };
         }
     }
+
+    // Paid at the end rather than per spread, so a chain reaction's extra tiles are counted
+    // too - every tile in `taken` is one the grass didn't have when the tick started.
+    if (taken.size > 0) earnSpreadGrowth(taken.size);
 }
 
 // For the bursting growth card and combos. Maybe just one, me no rember.
-const seedProgress = () => Math.min(0.99, cardBonus("seedProgress"));
+// How grown a tile is the moment the grass reaches it - the Seed Bank upgrade on top of
+// whatever the cards give. Capped short of 1 so a new tile still has a stage to go.
+const seedProgress = () => Math.min(0.99, cardBonus("seedProgress") + grassSeedStart());
 const SHORE_BOOST_SECONDS = 10;
 
 // For a few cards. Collects ticks spread from other grass.
@@ -889,7 +970,8 @@ function callRainNear(s, tile) {
     const near = neighbouringTiles(tile).filter(n => isClaimed(s, n.id) && !terrainOn(s, n.id));
     if (near.length === 0) return;
 
-    startPrecipitation(s, near[Math.floor(Math.random() * near.length)].id);
+    const id = near[Math.floor(Math.random() * near.length)].id;
+    startPrecipitation(s, id, driftingEvent(s, id));
 }
 
 function shuffle(items) {

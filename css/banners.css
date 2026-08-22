@@ -4,12 +4,15 @@
     --card-width: 168px;
     display: flex;
     flex-direction: column;
-    padding: 20px;
-    padding-left: 106px;
+    padding: var(--page-pad);
+    /* Same inset every other scene clears the flyout with, rather than a copy of the number. */
+    padding-left: max(var(--flyout-inset), var(--page-pad));
 }
 
 .cards-stage {
     display: grid;
+    /* minmax(0,…) so the stage can be narrower than the draw button's text wants to be. */
+    grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     align-items: start;
     min-height: 320px;

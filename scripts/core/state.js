@@ -16,7 +16,7 @@ function defaultState() {
         activeLayer: null,
 
         // Most of these are just dev tools.
-        settings: { theme: "dark", showCanvasCoords: false, showDevInteractions: false, enableFastGrass: false },
+        settings: { theme: "dark", hideNav: false, showCanvasCoords: false, showDevInteractions: false, enableFastGrass: false },
         // Which tabs the player has seen, so they don't flash.
         seen: { layers: {}, subLayers: {}, guides: {} },
         layers: {}, // Per-layer save data.

@@ -28,6 +28,8 @@ It's the main game file, standard HTML stuff.
 
 <!-- Layers with their own page -->
 <link rel="stylesheet" href="css/environment.css">    <!-- the ground's reference page -->
+<link rel="stylesheet" href="css/grass.css">          <!-- Growth, its milestones, and the grasses -->
+<link rel="stylesheet" href="css/precipitation.css"> <!-- the cloud, its charge bar and meters -->
 <link rel="stylesheet" href="css/evolution.css">      <!-- the prestige layer -->
 <link rel="stylesheet" href="css/banners.css">        <!-- the Cards page and its banner stage -->
 <link rel="stylesheet" href="css/cards.css">          <!-- a card itself, and the collection -->
@@ -40,6 +42,7 @@ It's the main game file, standard HTML stuff.
 
 <!-- Above everything -->
 <link rel="stylesheet" href="css/overlays.css">       <!-- corner buttons, settings and guide windows -->
+<link rel="stylesheet" href="css/mobile.css">         <!-- narrow-screen overrides, loaded last -->
 </head>
 <body>
     <div id="category-bar"></div>
@@ -47,6 +50,10 @@ It's the main game file, standard HTML stuff.
     <div id="app">
         <div id="sidebar"></div>
         <div id="sidebar-flyout"></div>
+        <!-- Folds the sidebar and its flyout away, for when the canvas wants the whole window -->
+        <button id="nav-toggle" type="button" title="Hide navigation" aria-label="Hide navigation">
+            <span class="nav-chevron">&#8249;</span>
+        </button>
         <div id="canvas"></div>
     </div>
 

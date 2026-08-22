@@ -12,8 +12,10 @@ registerGuide("cores-intro", {
     layer: "cores",
     title: "The Cores",
     body: `
-        <p> stuff here </p>
-    `,
+        <p> The very beginning. You start with two cores: The Green Core, and the Blue Core.\n\n</p>`
+        + `<p>The Green Core produces Green Essence. It grows on its own, and increases production as it grows to higher growth stages.\n\n</p>`
+        + `<p>The Blue Core produces Blue Essence. It builds up charge, which increases the Blue Essence gained by clicking it. `
+        + `A full-charge click gives double the Blue Essence.</p>`
 });
 
 registerGuide("world-intro", {
@@ -41,10 +43,12 @@ registerGuide("world-rain", {
     order: 2,
     when: () => unlockBought("rain"),
     body: `
-        <p> Clouds rain down upon the land, accelerating plant growth! Select the rain interaction \n</p>`
-        + `icon from the drawer in the top right, then click the raincloud to spend blue essence and build up rain.`
-        + `Once the meter is full, select a tile and click the raincloud to activate a downpour, speeding plant growth!`
-    ,
+        <p>Clouds gather over the world now. Filling one and letting it go are both done on the
+        Precipitation page, over in the sidebar - the cloud in the corner here only says how full
+        it is, and clicking it takes you there.</p>
+        <p>The tile it falls on is the one selected here, so pick that first. Rain temporarily improves
+        whatever is growing under it, and adds to what the tile produces while it falls.</p>
+    `,
 });
 
 registerGuide("world-transform", {
@@ -53,7 +57,9 @@ registerGuide("world-transform", {
     order: 3,
     when: () => unlockBought("environment"),
     body: `
-        <p> stuff here </p>
+        <p> Transforming tiles! this is the end of the actual coded/balanced stuff. Transforming </p>
+        <p> tiles is just "select a main tile then adjacent fodder tiles to make a new type of tile."</p>
+        <p> Different tiles do different things, and you only get the main component of a tile's recipe.</p>
     `,
 });
 
@@ -61,7 +67,7 @@ registerGuide("environment-intro", {
     layer: "environment",
     title: "The Environment",
     body: `
-        <p> stuff here </p>
+        <p> Storage for some of the things! this part isn't really that balanced and also past where the coded stuff is </p>
     `,
 });
 
@@ -69,7 +75,9 @@ registerGuide("pond-intro", {
     layer: "pond",
     title: "The Pond",
     body: `
-        <p> stuff here </p>
+        <p> The pond passively produces Blue Essence. You can click to increase the water's turbulence, 
+        which passively decreases over time. High turbulence increases Blue Essence production.</p>
+        <p>Something may inhabit this space soon... </p>
     `,
 });
 
@@ -79,7 +87,12 @@ registerGuide("pond-life", {
     order: 1,
     when: () => unlockBought("life"),
     body: `
-        <p> stuff here </p>
+        <p> Life has sprung up in the pond! Algae and fish both inhabit the water now. </p>
+        <p> Algae passively produces Green Essence, and grows in low turbulence. </p>
+        <p> Fish increase the Blue Essence production of the pond, and only grow in numbers in high turbulence.
+         Fish eat algae, so too many of them will destroy your algae population and starve the fish.</p>
+        <p> These two organisms make biomass, which boosts both Green and Blue Essence. More biomass is produced
+        based on how close the populations are in number; getting the top bar to 50%/50% gives you the most. </p>
     `,
 });
 
@@ -87,7 +100,11 @@ registerGuide("grass-intro", {
     layer: "grass",
     title: "Grass",
     body: `
-        <p> stuff here </p>
+        <p> Grass grows across the world. Seed the first grass with both essences on the world map, and it will grow through maturity stages.
+        Once it reaches maturity, it will spread to a nearby tile and return to the seed stage. Grass produces Green Essence. </p>
+        <p> Grass is improved through Growth, which is acquired through either sacrificing Green Core growth levels, or by grass spreading to
+        other tiles. You get bonuses based on your highest reached value of growth, however you can also spend it on upgrades. Some of the bonuses
+        are new types of grass, which have different stats. </p>
     `,
 });
 
@@ -95,7 +112,14 @@ registerGuide("rain-intro", {
     layer: "precipitation",
     title: "Precipitation",
     body: `
-        <p> stuff here </p>
+        <p>Hold the bar to charge the cloud. The band rises while you hold it and falls when you
+        do not, and charge only builds while the band is covering the mark, which sits at
+        whatever the charge already is, so it climbs away from you as you fill it.</p>
+        <p>Stability drains while you hold down, and comes back when you stop. Run it
+        out and the cloud tears itself open early, giving a fraction of what it was holding.</p>
+        <p>A heavier intensity is worth far more to the tile but leaves far more water behind,
+        and ground that is already wet takes very little from the next cloud. So the same tile
+        can be drizzled on over and over, or drowned and turned into something else.</p>
     `,
 });
 
@@ -103,7 +127,10 @@ registerGuide("evolution-intro", {
     layer: "evolution",
     title: "Evolution",
     body: `
-        <p> stuff here </p>
+        <p> Don't worry too much about this. You can draw some cards but there are too many </p>
+        <p> and many are out of date. Some still work though.</p>
+        <p> Evolution resets living things for evolution points, which you can spend on drawing cards. Honestly,
+        this is mainly useful for resetting grass so that you can let it spread for growth again. </p>
     `,
 });
 
@@ -113,6 +140,7 @@ registerGuide("evolution-cards", {
     title: "Cards",
     order: 1,
     body: `
-        <p> stuff here </p>
+        <p> These cards modify various things. But lots are outdated and I have too many but I made </p>
+        <p> a ton of art for them so they're gonna stay here for now. </p>
     `,
 });

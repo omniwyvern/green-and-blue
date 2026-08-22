@@ -8,18 +8,22 @@
 
 import { registerLayer } from "../../core/registry.js";
 import { state, getLayerState } from "../../core/state.js";
-import { canAfford, spend } from "../../core/resources.js";
-import { formatNumber } from "../../utils/format.js";
+import { spend } from "../../core/resources.js";
+import { switchToLayer } from "../../render/canvasRouter.js";
 import {
     MAP, TILE_SIZE, STAGE_NAMES, MATURE, LAND_COST, TERRAIN, grassOn, tileCost, canPlant, plantGrass,
-    clickPrecipitation, growFully, tickGrass, tickPrecipitation, tickBuildup,
-    PRECIPITATION, PRECIPITATION_SECONDS, precipitationKind, precipitationCost,
+    growFully, tickGrass, tickPrecipitation, tickBuildup,
+    PRECIPITATION, precipitationKind,
     isPrecipitating, precipitatingOn, fallingKind, snowOn, shedsPrecipitation,
-    terrainOn, moistureOn, tileKind, soak, setTerrain, selectTile, clearTransform,
+    terrainOn, moistureOn, tileKind, soak, setTerrain, selectTile, clearTransform, dampGrowth,
     clickTransformTile, isTransformCandidate, isTransformFodder, transformInputs,
     matchedTransform, applyTransform, transformAvailable, transformHint, transformReady, fodderNote,
 } from "./worldMap.js";
 import { TERRAIN_ART, kindChip } from "./terrainArt.js";
+import { activeType } from "./grassSublayer.js";
+// The cloud is charged and let go on its own page. All the map keeps is the thing drifting over
+// it, which says how the cloud is doing and is the way back to that page.
+import { fillOf, readyIndex, canRelease } from "./precipitationSublayer.js";
 
 const landBought = () => !!getLayerState("cores").purchasedUpgrades.land;
 const grassBought = () => !!getLayerState("cores").purchasedUpgrades.grass;
@@ -101,13 +105,6 @@ const PRECIPITATION_ICON = {
 
 // Manual interactions the player can do on the map.
 const INTERACTIONS = [
-    {
-        id: "weather",
-        name: () => PRECIPITATION[loadedKind()].name,
-        icon: () => PRECIPITATION_ICON[loadedKind()],
-        available: () => rainBought(),
-    },
-
     // Merge/transform tiles into other ones. Interaction is in the transform window thing.
     { id: "transform", name: "Transform", available: () => environmentBought(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
@@ -161,11 +158,6 @@ const availableInteractions = () => INTERACTIONS.filter(i => i.available());
 // Which kind of precipitation the cloud is loaded with.
 const loadedKind = () => precipitationKind(getLayerState("world"));
 
-// Interaction name and icon can change, pretty much only for precipitation.
-const nameOf = (interaction) =>
-    typeof interaction.name === "function" ? interaction.name() : interaction.name;
-const iconOf = (interaction) =>
-    typeof interaction.icon === "function" ? interaction.icon() : interaction.icon;
 
 registerLayer("world", {
     categoryId: "main",
@@ -189,15 +181,19 @@ registerLayer("world", {
         terrain: {}, // What type is the tile (forest, ocean, etc.)
         moisture: {}, // How close is the tile to turning into a water tile.
         snowpack: {}, // Same but for snow.
+        seenTerrain: {}, // Every kind of ground that has ever been on the map, made or not still there.
         selectedTile: null,
 
         // Which interaction is picked out of the drawer, and some stuff based on what that they do.
-        selectedInteraction: "weather", // Starts out as the weather, easy to miss if it needs initial selection
+        selectedInteraction: "transform", // Reset to whatever is actually unlocked on the first render
         weatherKind: "rain", // Rain or snow, precipitation layer is where you switch them.
-        weatherMeter: 0,
+
+        // What's currently falling, all of it decided by the release that started it.
         weatherSeconds: 0,
         weatherTotal: 0,
         weatherTile: null,
+        weatherPower: 0,  // What the event is worth to the tile, one being an ordinary full cloud.
+        weatherSoak: 0,   // Water it still owes the ground, handed over across the whole event.
 
         // The tiles picked around the selected one, waiting to be transformed with it.
         transformFodder: [],
@@ -252,6 +248,8 @@ registerLayer("world", {
         tileVars(s, tile) {
             return {
                 "--ground": `var(--ground-${terrainOn(s, tile.id) || "bare"})`,
+                // Whichever grass is being grown, so picking one is visible on the map itself.
+                "--blade": activeType().color,
                 "--moisture": moistureOn(s, tile.id).toFixed(2),
                 "--snowpack": snowOn(s, tile.id).toFixed(2),
                 "--pulse": transformActive(s) ? pulse() : "0",
@@ -268,7 +266,11 @@ registerLayer("world", {
             const parts = [kind === "grass" ? `${STAGE_NAMES[grass.stage]} grass` : TERRAIN[kind].name];
             const wet = moistureOn(s, tile.id);
             const buried = snowOn(s, tile.id);
-            if (wet > 0) parts.push(`${Math.round(wet * 100)}% soaked`);
+            const damp = grass ? dampGrowth(s, tile.id) : 1;
+            if (wet > 0) {
+                parts.push(`${Math.round(wet * 100)}% soaked`
+                    + (damp === 1 ? "" : ` (${damp > 1 ? "+" : ""}${Math.round((damp - 1) * 100)}% growth)`));
+            }
             if (buried > 0) parts.push(`${Math.round(buried * 100)}% buried`);
             if (precipitatingOn(s, tile.id)) parts.push(fallingKind(s) === "snow" ? "snowing" : "raining");
             return parts.join(" - ");
@@ -303,6 +305,10 @@ registerLayer("world", {
     hud: {
         build(el, s, layer) {
             el.innerHTML = `
+                <button class="weather-jump" type="button">
+                    <span class="weather-face"></span>
+                    <span class="weather-meter"><span class="weather-meter-fill"></span></span>
+                </button>
                 <div class="world-hud-row">
                     <div class="hud-tool"></div>
                     <div class="hud-drawer" title="Interactions">
@@ -315,6 +321,9 @@ registerLayer("world", {
                     </div>
                 </div>
             `;
+
+            el.querySelector(".weather-jump")
+                .addEventListener("click", () => switchToLayer("precipitation"));
 
             const drawer = el.querySelector(".hud-drawer");
             el.querySelector(".hud-drawer-handle")
@@ -338,14 +347,6 @@ registerLayer("world", {
             // One block per interaction, all built once and then shown or hidden
             const tool = el.querySelector(".hud-tool");
             tool.innerHTML = `
-                <div class="tool-weather">
-                    <button class="weather-button">
-                        <span class="weather-face">${iconOf(byId("weather"))}</span>
-                        <span class="weather-pop"></span>
-                    </button>
-                    <div class="weather-meter"><div class="weather-meter-fill"></div></div>
-                    <div class="weather-cost"></div>
-                </div>
                 <div class="tool-grow">
                     <button class="grow-button">${byId("grow").icon}</button>
                 </div>
@@ -363,14 +364,6 @@ registerLayer("world", {
                     <button class="transform-button">Transform</button>
                 </div>
             `;
-            const button = tool.querySelector(".weather-button");
-            button.addEventListener("click", () => {
-                if (!clickPrecipitation(getLayerState(layer.stateKey), (cost) => spend(layer, cost))) return;
-                button.classList.remove("popped");
-                void button.offsetWidth;
-                button.classList.add("popped");
-            });
-
             // Dev cheat, instantly grows a tile
             tool.querySelector(".grow-button").addEventListener("click", () => {
                 const s = getLayerState(layer.stateKey);
@@ -401,8 +394,6 @@ registerLayer("world", {
 
             for (const btn of el.querySelectorAll(".hud-choice")) {
                 setDisplay(btn, choices.some(i => i.id === btn.dataset.interaction));
-                // Rebuilt only when it actually changes, since this runs at the tick rate and
-                // the weather icon is the only one that ever does.
                 setChoiceFace(btn, byId(btn.dataset.interaction));
             }
             drawer.style.setProperty("--choice-count", Math.max(1, choices.length));
@@ -414,13 +405,13 @@ registerLayer("world", {
                 s.selectedInteraction = choices.length ? choices[0].id : null;
             }
 
-            const showWeather = s.selectedInteraction === "weather";
+            updateWeatherJump(el, s);
+
             const showGrow = s.selectedInteraction === "grow";
             const showSoak = s.selectedInteraction === "soak";
             const showGround = s.selectedInteraction === "ground";
             const showTransform = s.selectedInteraction === "transform";
-            setDisplay(el.querySelector(".hud-tool"), showWeather || showGrow || showSoak || showGround || showTransform);
-            setDisplay(el.querySelector(".tool-weather"), showWeather);
+            setDisplay(el.querySelector(".hud-tool"), showGrow || showSoak || showGround || showTransform);
             setDisplay(el.querySelector(".tool-grow"), showGrow);
             setDisplay(el.querySelector(".tool-soak"), showSoak);
             setDisplay(el.querySelector(".tool-ground"), showGround);
@@ -458,51 +449,44 @@ registerLayer("world", {
                     : ready ? "Grow this tile's grass to mature"
                     : "Already fully grown";
             }
-            if (!showWeather) return;
-
-            const tool = el.querySelector(".hud-tool");
-            const falling = isPrecipitating(s);
-            const full = !falling && (s.weatherMeter || 0) >= 1;
-            const total = s.weatherTotal || PRECIPITATION_SECONDS;
-            tool.querySelector(".weather-meter-fill").style.width =
-                `${Math.round((falling ? 1 - s.weatherSeconds / total : s.weatherMeter || 0) * 100)}%`;
-
-            const cost = precipitationCost(s);
-            const affordable = canAfford(layer, cost);
-
-            const button = tool.querySelector(".weather-button");
-            button.classList.toggle("full", full);
-            button.classList.toggle("falling", falling);
-            const face = tool.querySelector(".weather-face");
-            const icon = iconOf(byId("weather"));
-            if (face.__icon !== icon) { face.__icon = icon; face.innerHTML = icon; }
-
-            // Button is dimmed when you wouldn't be able to afford it.
-            button.classList.toggle("unaffordable", !falling && !full && !affordable);
-
-            // Tooltip says to select a tile if nothing is selected, since clicking wouldn't do anything.
-            const weather = PRECIPITATION[loadedKind()].name.toLowerCase();
-            button.title = falling ? `${PRECIPITATION[fallingKind(s)].name}...`
-                : full ? (s.selectedTile ? `Click to ${weather} on the selected tile` : `Select a tile to ${weather} on`)
-                : `Gather ${weather} - ${formatNumber(cost.blueEssence)} Blue Essence per click`;
-
-            setText(tool.querySelector(".weather-cost"), falling || full ? "" : formatNumber(cost.blueEssence));
         },
     },
 });
 
 const byId = (id) => INTERACTIONS.find(i => i.id === id);
 
-function setChoiceFace(btn, interaction) {
-    if (!interaction) return;
-    const name = nameOf(interaction);
-    const icon = iconOf(interaction);
-    if (btn.__face === name + icon) return;
-    btn.__face = name + icon;
+// Not an interaction, so it stays put whichever one is picked.
+function updateWeatherJump(el, s) {
+    const jump = el.querySelector(".weather-jump");
+    setDisplay(jump, rainBought());
+    if (!rainBought()) return;
 
-    btn.title = name;
-    btn.setAttribute("aria-label", name);
-    btn.innerHTML = icon;
+    const kind = loadedKind();
+    const falling = isPrecipitating(s);
+
+    const face = jump.querySelector(".weather-face");
+    if (face.__kind !== kind) { face.__kind = kind; face.innerHTML = PRECIPITATION_ICON[kind]; }
+
+    setWidth(jump.querySelector(".weather-meter-fill"),
+        falling ? s.weatherSeconds / (s.weatherTotal || 1) : fillOf());
+    jump.dataset.state = falling ? "falling" : canRelease(undefined, s) ? "ready" : "filling";
+
+    const weather = PRECIPITATION[kind].name;
+    jump.title = falling
+        ? `${PRECIPITATION[fallingKind(s)].name} on ${s.weatherTile}, ${Math.ceil(s.weatherSeconds)}s left`
+        : canRelease(undefined, s) ? `Full. Open ${weather} to let it go on ${s.selectedTile}`
+        : readyIndex() < 0 ? `Open ${weather} to start filling the cloud`
+        : !s.selectedTile ? "Pick a tile for it to fall on"
+        : `Open ${weather} - not charged enough for the intensity it is set to`;
+}
+
+function setChoiceFace(btn, interaction) {
+    if (!interaction || btn.__face) return;
+    btn.__face = true;
+
+    btn.title = interaction.name;
+    btn.setAttribute("aria-label", interaction.name);
+    btn.innerHTML = interaction.icon;
 }
 
 // Transformation things
@@ -585,4 +569,9 @@ function setDisplay(el, shown) {
 
 function setText(el, text) {
     if (el.textContent !== text) el.textContent = text;
+}
+
+function setWidth(el, fraction) {
+    const width = `${Math.round(Math.max(0, Math.min(1, fraction)) * 100)}%`;
+    if (el.style.width !== width) el.style.width = width;
 }

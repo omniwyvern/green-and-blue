@@ -6,7 +6,6 @@
     gap: 5px;
     padding-top: 4px;
 }
-.tool-weather,
 .tool-grow,
 .tool-soak,
 .tool-ground {
@@ -24,7 +23,6 @@
     line-height: 1.2;
 }
 
-.weather-button,
 .grow-button,
 .soak-button,
 .ground-button {
@@ -39,15 +37,12 @@
     cursor: pointer;
     transition: transform 0.08s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
-.weather-button .interaction-icon,
 .grow-button .interaction-icon,
 .soak-button .interaction-icon,
 .ground-button .interaction-icon { width: 42px; height: 42px; }
-.weather-button:hover,
 .grow-button:hover,
 .soak-button:hover,
 .ground-button:hover { border-color: var(--accent); }
-.weather-button:active,
 .grow-button:active,
 .soak-button:active,
 .ground-button:active { transform: scale(0.94); }
@@ -56,7 +51,31 @@
 .soak-button.inactive,
 .ground-button.inactive { opacity: 0.55; cursor: default; }
 
-.weather-button.full {
+.weather-jump {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    width: 58px;
+    padding: 6px 0 5px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.08s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.weather-jump:hover { border-color: var(--accent); }
+
+#app.has-flyout .weather-jump { left: max(var(--flyout-inset), 12px); }
+.weather-jump:active { transform: scale(0.94); }
+
+.weather-jump .interaction-icon { width: 40px; height: 40px; display: block; }
+
+.weather-jump[data-state="ready"] {
     border-color: var(--blue);
     animation: weather-ready 1.8s ease-in-out infinite;
 }
@@ -64,43 +83,22 @@
     0%, 100% { box-shadow: 0 0 0 0 rgba(90, 170, 240, 0); }
     50%      { box-shadow: 0 0 10px 2px rgba(90, 170, 240, 0.55); }
 }
-.weather-button.falling,
-.weather-button.unaffordable { opacity: 0.55; cursor: default; }
-
-.weather-cost {
-    font-size: 11px;
-    color: #58a8e8;
-    font-variant-numeric: tabular-nums;
-    min-height: 13px;
-}
-
-.weather-pop {
-    position: absolute;
-    inset: 0;
-    border-radius: 12px;
-    border: 2px solid var(--blue);
-    opacity: 0;
-    pointer-events: none;
-}
-.weather-button.popped .weather-pop { animation: weather-pop 0.4s ease-out; }
-@keyframes weather-pop {
-    from { opacity: 0.8; transform: scale(1); }
-    to   { opacity: 0;   transform: scale(1.6); }
-}
+.weather-jump[data-state="falling"] { opacity: 0.6; }
 
 .weather-meter {
-    width: 62px;
+    width: 44px;
     height: 5px;
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.35);
     overflow: hidden;
 }
 .weather-meter-fill {
+    display: block;
     height: 100%;
     background: #58a8e8;
     transition: width 0.12s linear;
 }
-.weather-button.falling + .weather-meter .weather-meter-fill { background: #3f6f92; }
+.weather-jump[data-state="falling"] .weather-meter-fill { background: #3f6f92; }
 
 .interaction-icon .cloud { fill: #c9dced; }
 .interaction-icon .raindrop {
@@ -183,48 +181,6 @@
     to   { transform: translate(2px, 20px); opacity: 0; }
 }
 .hex-tile.has-snow .hex-face { box-shadow: inset 0 0 14px rgba(220, 238, 255, 0.4); }
-
-.weather-page {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 18px 22px;
-}
-.weather-switch {
-    display: flex;
-    gap: 8px;
-}
-.weather-choice {
-    padding: 8px 18px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-dim);
-    font-family: inherit;
-    font-size: 12px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
-}
-.weather-choice:hover { border-color: var(--accent); }
-.weather-choice.active {
-    background: var(--panel-light);
-    border-color: var(--blue);
-    color: var(--text);
-}
-.weather-choice.inactive {
-    opacity: 0.4;
-    cursor: default;
-}
-.weather-choice.inactive:hover { border-color: var(--border); }
-
-.weather-summary {
-    max-width: 620px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--text-dim);
-}
 
 .canvas-overlay {
     position: absolute;

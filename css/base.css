@@ -52,9 +52,21 @@
 :root {
     --sidebar-width: 130px;
     --flyout-inset: 106px;
+    /* The breathing room every page keeps between its text and the edge of the screen. The
+       flyout insets are floored at it, so folding the navigation away never takes it to zero. */
+    --page-pad: 20px;
+
+    /* The round buttons floating in the corners. Everything down there is laid out off these,
+       so stacking one above another is --corner-step and the mobile override is three numbers. */
+    --corner-size: 40px;
+    --corner-edge: 14px;
+    --corner-gap: 6px;
+    --corner-step: calc(var(--corner-edge) + var(--corner-size) + var(--corner-gap));
 }
 
 * { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
     margin: 0;
@@ -63,8 +75,15 @@ body {
     background: var(--bg);
     color: var(--text);
     height: 100vh;
+    height: 100dvh; /* phone browsers count their address bar into vh, dvh drops it */
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* No rubber-banding or pull-to-refresh - a drag on the map is a pan, not a page scroll. */
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
 }
+
+/* Taps shouldn't wait on a double-tap-to-zoom that this game never wants. */
+button { touch-action: manipulation; }
 

@@ -1,0 +1,205 @@
+/* grass.css - the Grass page: the Growth readout and its milestone track, the button that
+   trades a core stage for Growth, and the grasses you can choose between. */
+
+/* The page is split down the middle: the scene on the left, the upgrade grid the static canvas
+   builds on the right. Both scroll on their own, so a long shop doesn't push the Growth readout
+   off the top. The class comes from canvasClass on the layer. */
+.grass-canvas > .static-scene { right: 50%; }
+
+.grass-canvas > .upgrade-grid {
+    position: absolute;
+    inset: 0 0 0 50%;
+    height: auto;
+    border-left: 1px solid var(--border);
+    align-content: start;
+}
+/* The flyout only ever overlaps the left column, so the right one keeps its own padding. */
+#app.has-flyout .grass-canvas > .upgrade-grid { padding-left: 20px; }
+
+.grass-scene { overflow-y: auto; }
+
+/* Half a phone is too narrow for either column, so the split unwinds: both go back into normal
+   flow, stacked, and the canvas underneath does the scrolling for the pair of them. */
+@media (max-width: 700px) {
+    .grass-canvas {
+        display: block;
+        overflow-y: auto;
+    }
+    .grass-canvas > .static-scene {
+        position: static;
+        right: auto;
+        overflow: visible;
+    }
+    .grass-canvas > .upgrade-grid {
+        position: static;
+        inset: auto;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        overflow: visible;
+    }
+    .grass-scene { overflow-y: visible; }
+    #app.has-flyout .grass-canvas > .upgrade-grid { padding-left: var(--page-pad); }
+}
+
+.grass-page {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: var(--page-pad);
+}
+
+.grass-summary {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+.grass-page .cards-heading { margin-top: 8px; }
+
+/* ---------- Growth and the next milestone ---------- */
+
+.growth-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.growth-head { display: flex; align-items: baseline; gap: 8px; }
+.growth-amount {
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--art-grass);
+    font-variant-numeric: tabular-nums;
+}
+.growth-unit { font-size: 13px; color: var(--text-dim); }
+
+.growth-track {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--panel-light);
+    overflow: hidden;
+}
+.growth-fill {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    background: var(--art-grass);
+    transition: width 0.2s linear;
+}
+
+.growth-best { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+/* ---------- Giving a core stage back ---------- */
+
+.grass-sacrifice {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
+    padding: 11px 14px;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--art-grass);
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+.grass-sacrifice:hover:not(:disabled) { border-color: var(--accent); border-left-color: var(--art-grass); }
+.grass-sacrifice:disabled { opacity: 0.5; cursor: default; border-left-color: var(--border); }
+
+.sacrifice-title { font-weight: 600; font-size: 13px; }
+.sacrifice-detail { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+/* ---------- The grasses ---------- */
+
+.grass-types {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 10px;
+}
+
+.grass-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+/* The one being grown gets the blade colour it paints the map with, so the card and the tiles
+   are obviously the same thing. */
+.grass-card.active { border-color: var(--blade); background: var(--panel-light); }
+.grass-card:hover:not(.active):not(.locked):not(.sown) { border-color: var(--accent); }
+.grass-card.locked { border-style: dashed; opacity: 0.55; cursor: default; }
+/* Unlocked, but the world already has its grass - nothing to click until the next evolution. */
+.grass-card.sown { opacity: 0.45; cursor: default; }
+
+.grass-sown { text-transform: none; letter-spacing: 0; opacity: 0.8; }
+
+.grass-card-head { display: flex; align-items: center; gap: 8px; }
+.grass-card-name { font-weight: 600; font-size: 13px; }
+
+.grass-card-art { width: 26px; height: 26px; flex-shrink: 0; }
+.grass-card-art .grass-blade {
+    fill: none;
+    stroke: var(--blade);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+}
+.grass-card.locked .grass-card-art .grass-blade { stroke: var(--text-dim); }
+
+.grass-card-effects {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.grass-card.locked .grass-card-effects { color: var(--gold); }
+.grass-card-blurb { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+/* ---------- Milestones ---------- */
+
+/* The next one is a single row, with deliberately nothing to say whether anything follows it. */
+.milestone-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--art-grass);
+    border-radius: 8px;
+}
+
+.milestone-facts { display: flex; flex-direction: column; gap: 2px; }
+.milestone-title { font-size: 13px; font-weight: 600; }
+.milestone-effect { font-size: 11px; color: var(--text-dim); }
+
+/* The ones already passed. Quieter than the next one, so the thing still to reach for is the
+   thing the eye lands on, and stacked newest first. */
+.milestone-earned { display: flex; flex-direction: column; gap: 6px; }
+
+.milestone-row.earned {
+    padding: 8px 14px;
+    background: transparent;
+    border-left-color: color-mix(in srgb, var(--art-grass) 45%, transparent);
+}
+.milestone-row.earned .milestone-title { font-weight: 500; color: var(--text-dim); }
+
+/* Only ever on an earned row - a threshold already passed says nothing about what is left. */
+.milestone-at {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--art-grass);
+    font-variant-numeric: tabular-nums;
+}

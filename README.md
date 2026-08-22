@@ -45,7 +45,6 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
 
 
 ## Architecture and Organization
-THIS PART IS BASICALLY UNREADABLE ON GITHUB PREVIEW BUT IF YOU VIEW IT AS RAW TEXT IT'S FINE
 
 index.html                       skeleton containers only, makes completely new things easier to add. Also imports all the stylesheets
 css/                             one file per subject. Tons of files, but makes it easier to find specific styling
@@ -57,7 +56,8 @@ css/                             one file per subject. Tons of files, but makes 
     terrain.css                  what each kind of ground looks like on a tile
     transform.css                turning tiles into other tiles, and the recipe panel
     canvas-hud.css               the fixed controls over a drag canvas, and its drawer
-    interactions.css             the tools inside the HUD: gather, grow, transform, rain
+    interactions.css             the tools inside the HUD: gather, grow, transform, and the cloud button
+    precipitation.css            the cloud, the bar its charge is held on, and its meters
     environment.css              the ground's reference page
     evolution.css                the (probably first) prestige layer
     banners.css                  the cards page and its banner stage
@@ -94,7 +94,8 @@ scripts/
       worldMap.js                 the map's shape and what grows on it, shared by the two below
       worldLayer.js               the world that's growing, a hex map once Land is bought
       grassSublayer.js            what the grass is doing, and its upgrades
-      precipitationSublayer.js    what the weather is doing, and the rain/snow switch. starts as layer, absorbed into environment later
+      precipitationSublayer.js    the cloud: charging it against its stability, and what letting it go is worth.
+                                starts as layer, absorbed into environment later
       pondSublayer.js             the pond, with upgrades / algae / fish as drawers over it. starts as layer, abosrbed into environment later
       environmentLayer.js         the ground itself, and the layer the three above move into
       terrainArt.js               the drawing for each kind of ground, shared by the map and the recipes
@@ -135,7 +136,6 @@ Guide:              tutorial information given on opening a layer for the first 
 
 ## Known issues (bugs or unimplemented things)
 
-- The Precipitation layer is not implemented other than a rain/snow switch.
 - No visual indicator for Floodwater or Tidal Cycle cards.
 - The pond's capacity is fixed at 3 and there's no upgrade for it yet. Needs balancing.
 - A tooltip on a node near the canvas edge is clipped by the viewport.

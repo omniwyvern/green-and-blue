@@ -3,7 +3,7 @@
 #dev-button,
 #recenter-button {
     position: fixed;
-    bottom: 16px;
+    bottom: var(--corner-edge);
     z-index: 500;
     background: var(--panel-light);
     color: var(--text);
@@ -20,28 +20,28 @@
 #settings-button,
 #dev-button,
 #guide-button {
-    width: 40px;
-    height: 40px;
+    width: var(--corner-size);
+    height: var(--corner-size);
     border-radius: 50%;
     font-size: 20px;
     line-height: 1;
 }
-#settings-button { 
-    left: 14px; 
+#settings-button {
+    left: var(--corner-edge);
 }
 #dev-button {
-    left: 14px;
-    top: 570px;
+    left: var(--corner-edge);
+    bottom: var(--corner-step);
     font-size: 18px;
     color: var(--text-dim);
 }
 #guide-button {
-    left: 70px;
+    left: var(--corner-step);
     font-size: 17px;
 }
 
 #recenter-button {
-    right: 16px;
+    right: var(--corner-edge);
     padding: 9px 14px;
     border-radius: 6px;
 }
@@ -49,11 +49,11 @@
 
 #zoom-controls {
     position: fixed;
-    right: 16px;
-    bottom: 61px;
+    right: var(--corner-edge);
+    bottom: var(--corner-step);
     z-index: 500;
     display: flex;
-    gap: 6px;
+    gap: var(--corner-gap);
 }
 #zoom-controls[hidden] { display: none; }
 
@@ -90,6 +90,8 @@
 
 .settings-window {
     width: min(420px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -151,7 +153,7 @@
 .guide-window { width: min(500px, calc(100vw - 32px)); }
 
 .guide-body {
-    max-height: min(52vh, 420px);
+    max-height: min(52dvh, 420px);
     overflow-y: auto;
     font-size: 13.5px;
     line-height: 1.55;

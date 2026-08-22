@@ -36,6 +36,10 @@ export function renderStaticCanvas(layer, container) {
 function buildCanvas(layer, container) {
     const built = { parent: container, scene: null, note: null, buttons: {}, drawer: null };
 
+    // Lets a layer restyle the canvas its pieces are laid out on - the Grass page splits it
+    // into a scene on one side and its upgrades on the other. Everything else is unchanged.
+    if (layer.canvasClass) container.classList.add(layer.canvasClass);
+
     if (layer.scene) {
         const sceneEl = document.createElement("div");
         sceneEl.className = "static-scene";

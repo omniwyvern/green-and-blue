@@ -2,13 +2,14 @@
 // Builds and renders the category and sidebar that lets you select between groups of layers and layers respectively.
 // I was really into it and forgot to write comments on most of this. My bad whoopsie daisies
 
-import { state, getLayerState, claimUnseen } from "../core/state.js";
+import { state, getLayerState, claimUnseen, saveState } from "../core/state.js";
 import { layers, getOrderedCategories, getOrderedLayers, getOrderedGroups, getVisibleSubLayers } from "../core/registry.js";
 import { switchToLayer, switchToSubLayer, activeHeaderElement, absorbedInto, releaseLayerCanvas } from "./canvasRouter.js";
 
 const categoryBarEl = document.getElementById("category-bar");
 const sidebarEl = document.getElementById("sidebar");
 const flyoutEl = document.getElementById("sidebar-flyout");
+const navToggleEl = document.getElementById("nav-toggle");
 const appEl = document.getElementById("app");
 
 let lastRenderedCategory = null;
@@ -32,6 +33,45 @@ export function renderSidebar() {
     refreshLockedStates();
     refreshFlyoutMembership();
     refreshActiveSubLayer();
+    positionNavToggle();
+}
+
+// The chevron hangs off the header's bottom edge, so it has to be measured rather than guessed:
+// the header is shorter on a phone, taller when the resource chips wrap, and gone entirely on a
+// layer that holds nothing. Read once a frame, written only when it actually moves.
+let lastHeaderHeight = -1;
+
+function positionNavToggle() {
+    const header = activeHeaderElement();
+    const height = header ? header.offsetHeight : 0;
+    if (height === lastHeaderHeight) return;
+    lastHeaderHeight = height;
+    appEl.style.setProperty("--nav-toggle-top", `${height}px`);
+}
+
+// Folding the navigation away gives the canvas the whole window, which on a phone is most of
+// what it needs. The widths go to zero in CSS, so anything that insets past the sidebar or the
+// flyout comes along without knowing this exists.
+export function initNavToggle() {
+    if (!navToggleEl) return;
+    setNavHidden(!!state.settings.hideNav);
+    navToggleEl.addEventListener("click", () => setNavHidden(!state.settings.hideNav));
+}
+
+function setNavHidden(hidden) {
+    state.settings.hideNav = hidden;
+    appEl.classList.toggle("nav-hidden", hidden);
+
+    const label = hidden ? "Show navigation" : "Hide navigation";
+    navToggleEl.title = label;
+    navToggleEl.setAttribute("aria-label", label);
+
+    // With no flyout on screen there's nothing for the header to clear, and its own padding
+    // does the job. On the way back the position is worked out again rather than trusted,
+    // since whatever was measured last was measured against a sidebar that wasn't there.
+    if (hidden) appEl.classList.remove("flyout-over-header");
+    else positionFlyout();
+    saveState();
 }
 
 function buildCategoryBar() {
@@ -200,6 +240,9 @@ function fitTabText(btn) {
 function positionFlyout() {
     const firstTab = flyoutEl.firstElementChild;
     if (flyoutEl.style.display === "none" || !firstTab) return;
+    // Nothing to measure against while it's folded away; setNavHidden runs this again on the
+    // way back, once the sidebar has a position to hang off of.
+    if (appEl.classList.contains("nav-hidden")) return;
 
     const activeTab = sidebarEl.querySelector(".layer-tab.active");
     if (!activeTab) return;

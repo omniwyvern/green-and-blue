@@ -14,14 +14,14 @@ import { addResource } from "../../core/resources.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
 import {
-    TERRAIN, TERRAIN_OUTPUT, ACTIVATIONS_BY_TIER, BUILDUP_LOST_PER_SECOND,
+    TERRAIN, TERRAIN_OUTPUT, ACTIVATIONS_BY_TIER, BUILDUP_LOST_PER_SECOND, activationsForKind,
     worldState, tileCounts, knownKinds, terrainProduction, claimedTiles, moistureOn,
-    knownTransforms, transformAvailable, transformHint, fodderSpends, fodderSummary,
+    knownTransforms, transformAvailable, transformHint, fodderSpends, fodderSummary, hasSeenKind,
 } from "./worldMap.js";
 import { kindChip } from "./terrainArt.js";
 import { BIOMASS_RESOURCE, biomassMultiplier } from "./pondSublayer.js";
 import { ECOSYSTEM_VIEW } from "./ecosystemSublayer.js";
-import { GRASS_VIEW, GRASS_RESOURCES } from "./grassSublayer.js";
+import { GRASS_VIEW, GRASS_RESOURCES, GROWTH_RESOURCE, greenMultiplier } from "./grassSublayer.js";
 import { PRECIPITATION_VIEW, PRECIPITATION_RESOURCES } from "./precipitationSublayer.js";
 
 // How long a full cloud's worth takes to drain back off the ground when left alone.
@@ -46,13 +46,14 @@ registerLayer("environment", {
         greenEssence: { name: "Green Essence", color: "#3aa876", from: "cores" },
         blueEssence: { name: "Blue Essence", color: "#4a90d9", from: "cores" },
         biomass: { ...BIOMASS_RESOURCE, from: "pond" },
+        growth: { ...GROWTH_RESOURCE, from: "grass" },
         evolutionPoints: { name: "Evolution Points", color: "#b06ad0", from:"evolution"},
     },
 
     onTick(dt, layer) {
         const output = terrainProduction(worldState());
         const fromBiomass = biomassMultiplier(); // Multiplies essences wherever they are produced (here)
-        if (output.greenEssence > 0) addResource(layer, "greenEssence", D(output.greenEssence).mul(fromBiomass).mul(dt));
+        if (output.greenEssence > 0) addResource(layer, "greenEssence", D(output.greenEssence).mul(fromBiomass).mul(greenMultiplier()).mul(dt));
         if (output.blueEssence > 0) addResource(layer, "blueEssence", D(output.blueEssence).mul(fromBiomass).mul(dt));
     },
 
@@ -87,12 +88,16 @@ registerLayer("environment", {
                     setText(el.querySelector(".environment-summary"), summary(world, counts));
 
                     // Known/unlocked transforms are only updated on purchases, so this isn't rebuilt every tick.
+                    // Whether one has ever been made is in the signature too, so the row opens
+                    // up on the frame the first one is finished rather than on the next purchase.
                     const known = knownTransforms(world);
-                    const recipeSignature = known.map(r => `${r.id}:${transformAvailable(r, world)}`).join(",");
+                    const recipeSignature = known
+                        .map(r => `${r.id}:${transformAvailable(r, world)}:${hasSeenKind(world, r.output)}`)
+                        .join(",");
                     if (el.__recipes !== recipeSignature) {
                         el.__recipes = recipeSignature;
                         el.querySelector(".recipe-list").innerHTML = known.length
-                            ? known.map(recipeMarkup).join("")
+                            ? known.map(r => recipeMarkup(r, world)).join("")
                             : `<div class="cards-empty">Nothing is known yet.</div>`;
                     }
 
@@ -126,9 +131,11 @@ function summary(world, counts) {
         return "No ground has changed yet."
             + (wet > 0
                 ? ` The wettest tile is ${Math.round(wet * 100)}% soaked, and drying - rain it through and it floods.`
-                : ` Aim the weather at a tile to work on it; ${ACTIVATIONS_BY_TIER[0]} full cloud`
-                    + ` changes bare ground and ${ACTIVATIONS_BY_TIER[1]} change a grassy one,`
-                    + ` and ground left alone gives a cloud's worth back every ${DRYING_MINUTES.toFixed(0)} minutes.`);
+                : ` Aim the weather at a tile to work on it: one full downpour is enough to turn`
+                    + ` bare ground, grass takes ${activationsForKind("grass")} of them and heavier`
+                    + ` ground ${ACTIVATIONS_BY_TIER.slice(1).join(", ")} by tier. Lighter`
+                    + ` intensities leave a fraction of that behind, and ground left alone gives a`
+                    + ` cloud's worth back every ${DRYING_MINUTES.toFixed(0)} minutes.`);
     }
 
     const output = terrainProduction(world);
@@ -140,11 +147,14 @@ function summary(world, counts) {
 // Each transformation recipe. Tile being changed is the first input.
 // When a recipe isn't unlocked, nothing shows. When it's unlocked but not created,
 // it just shows the primary tile and not the fodder.
-function recipeMarkup(recipe) {
+//
+// Recipes you haven't made yet only show the initial tile, and not the result or other components.
+function recipeMarkup(recipe, world) {
     const locked = !transformAvailable(recipe);
+    const found = hasSeenKind(world, recipe.output);
 
     const inputs = recipe.inputs
-        .map(kind => kindChip(kind))
+        .map((kind, i) => (found || i === 0 ? kindChip(kind) : unseenChip()))
         .join(`<span class="transform-plus">+</span>`);
 
     const result = locked
@@ -152,7 +162,9 @@ function recipeMarkup(recipe) {
                <div class="transform-chip-art">${LOCK_GLYPH}</div>
                <div class="transform-chip-name">Locked</div>
            </div>`
-        : kindChip(recipe.output, "transform-result");
+        : found
+            ? kindChip(recipe.output, "transform-result")
+            : unseenChip(TERRAIN[recipe.output].name, "transform-result");
 
     const text = locked
         ? `<span class="recipe-hint">${transformHint(recipe)}</span>`
@@ -172,6 +184,12 @@ function recipeMarkup(recipe) {
         </div>
     `;
 }
+
+const unseenChip = (name = "???", extra = "") => `
+    <div class="transform-chip transform-unknown ${extra}">
+        <div class="transform-chip-art"><span class="transform-question">?</span></div>
+        <div class="transform-chip-name">${name}</div>
+    </div>`;
 
 const LOCK_GLYPH = `
     <svg class="transform-lock" viewBox="0 0 16 16" aria-hidden="true">

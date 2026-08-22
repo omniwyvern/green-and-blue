@@ -22,12 +22,15 @@
     color: var(--text-dim);
 }
 
-#app.flyout-over-header .layer-header { padding-left: 106px; }
+/* Same inset the scenes use, so folding the navigation away takes the header with it. */
+#app.flyout-over-header .layer-header { padding-left: var(--flyout-inset); }
 
+/* Floored at the page padding, so with the navigation folded away these fall back to ordinary
+   margins instead of running their text into the edge of the screen. */
 #app.has-flyout .sub-layer-canvas > .canvas-note,
-#app.has-flyout .sub-layer-canvas > .upgrade-grid { padding-left: var(--flyout-inset); }
+#app.has-flyout .sub-layer-canvas > .upgrade-grid { padding-left: max(var(--flyout-inset), var(--page-pad)); }
 
-#app.has-flyout .flyout-inset { padding-left: var(--flyout-inset); }
+#app.has-flyout .flyout-inset { padding-left: max(var(--flyout-inset), var(--page-pad)); }
 
 .resource-chip { display: flex; gap: 6px; align-items: baseline; position: relative; }
 .resource-name { color: var(--resource-color, var(--text-dim)); }

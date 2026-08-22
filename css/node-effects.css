@@ -97,7 +97,7 @@
     top: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
-    width: 190px;
+    width: 200px;
     padding: 8px 10px;
     border-radius: 6px;
     background: var(--panel-light);

@@ -6,14 +6,12 @@
 // made it pretty since it's basically just the settings menu
 
 import { state, getLayerState, saveState } from "../core/state.js";
-import { layers } from "../core/registry.js";
-import { addResource } from "../core/resources.js";
+import { layers, getVisibleSubLayers } from "../core/registry.js";
+import { addResource, resourceHolderId } from "../core/resources.js";
 import { refreshCoordReadouts } from "./dragCanvas.js";
 import { D } from "../utils/decimal.js";
 
-const ESSENCE_GRANT = D("1.00e12");
-const EVOLUTION_GRANT = D("1.00e12");
-const BIOMASS_GRANT = D("1.00e12");
+const GRANT = D("1.00e12");
 
 const overlay = document.getElementById("dev-overlay");
 const openButton = document.getElementById("dev-button");
@@ -59,9 +57,8 @@ function buildWindow() {
 
     const row = panel.querySelector(".dev-row");
     row.appendChild(makeButton("Unlock all layers", unlockAllLayers));
-    row.appendChild(makeButton("Grant essence", grantEssence));
-    row.appendChild(makeButton("Grant evolution pts", grantEvolution));
-    row.appendChild(makeButton("Grant biomass", grantBiomass));
+    row.appendChild(makeButton("Grant this layer's resources", grantHere));
+    row.appendChild(makeButton("Zero all resources", zeroResources));
 
     const viewRow = panel.querySelector(".view-row");
     coordsButton = makeButton("Canvas coordinates", toggleCoords);
@@ -94,29 +91,53 @@ function unlockAllLayers() {
     setStatus(unlocked ? `Unlocked ${unlocked} layer${unlocked === 1 ? "" : "s"}.` : "Everything is already unlocked.");
 }
 
-function grantEssence() {
-    const cores = layers.cores;
-    if (!cores) return setStatus("No Cores layer to grant essence to.");
+// Whichever layer, or sub-layer of one, is on screen right now.
+function activeView() {
+    const layer = layers[state.activeLayer];
+    if (!layer) return null;
+    if (!layer.subLayers) return layer;
 
-    addResource(cores, "greenEssence", ESSENCE_GRANT);
-    addResource(cores, "blueEssence", ESSENCE_GRANT);
-    setStatus(`Granted ${ESSENCE_GRANT.toString()} of each essence.`);
+    const layerState = getLayerState(layer.stateKey);
+    return layer.subLayers[layerState.activeSubLayer]
+        || getVisibleSubLayers(layer.id, layerState)[0]
+        || null;
 }
 
-function grantEvolution() {
-    const evolution = layers.evolution;
-    if (!evolution) return setStatus("No Evolution layer to grant evolution points to.");
-
-    addResource(evolution, "evolutionPoints", EVOLUTION_GRANT);
-    setStatus(`Granted ${EVOLUTION_GRANT.toString()} evolution points.`);
+// The resources a view holds itself, rather than the ones it only borrows to display -
+// green essence on the pond, say. A view that holds none falls back to everything it shows,
+// so the button is never a no-op on a layer that only spends what other layers make.
+function grantableResources(view) {
+    const ids = Object.keys(view.resources || {});
+    const owned = ids.filter(id => resourceHolderId(view, id) === view.stateKey);
+    return owned.length ? owned : ids;
 }
 
-function grantBiomass() {
-    const pond = layers.pond;
-    if (!pond) return setStatus("No Pond layer to grant biomass to.");
+function grantHere() {
+    const view = activeView();
+    if (!view) return setStatus("No layer open to grant resources to.");
 
-    addResource(pond, "biomass", BIOMASS_GRANT);
-    setStatus(`Granted ${BIOMASS_GRANT.toString()} biomass,`);
+    const ids = grantableResources(view);
+    if (!ids.length) return setStatus(`${view.name} has no resources.`);
+
+    for (const id of ids) addResource(view, id, GRANT);
+    const names = ids.map(id => view.resources[id].name).join(", ");
+    setStatus(`Granted ${GRANT.toString()} ${names} on ${view.name}.`);
+}
+
+
+// Empties every pool without touching anything that fills them - upgrades, nodes and growth
+// stages are all left alone, so what this shows is what the game makes from here.
+function zeroResources() {
+    let emptied = 0;
+    for (const layerId in state.layers) {
+        const pools = state.layers[layerId].resources;
+        for (const resourceId in pools) {
+            if (D(pools[resourceId] || 0).eq(0)) continue;
+            pools[resourceId] = D(0);
+            emptied++;
+        }
+    }
+    setStatus(emptied ? `Emptied ${emptied} pool${emptied === 1 ? "" : "s"}.` : "Everything is already empty.");
 }
 
 // Readout of the cursor's current coordinates, so node positioning is easier
@@ -154,6 +175,7 @@ function toggleFastGrass() {
 function refreshToggleButtons() {
     setToggle(coordsButton, "Canvas coordinates", state.settings.showCanvasCoords);
     setToggle(interactionsButton, "World dev interactions", state.settings.showDevInteractions);
+    setToggle(fastGrassButton, "Fast grass", state.settings.enableFastGrass);
 }
 
 function setToggle(button, label, on) {

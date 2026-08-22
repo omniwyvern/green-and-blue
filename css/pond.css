@@ -146,6 +146,8 @@
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.4);
     overflow: hidden;
+    left: 30px;
+    right: 30px;
 }
 .balance-fill { transition: width 0.25s linear; }
 .balance-fill[data-kind="algae"] { background: var(--green); }
@@ -166,6 +168,12 @@
 .balance-column[data-kind="algae"] { color: var(--green); }
 .balance-column[data-kind="fish"] { color: var(--blue); }
 .balance-tag .life-icon { width: 13px; height: 13px; }
+
+.balance-tag[data-starving] .life-icon { animation: fish-starving 1.1s ease-in-out infinite; }
+@keyframes fish-starving {
+    0%, 100% { color: inherit; }
+    50%      { color: var(--danger); }
+}
 
 .balance-timer { width: 100%; }
 

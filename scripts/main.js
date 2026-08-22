@@ -4,7 +4,7 @@
 
 import { loadState, state, saveState, resolveActiveSelection, markSeenTabs } from "./core/state.js";
 import { switchToLayer } from "./render/canvasRouter.js";
-import { renderSidebar } from "./render/sidebar.js";
+import { renderSidebar, initNavToggle } from "./render/sidebar.js";
 import { initSettings } from "./render/settings.js";
 import { initDev } from "./render/dev.js";
 import { initGuides } from "./render/guide.js";
@@ -20,6 +20,7 @@ markSeenTabs();           // ...and before the first render, so nothing already 
 initSettings();
 initDev();
 initGuides();
+initNavToggle();
 switchToLayer(state.activeLayer);
 renderSidebar();
 startGameLoop();

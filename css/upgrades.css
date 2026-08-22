@@ -3,14 +3,14 @@
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     align-content: start;
     gap: 12px;
-    padding: 20px;
+    padding: var(--page-pad);
     overflow-y: auto;
     height: 100%;
 }
 
 .canvas-note {
     flex-shrink: 0;
-    padding: 16px 20px 0;
+    padding: 16px var(--page-pad) 0;
     font-size: 13px;
     color: var(--text-dim);
     font-variant-numeric: tabular-nums;
