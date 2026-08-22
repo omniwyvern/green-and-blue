@@ -626,7 +626,7 @@ export const POND_VIEW = {
                 },
                 nutrientDense: {
                     title: "Nutrient Dense",
-                    description: "Algae counts for 15% more than it is when the pond works out its biomass, without taking up any more room.",
+                    description: "Algae counts for 15% more than it is for biomass production, without taking up any more room.",
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },
@@ -691,7 +691,7 @@ export const POND_VIEW = {
                 },
                 richRoe: {
                     title: "Rich Roe",
-                    description: "Fish count for +15% more than they are when the pond works out its biomass, without taking up any more room.",
+                    description: "Fish count for +15% more than they are for biomass production, without taking up any more room.",
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },
