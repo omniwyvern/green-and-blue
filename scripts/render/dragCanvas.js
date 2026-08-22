@@ -26,8 +26,16 @@ const anonymousTitle = () => "???";
 const DRAG_ROOM = 4;
 
 // Fixed zoom steps, because it sucks to end up at like 81% zoom and not be at a good size
-const ZOOM_STEPS = [0.6, 0.75, 0.9, 1, 1.1, 1.25];
-const DEFAULT_ZOOM_STEP = ZOOM_STEPS.indexOf(1);
+const ZOOM_STEPS = [0.6, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75];
+
+// The map opens at whatever size the rest of the interface has scaled itself to, since a tile
+// is drawn in fixed pixels and would otherwise be the one thing that stays small.
+const uiScale = () => parseFloat(getComputedStyle(document.documentElement).fontSize) / 16 || 1;
+const defaultZoomStep = () => {
+    const want = uiScale();
+    return ZOOM_STEPS.reduce((best, step, i) =>
+        Math.abs(step - want) < Math.abs(ZOOM_STEPS[best] - want) ? i : best, 0);
+};
 
 // How far apart two fingers have to move before a pinch takes a zoom step. The steps are fixed,
 // so a pinch can't scale smoothly - it takes a step and then measures again from there.
@@ -70,7 +78,7 @@ class DragCanvas {
         this.container = container;
         this.panX = 0;
         this.panY = 0;
-        this.zoomStep = DEFAULT_ZOOM_STEP;
+        this.zoomStep = defaultZoomStep();
         this.isDragging = false;
         this.lastPointer = { x: 0, y: 0 };
         this.pointers = new Map(); // Live touches on the canvas, so two of them can be a pinch.
@@ -135,6 +143,7 @@ class DragCanvas {
                 && Math.abs(e.clientX - this.pressOrigin.x) + Math.abs(e.clientY - this.pressOrigin.y) > DRAG_ROOM) {
                 this.isDragging = true;
                 this.movedWhileDown = true;
+                this.inner.classList.add("panning");
                 this.viewport.setPointerCapture(e.pointerId);
             }
 
@@ -181,6 +190,7 @@ class DragCanvas {
             this.pointers.delete(e.pointerId);
             this.pressing = false;
             this.isDragging = false;
+            this.inner.classList.remove("panning");
         };
         this.viewport.addEventListener("pointerup", stopDragging);
         this.viewport.addEventListener("pointercancel", stopDragging);
@@ -192,6 +202,7 @@ class DragCanvas {
         this.pressing = false;
         this.isDragging = false;
         this.movedWhileDown = true;
+        this.inner.classList.remove("panning");
         this.pinchSpan = this._pinchSpan();
     }
 

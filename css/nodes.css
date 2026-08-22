@@ -14,6 +14,7 @@
 }
 
 .node {
+    --node-edge: color-mix(in srgb, var(--node-color, var(--accent)) 45%, #05090d);
     position: absolute;
     border-radius: 50%;
     display: flex;
@@ -32,7 +33,7 @@
     border-radius: 50%;
     background: conic-gradient(
         var(--node-color, var(--accent)) calc(var(--node-fill, 0) * 360deg),
-        var(--border) 0
+        var(--node-edge) 0
     );
     -webkit-mask: radial-gradient(circle, transparent calc(50% - 6px), #000 calc(50% - 6px));
     mask: radial-gradient(circle, transparent calc(50% - 6px), #000 calc(50% - 6px));
@@ -134,10 +135,42 @@
     background: var(--panel-light);
     border: 1px dashed var(--border);
 }
-.node.unmet .node-ring { background: var(--border); }
+.node.unmet .node-ring { background: var(--node-edge); }
 .node.unmet .node-split-fill { display: none; }
 .node.unmet .node-face { background: var(--panel-light); }
 .node.unmet .node-title { color: var(--text-dim); letter-spacing: 0.08em; }
+
+:root[data-theme="light"] .node {
+    --node-edge: color-mix(in srgb, var(--node-color, var(--accent)) 56%, #0a1620);
+}
+
+:root[data-theme="light"] .node-face {
+    background: color-mix(in srgb, var(--node-color, var(--accent)) 15%, var(--panel));
+}
+:root[data-theme="light"] .node.affordable .node-face {
+    background: color-mix(in srgb, var(--node-color, var(--accent)) 55%, var(--panel));
+}
+:root[data-theme="light"] .node.owned .node-face {
+    background: color-mix(in srgb, var(--node-color, var(--accent)) 92%, var(--panel));
+}
+:root[data-theme="light"] .node-core .node-face,
+:root[data-theme="light"] .node-core:hover .node-face {
+    background: color-mix(in srgb, var(--node-color, var(--accent)) 78%, #ffffff);
+}
+:root[data-theme="light"] .node.unmet .node-face {
+    background: color-mix(in srgb, var(--node-color, var(--accent)) 10%, var(--panel-light));
+}
+
+/* Fading a node out against a light canvas takes it to nothing, so locked and unmet lean on
+   their colour and their dashed edge to say so instead of on being faint. */
+:root[data-theme="light"] .node.locked { opacity: 0.82; }
+:root[data-theme="light"] .node.unmet { opacity: 0.68; }
+
+/* The core's own readout sits on a strong fill, where the dim grey it uses elsewhere vanishes. */
+:root[data-theme="light"] .node-core .node-value,
+:root[data-theme="light"] .node-core .node-detail {
+    color: color-mix(in srgb, var(--node-color, var(--accent)) 30%, #06231a);
+}
 
 .node-major .node-title { font-size: 13px; }
 

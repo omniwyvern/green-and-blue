@@ -17,9 +17,9 @@
     position: absolute;
     top: 0;
     left: 0;
-    will-change: transform;
     transform-origin: 0 0;
 }
+.drag-canvas-inner.panning { will-change: transform; }
 
 .canvas-coords {
     position: absolute;

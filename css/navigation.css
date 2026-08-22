@@ -1,7 +1,7 @@
 #category-bar {
     display: flex;
-    gap: 4px;
-    padding: 7px 8px;
+    gap: 0.1875rem;
+    padding: 0.3125rem 0.4375rem;
     background: var(--panel);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
@@ -16,10 +16,10 @@
     background: var(--panel-light);
     color: var(--text-dim);
     border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 16px;
+    border-radius: 0.3125rem;
+    padding: 0.25rem 0.75rem;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 0.75rem;
 }
 .category-button.active {
     color: var(--text);
@@ -40,19 +40,19 @@
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    padding: 8px;
-    gap: 4px;
+    padding: calc(0.5 * var(--u));
+    gap: calc(0.25 * var(--u));
     overflow-y: auto;
 }
 
 .sidebar-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: calc(0.25 * var(--u));
 }
 .sidebar-group + .sidebar-group {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: calc(0.625 * var(--u));
+    padding-top: calc(0.625 * var(--u));
     border-top: 1px solid var(--border);
 }
 .sidebar-group.first-visible {
@@ -62,12 +62,12 @@
 }
 
 .sidebar-group-label {
-    font-size: 10px;
+    font-size: calc(0.625 * var(--u));
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-dim);
     opacity: 0.75;
-    padding: 0 4px 2px;
+    padding: 0 calc(0.25 * var(--u)) calc(0.125 * var(--u));
 }
 
 .layer-tab {
@@ -76,10 +76,10 @@
     border-left: 3px solid var(--layer-color, var(--accent));
     color: var(--text-dim);
     text-align: left;
-    padding: 10px 12px;
+    padding: calc(0.6875 * var(--u)) calc(0.8125 * var(--u));
     cursor: pointer;
-    border-radius: 4px;
-    font-size: 14px;
+    border-radius: calc(0.25 * var(--u));
+    font-size: calc(0.875 * var(--u));
 }
 .layer-tab:hover { background: var(--panel-light); }
 .layer-tab.active { background: var(--panel-light); color: var(--text); }
@@ -91,15 +91,15 @@
     top: var(--flyout-top, 0px);
     left: var(--sidebar-width);
     z-index: 10;
-    width: 90px;
+    width: calc(5.625 * var(--u));
     max-height: calc(100% - var(--flyout-top, 0px));
     background: var(--panel);
     border: 1px solid var(--border);
     border-left: none;
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 calc(0.375 * var(--u)) calc(0.375 * var(--u)) 0;
     flex-direction: column;
-    padding: 8px;
-    gap: 4px;
+    padding: calc(0.5 * var(--u));
+    gap: calc(0.25 * var(--u));
     overflow-y: auto;
 }
 
@@ -110,17 +110,17 @@
     z-index: 11;
     display: grid;
     place-items: center;
-    width: 15px;
-    height: 40px;
+    width: calc(1.75 * var(--u));
+    height: calc(3.5 * var(--u));
     padding: 0;
     background: color-mix(in srgb, var(--panel) 30%, transparent);
     color: var(--text-dim);
     border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
     border-left: none;
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 calc(0.5 * var(--u)) calc(0.5 * var(--u)) 0;
     cursor: pointer;
     font-family: inherit;
-    font-size: 14px;
+    font-size: calc(1.0625 * var(--u));
     line-height: 1;
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
@@ -132,7 +132,7 @@
     border-color: var(--accent);
 }
 
-#app.flyout-over-header #sidebar-flyout { padding-left: 20px; }
+#app.flyout-over-header #sidebar-flyout { padding-left: 1.25rem; }
 
 .nav-chevron {
     display: block;
@@ -158,10 +158,10 @@
     border-left: 3px solid var(--layer-color, var(--accent));
     color: var(--text-dim);
     text-align: left;
-    padding: 8px 10px;
+    padding: calc(0.5 * var(--u)) calc(0.625 * var(--u));
     cursor: pointer;
-    border-radius: 4px;
-    font-size: 13px;
+    border-radius: calc(0.25 * var(--u));
+    font-size: calc(0.8125 * var(--u));
 }
 .sub-layer-tab:hover { background: var(--panel-light); }
 .sub-layer-tab.active { background: var(--panel-light); color: var(--text); }
@@ -174,7 +174,7 @@
 @keyframes tab-unlocked {
     0%, 100% { box-shadow: 0 0 0 0 transparent; background: transparent; }
     50% {
-        box-shadow: 0 0 0 1px var(--gold), 0 0 10px 1px var(--gold);
+        box-shadow: 0 0 0 0.0625rem var(--gold), 0 0 0.625rem 0.0625rem var(--gold);
         background: color-mix(in srgb, var(--gold) 18%, transparent);
     }
 }

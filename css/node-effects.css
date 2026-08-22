@@ -54,6 +54,21 @@
     overflow: hidden;
 }
 
+/* Bought, so both halves are at full strength - lifted off the raw variables, which are dark
+   enough on their own to read as a black disc once the two of them sit side by side. */
+.node.node-split.owned .node-face {
+    background: color-mix(in srgb, var(--blue) 86%, #ffffff);
+}
+.node.node-split.owned .node-split-fill {
+    background: color-mix(in srgb, var(--green) 86%, #ffffff);
+}
+:root[data-theme="light"] .node.node-split.owned .node-face {
+    background: color-mix(in srgb, var(--blue) 72%, #ffffff);
+}
+:root[data-theme="light"] .node.node-split.owned .node-split-fill {
+    background: color-mix(in srgb, var(--green) 72%, #ffffff);
+}
+
 .node.unmet.node-split .node-face { background: var(--panel-light); }
 
 .node.node-split:not(.owned):not(.unmet) .node-face {

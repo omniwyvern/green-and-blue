@@ -1,7 +1,7 @@
 .cards-scene { overflow-y: auto; }
 
 .cards-page {
-    --card-width: 168px;
+    --card-width: 10.5rem;
     display: flex;
     flex-direction: column;
     padding: var(--page-pad);
@@ -15,41 +15,41 @@
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     align-items: start;
-    min-height: 320px;
-    padding-bottom: 8px;
+    min-height: 20rem;
+    padding-bottom: 0.5rem;
 }
 
 .cards-lower {
-    --card-width: 124px;
+    --card-width: 7.75rem;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 1.125rem;
     border-top: 1px solid var(--border);
-    padding-top: 16px;
+    padding-top: 1rem;
 }
 
-.cards-lower .card-name { font-size: calc(11px * var(--card-text-scale)); }
-.cards-lower .card-effect { font-size: calc(10px * var(--card-text-scale)); }
+.cards-lower .card-name { font-size: calc(0.6875rem * var(--card-text-scale)); }
+.cards-lower .card-effect { font-size: calc(0.625rem * var(--card-text-scale)); }
 .cards-lower .card-text { display: none; }
-.cards-lower .card-body { padding: 6px 8px 5px; }
-.cards-lower .card-foot { padding: 3px 8px 4px; }
+.cards-lower .card-body { padding: 0.375rem 0.5rem 0.3125rem; }
+.cards-lower .card-foot { padding: 0.1875rem 0.5rem 0.25rem; }
 
 .cards-heading {
-    font-size: 12px;
+    font-size: 0.75rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-dim);
-    margin-bottom: 8px;
+    margin-bottom: 0.5rem;
 }
 .cards-sub { text-transform: none; letter-spacing: 0; opacity: 0.8; }
-.cards-empty { font-size: 13px; color: var(--text-dim); }
+.cards-empty { font-size: 0.8125rem; color: var(--text-dim); }
 
 .cards-draw {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    width: min(660px, 100%);
+    gap: 0.625rem;
+    width: min(41.25rem, 100%);
 }
 
 .banner-choice { display: flex; flex-direction: column; align-items: center; }
@@ -58,8 +58,8 @@
 .banner-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    max-width: 660px;
+    gap: 0.75rem;
+    max-width: 41.25rem;
 }
 
 .banner-card,
@@ -68,10 +68,10 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 14px 16px;
+    gap: 0.875rem;
+    padding: 0.875rem 1rem;
     border: 1px solid color-mix(in srgb, var(--banner-color) 45%, transparent);
-    border-radius: 12px;
+    border-radius: 0.75rem;
     background:
         radial-gradient(ellipse at 12% 120%, color-mix(in srgb, var(--banner-color) 26%, transparent), transparent 68%),
         linear-gradient(135deg, color-mix(in srgb, var(--banner-color) 14%, var(--panel)), var(--panel) 70%);
@@ -95,50 +95,50 @@
     transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .banner-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-0.1875rem);
     border-color: var(--banner-color);
-    box-shadow: 0 6px 18px -10px var(--banner-color);
+    box-shadow: 0 0.375rem 1.125rem -0.625rem var(--banner-color);
 }
 
 .banner-icon {
     flex: 0 0 auto;
-    width: 52px;
-    height: 52px;
+    width: 3.25rem;
+    height: 3.25rem;
     color: var(--banner-color);
 }
 .banner-art-svg { width: 100%; height: 100%; display: block; }
 
 .banner-info { min-width: 0; flex: 1; }
-.banner-name { font-size: 15px; font-weight: 600; }
-.banner-text { font-size: 11px; color: var(--text-dim); line-height: 1.35; margin-top: 2px; }
+.banner-name { font-size: 0.9375rem; font-weight: 600; }
+.banner-text { font-size: 0.6875rem; color: var(--text-dim); line-height: 1.35; margin-top: 0.125rem; }
 
 .banner-price {
     flex: 0 0 auto;
     align-self: flex-start;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
     color: color-mix(in srgb, var(--banner-color) 60%, var(--text));
 }
 .banner-price::after {
     content: " EP";
-    font-size: 9px;
+    font-size: 0.5625rem;
     letter-spacing: 0.06em;
     opacity: 0.7;
 }
 
 .banner-hero {
     width: 100%;
-    padding: 12px 16px;
+    padding: 0.75rem 1rem;
 }
-.banner-hero .banner-icon { width: 42px; height: 42px; }
+.banner-hero .banner-icon { width: 2.625rem; height: 2.625rem; }
 
 .banner-bar { width: 100%; }
 .banner-back {
-    padding: 5px 12px;
-    font-size: 11px;
+    padding: 0.3125rem 0.75rem;
+    font-size: 0.6875rem;
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: 62.4375rem;
     color: var(--text-dim);
     cursor: pointer;
 }
@@ -149,24 +149,24 @@
     display: grid;
     place-items: center;
     width: 100%;
-    min-height: 268px;
+    min-height: 16.75rem;
 }
 
 .draw-button {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    padding: 18px 54px;
+    gap: 0.1875rem;
+    padding: 1.125rem 3.375rem;
     background: var(--panel);
     border: 2px solid #b06ad0;
-    border-radius: 14px;
+    border-radius: 0.875rem;
     color: var(--text);
     cursor: pointer;
-    box-shadow: 0 0 18px -6px #b06ad0;
+    box-shadow: 0 0 1.125rem -0.375rem #b06ad0;
     transition: transform 0.12s ease, background 0.12s ease;
 }
-.draw-button:hover { background: var(--panel-light); transform: translateY(-2px); }
+.draw-button:hover { background: var(--panel-light); transform: translateY(-0.125rem); }
 .draw-button.unaffordable {
     opacity: 0.5;
     cursor: default;
@@ -174,17 +174,17 @@
     box-shadow: none;
 }
 .draw-button.unaffordable:hover { transform: none; background: var(--panel); }
-.draw-verb { font-size: 22px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-.draw-cost { font-size: 12px; color: #c98ae0; font-variant-numeric: tabular-nums; }
+.draw-verb { font-size: 1.375rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.draw-cost { font-size: 0.75rem; color: #c98ae0; font-variant-numeric: tabular-nums; }
 
 .draw-choices { display: flex; flex-direction: column; align-items: center; }
 .draw-choices .cards-heading { text-align: center; }
 .draw-row {
-    --card-width: clamp(130px, calc((100vw - 287px) / 3), 168px);
-    --deal-slide: calc(var(--card-width) + 14px);
+    --card-width: clamp(8.125rem, calc((100vw - 17.9375rem) / 3), 10.5rem);
+    --deal-slide: calc(var(--card-width) + 0.875rem);
     display: flex;
     justify-content: center;
-    gap: 14px;
+    gap: 0.875rem;
 }
 .draw-choice {
     padding: 0;
@@ -193,7 +193,7 @@
     cursor: pointer;
 }
 .draw-choice .card-face { transition: transform 0.12s ease; }
-.draw-choice:hover .card-face { transform: translateY(-6px); }
+.draw-choice:hover .card-face { transform: translateY(-0.375rem); }
 
 .draw-row.dealing .draw-choice {
     animation: deal-out 0.42s cubic-bezier(0.22, 0.9, 0.3, 1) both;
