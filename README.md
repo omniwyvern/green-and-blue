@@ -82,7 +82,7 @@ scripts/
     staticCanvas.js              upgrade-grid renderer (string-keyed instead of number id's for readability)
     dragCanvas.js                reusable pannable canvas class + draggable canvas nodes
     sidebar.js                   category bar, layer tabs, and sub-layer flyout
-    settings.js                  the settings window. Themes, save, load, delete, etc.
+    settings.js                  the settings window. Themes, save, load, delete, save files
     guide.js                     the guide window for layers/sublayers + the information button that re-opens it
     dev.js                       dev-only cheat window, gives functions for easier testing. There's a toggle in here to disable it
 

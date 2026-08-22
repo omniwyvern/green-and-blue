@@ -8,8 +8,19 @@ import { D, isDecimal } from "../utils/decimal.js";
 
 const SAVE_KEY = "incrementalGameSave";
 
+// Bump this whenever a saved field changes meaning or shape, and add the matching step to
+// MIGRATIONS. Adding fields doesn't need either - reconcile below fills those in on its own.
+const SAVE_VERSION = 1;
+
+// Keyed by the version each step arrives at, so a save two versions behind runs both in order.
+// They see the save before anything is pruned, which is what makes renaming an id survivable.
+const MIGRATIONS = {
+    // 2: (save) => { ...move or rescale fields here... },
+};
+
 function defaultState() {
     return {
+        saveVersion: SAVE_VERSION,
         lastSaveTime: Date.now(),
         totalTimePlayed: 0,
         activeCategory: null,
@@ -31,10 +42,53 @@ let savingBlocked = false;
 
 export function saveState() {
     if (savingBlocked) return;
+    localStorage.setItem(SAVE_KEY, encodeSave(serializeState()));
+}
+
+// Decimals are stored as strings, getLayerState() turns them back into Decimals.
+export function serializeState() {
     state.lastSaveTime = Date.now();
-    // Decimals are stored as strings, getLayerState() turns them back into Decimals. 
-    localStorage.setItem(SAVE_KEY, JSON.stringify(state, (key, value) =>
-        isDecimal(value) ? value.toString() : value));
+    return JSON.stringify(state, (key, value) => isDecimal(value) ? value.toString() : value);
+}
+
+// Saves are masked and base64'd, in storage and in an exported file alike, so neither one is a
+// list of your numbers waiting to be retyped. It is a speed bump, not a lock - the key is right
+// here, so anyone who wants in can still get in.
+const SAVE_MAGIC = "GNB1";
+const MASK_KEY = "green-and-blue";
+
+// XOR, so the same pass encodes and decodes. The index is in there too, otherwise a save full of
+// repeated text shows the key's own length as a pattern.
+const mask = (byte, i) => byte ^ ((MASK_KEY.charCodeAt(i % MASK_KEY.length) + i) & 0xff);
+
+export function encodeSave(text) {
+    const bytes = new TextEncoder().encode(text);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(mask(bytes[i], i));
+    return SAVE_MAGIC + btoa(binary);
+}
+
+export function decodeSave(raw) {
+    const text = raw.trim();
+    // Plain JSON is still read, so files exported before this and hand-written saves keep working.
+    if (!text.startsWith(SAVE_MAGIC)) return text;
+
+    const binary = atob(text.slice(SAVE_MAGIC.length).replace(/\s+/g, ""));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = mask(binary.charCodeAt(i), i);
+    return new TextDecoder().decode(bytes);
+}
+
+// Takes the contents of an exported save. Throws before touching storage if it isn't one, so a
+// wrong file picked by mistake leaves the save that's already there alone.
+export function importSave(raw) {
+    const json = decodeSave(raw);
+    const parsed = JSON.parse(json);
+    if (!parsed || typeof parsed !== "object" || !parsed.layers || !parsed.settings) {
+        throw new Error("not a save");
+    }
+    localStorage.setItem(SAVE_KEY, encodeSave(json));
+    loadState();
 }
 
 export function loadState() {
@@ -44,7 +98,7 @@ export function loadState() {
         return state;
     }
     try {
-        state = migrateState(JSON.parse(raw));
+        state = migrateState(JSON.parse(decodeSave(raw)));
     } catch (err) {
         console.error("Save file was corrupted, starting fresh.", err);
         state = defaultState();
@@ -56,6 +110,8 @@ export function loadState() {
 function migrateState(loaded) {
     if (!loaded || typeof loaded !== "object") return defaultState();
 
+    loaded = applyVersionSteps(loaded);
+
     const fresh = defaultState();
     const migrated = reconcile(fresh, loaded);
 
@@ -64,6 +120,17 @@ function migrateState(loaded) {
     for (const kind in migrated.seen) migrated.seen[kind] = asObject(migrated.seen[kind]);
 
     migrated.layers = asObject(migrated.layers);
+    migrated.saveVersion = SAVE_VERSION;
+
+    // Pruning against a registry that never finished loading would delete most of the save, so
+    // that load keeps its hands off and refuses to write over what's already there.
+    if (registryLooksBroken(migrated.layers)) {
+        savingBlocked = true;
+        console.error("Part of the game didn't load, so the save has been left alone and saving is"
+            + " off until the page is reloaded.");
+        return migrated;
+    }
+
     const declared = declaredBySlot();
     for (const layerId in migrated.layers) {
         // A layer that no longer exists takes its whole slot with it.
@@ -75,6 +142,24 @@ function migrateState(loaded) {
     }
 
     return migrated;
+}
+
+// A save naming layers that the registry has never heard of is either a save from a newer build or,
+// far more likely, a page where some content scripts didn't arrive. One or two missing is a layer
+// that was genuinely removed; most of them missing is a broken load.
+function registryLooksBroken(loadedLayers) {
+    const ids = Object.keys(loadedLayers);
+    if (ids.length === 0) return false;
+    return ids.filter(id => layers[id]).length * 2 < ids.length;
+}
+
+// Walks a save up to the current version, one step per version, before any pruning happens.
+function applyVersionSteps(loaded) {
+    const from = Number.isInteger(loaded.saveVersion) ? loaded.saveVersion : 0;
+    for (let version = from + 1; version <= SAVE_VERSION; version++) {
+        if (MIGRATIONS[version]) loaded = MIGRATIONS[version](loaded) || loaded;
+    }
+    return loaded;
 }
 
 // Drops whatever this layer no longer declares. getLayerState() will rebuild it better. Stronger.
@@ -146,6 +231,10 @@ export function deleteSave() {
 
 export function hasSave() {
     return localStorage.getItem(SAVE_KEY) !== null;
+}
+
+export function isSavingBlocked() {
+    return savingBlocked;
 }
 
 

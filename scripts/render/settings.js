@@ -2,7 +2,7 @@
 //
 // The settings window. Little gear icon on the bottom left opens it. Pretty self-explanatory.
 
-import { state, saveState, loadState, deleteSave, hasSave } from "../core/state.js";
+import { state, saveState, loadState, deleteSave, hasSave, isSavingBlocked, serializeState, encodeSave, importSave } from "../core/state.js";
 
 const THEMES = [
     { id: "dark", name: "Dark" },
@@ -15,6 +15,17 @@ const openButton = document.getElementById("settings-button");
 let statusEl = null;
 let deleteButton = null;
 let deleteArmed = false; // Second click confirms; see armDelete below
+
+// Kept off-screen and opened by the Load from file button, since a bare file input can't be styled.
+const filePicker = document.createElement("input");
+filePicker.type = "file";
+filePicker.accept = ".txt,.json,text/plain,application/json";
+filePicker.hidden = true;
+filePicker.addEventListener("change", () => {
+    const file = filePicker.files[0];
+    filePicker.value = ""; // So picking the same file twice in a row still fires.
+    loadFromFile(file);
+});
 
 export function initSettings() {
     if (!overlay || !openButton) return;
@@ -52,6 +63,10 @@ function buildWindow() {
             <div class="settings-label">Save</div>
             <div class="settings-row save-row"></div>
         </div>
+        <div class="settings-section">
+            <div class="settings-label">Transfer</div>
+            <div class="settings-row file-row"></div>
+        </div>
         <div class="settings-status"></div>
     `;
 
@@ -75,7 +90,10 @@ function buildWindow() {
     const saveRow = panel.querySelector(".save-row");
     saveRow.appendChild(makeButton("Save", "settings-button-secondary", () => {
         saveState();
-        setStatus("Saved.");
+        // Saving goes quiet after a half-loaded page, so say that rather than claim it worked.
+        setStatus(isSavingBlocked()
+            ? "Part of the game didn't load. Reload the page before saving."
+            : "Saved.");
     }));
     saveRow.appendChild(makeButton("Load", "settings-button-secondary", () => {
         if (!hasSave()) return setStatus("No save to load.");
@@ -87,10 +105,44 @@ function buildWindow() {
     deleteButton = makeButton("Delete save", "settings-button-danger", armDelete);
     saveRow.appendChild(deleteButton);
 
+    const fileRow = panel.querySelector(".file-row");
+    fileRow.appendChild(makeButton("Save to file", "settings-button-secondary", saveToFile));
+    fileRow.appendChild(makeButton("Load from file", "settings-button-secondary",
+        () => filePicker.click()));
+    fileRow.appendChild(filePicker);
+
     statusEl = panel.querySelector(".settings-status");
 
     overlay.appendChild(panel);
     highlightTheme(panel);
+}
+
+// Writes the save out as a file, which is the whole point - another machine can load it back
+// without either one having to talk to the other.
+function saveToFile() {
+    saveState();
+    const now = new Date();
+    const stamp = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+        .map((part, i) => i ? String(part).padStart(2, "0") : part).join("-");
+    const blob = new Blob([encodeSave(serializeState())], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `green-and-blue-${stamp}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setStatus(`Saved to ${link.download}.`);
+}
+
+async function loadFromFile(file) {
+    if (!file) return;
+    try {
+        importSave(await file.text());
+    } catch (err) {
+        console.error("That file wasn't a save.", err);
+        return setStatus("That file isn't a Green and Blue save.");
+    }
+    window.location.reload();
 }
 
 function makeButton(label, className, onClick) {
