@@ -10,13 +10,15 @@
 
 
 import { registerLayer } from "../../core/registry.js";
+import { getLayerState } from "../../core/state.js";
 import { addResource } from "../../core/resources.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
 import {
-    TERRAIN, TERRAIN_OUTPUT, ACTIVATIONS_BY_TIER, BUILDUP_LOST_PER_SECOND, activationsForKind,
+    TERRAIN, TERRAIN_OUTPUT, ACTIVATIONS_BY_TIER, DRYING_SECONDS, activationsForKind,
     worldState, tileCounts, knownKinds, terrainProduction, claimedTiles, moistureOn,
     knownTransforms, transformAvailable, transformHint, fodderSpends, fodderSummary, hasSeenKind,
+    contributeMapRadius,
 } from "./worldMap.js";
 import { kindChip } from "./terrainArt.js";
 import { BIOMASS_RESOURCE, biomassMultiplier } from "./pondSublayer.js";
@@ -25,7 +27,10 @@ import { GRASS_VIEW, GRASS_RESOURCES, GROWTH_RESOURCE, greenMultiplier } from ".
 import { PRECIPITATION_VIEW, PRECIPITATION_RESOURCES } from "./precipitationSublayer.js";
 
 // How long a full cloud's worth takes to drain back off the ground when left alone.
-const DRYING_MINUTES = 1 / BUILDUP_LOST_PER_SECOND / 60;
+const DRYING_MINUTES = DRYING_SECONDS / 60;
+
+// The world opens out by a ring once the environment is here.
+contributeMapRadius("environment", () => getLayerState("environment").unlocked ? 1 : 0);
 
 // The wettest tile that hasn't flooded yet, i.e. whichever tile is being rained on (I THINK THIS WORKS RIGHT MAYBE HOPEFULLY)
 function wettestTile(s) {
@@ -88,8 +93,6 @@ registerLayer("environment", {
                     setText(el.querySelector(".environment-summary"), summary(world, counts));
 
                     // Known/unlocked transforms are only updated on purchases, so this isn't rebuilt every tick.
-                    // Whether one has ever been made is in the signature too, so the row opens
-                    // up on the frame the first one is finished rather than on the next purchase.
                     const known = knownTransforms(world);
                     const recipeSignature = known
                         .map(r => `${r.id}:${transformAvailable(r, world)}:${hasSeenKind(world, r.output)}`)

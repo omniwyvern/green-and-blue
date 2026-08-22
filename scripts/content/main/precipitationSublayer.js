@@ -14,9 +14,9 @@ import { formatNumber } from "../../utils/format.js";
 import { cardBonus, cardActive } from "./cards.js";
 import {
     PRECIPITATION, PRECIPITATION_KINDS, PRECIPITATION_SECONDS, PRODUCTION_BOOST, TERRAIN,
-    BUILDUP_LOST_PER_SECOND, ORIGIN_TILE, worldState, isPrecipitating, precipitationKind, setPrecipitationKind,
+    DRYING_SECONDS, ORIGIN_TILE, worldState, isPrecipitating, precipitationKind, setPrecipitationKind,
     fallingKind, buildupOn, isClaimed, tileKind, grassOn, claimedTiles, shedsPrecipitation,
-    startPrecipitation, stopPrecipitation, chargeCost, soakScale, wetnessFactor,
+    startPrecipitation, stopPrecipitation, chargeCost, soakScale, soakScaleForKind, wetnessFactor,
 } from "./worldMap.js";
 import { switchToLayer } from "../../render/canvasRouter.js";
 
@@ -64,17 +64,25 @@ const DRIFTING_CHARGE = 0.4;        // What a cloud that wasn't built is worth (
 
 const IDLE_AFTER_MS = 250;          // How long without a frame before the tick takes the cloud over.
 
+// How much of its duration a release keeps, by the Stability it was let go at. A full cloud runs
+// the intensity's whole time and a quarter-stability one runs half of it, so a Downpour is 30
+// seconds against 15. Shorter rain leaves proportionally less water behind as well.
+const DURATION_FLOOR = 1 / 3;       // What's left of it with no Stability at all.
+const durationFactor = (stability) => DURATION_FLOOR + (1 - DURATION_FLOOR) * stability;
+
+// `soak` is what one full-charge release at full Stability leaves in a GRASS tile, as a share of
+// the way to flooding it. Ground that takes more or less than grass moves off of that in eventFor.
 export const INTENSITIES = [
     {
-        id: "light", at: 0.25, power: 0.6, soak: 0.12, seconds: 0.8, upgrade: "fineMist",
+        id: "light", at: 0.25, power: 0.6, soak: 0.2, seconds: 0.8, upgrade: "fineMist",
         names: { rain: "Drizzle", snow: "Flurry" },
     },
     {
-        id: "steady", at: 0.5, power: 1, soak: 0.45, seconds: 1, upgrade: "steadyFall",
+        id: "steady", at: 0.5, power: 1, soak: 0.4, seconds: 1, upgrade: "steadyFall",
         names: { rain: "Rain", snow: "Snow" },
     },
     {
-        id: "heavy", at: 0.75, power: 1.8, soak: 1, seconds: 1.2, upgrade: "cloudburst",
+        id: "heavy", at: 0.75, power: 1.8, soak: 0.8, seconds: 1.2, upgrade: "cloudburst",
         names: { rain: "Downpour", snow: "Heavy Snow" },
     },
 ];
@@ -131,17 +139,19 @@ export const canRelease = (s = cloudState(), world = worldState()) =>
     !isPrecipitating(world) && !!targetTile(world) && readyIndex(s) >= pickedIndex(s);
 
 
-function eventFor(world, id, intensity, charge) {
+function eventFor(world, id, intensity, charge, stability) {
     const kind = precipitationKind(world);
     const power = intensity.power * (1 + POWER_PER_LEVEL * level(intensity.upgrade));
     const water = intensity.soak * runoff(intensity)
         * (1 + cardBonus("moistureRate") + (grassOn(world, id) ? 0 : cardBonus("rainSoak")))
         * (cardActive("soakDuration") ? 1 + cardBonus("rainDuration") : 1);
+    const lasting = durationFactor(stability);
 
     return {
         strength: charge * power * wetnessFactor(world, id, kind) * (1 + cardBonus("rainBoost")),
-        seconds: PRECIPITATION_SECONDS * intensity.seconds * (1 + cardBonus("rainDuration")),
-        soak: charge * water / soakScale(world, id),
+        seconds: PRECIPITATION_SECONDS * intensity.seconds * lasting * (1 + cardBonus("rainDuration")),
+        // Off the grass the soak numbers are quoted against, and onto whatever is being rained on.
+        soak: charge * water * lasting * soakScaleForKind("grass") / soakScale(world, id),
     };
 }
 
@@ -150,14 +160,15 @@ const runoff = (intensity) => intensity.id === "heavy"
     : Math.max(MIN_RUNOFF, 1 - RUNOFF_PER_LEVEL * level("lightTouch"));
 
 // With no tile picked this reads off the origin.
-export const previewOf = (world, id, intensity, charge) => {
-    const event = eventFor(world, id || ORIGIN_TILE, intensity, charge);
+export const previewOf = (world, id, intensity, charge, stability) => {
+    const event = eventFor(world, id || ORIGIN_TILE, intensity, charge, stability);
     return { boost: PRODUCTION_BOOST * event.strength, seconds: event.seconds, soak: event.soak };
 };
 
-// A cloud that just Appears, for the rain dance card.
+// A cloud that just Appears, for the rain dance card. Nothing wore it down on the way, so it
+// falls for its whole duration.
 export function driftingEvent(world, id) {
-    return eventFor(world, id, INTENSITIES[0], capacity() * DRIFTING_CHARGE);
+    return eventFor(world, id, INTENSITIES[0], capacity() * DRIFTING_CHARGE, 1);
 }
 
 export function addCharge(fraction) {
@@ -171,7 +182,8 @@ export function releaseCloud(layer) {
     if (!canRelease(s, world)) return false;
 
     const id = targetTile(world);
-    startPrecipitation(world, id, eventFor(world, id, pickedIntensity(s), chargeHeld(s)));
+    startPrecipitation(world, id,
+        eventFor(world, id, pickedIntensity(s), chargeHeld(s), stabilityOf(s)));
     s.charge = 0;
     return true;
 }
@@ -181,9 +193,11 @@ function burst(s) {
     const world = worldState();
     const index = readyIndex(s);
     const id = targetTile(world);
+    // Stability is at zero by the time this runs, so the burst falls for what the cloud pulls
+    // itself back to rather than for the floor. It's already paying for the collapse in charge.
     if (index >= 0 && id && !isPrecipitating(world)) {
         startPrecipitation(world, id,
-            eventFor(world, id, INTENSITIES[index], chargeHeld(s) * BURST_SHARE));
+            eventFor(world, id, INTENSITIES[index], chargeHeld(s) * BURST_SHARE, BURST_STABILITY));
     }
     s.charge = 0;
     s.stability = BURST_STABILITY;
@@ -594,13 +608,14 @@ function updateIntensities(el, s, world, kind) {
             continue;
         }
 
-        const preview = previewOf(world, id, intensity, chargeHeld(s));
+        const preview = previewOf(world, id, intensity, chargeHeld(s), stabilityOf(s));
         setText(card.querySelector(".intensity-effect"),
             `+${percent(preview.boost)} output for ${Math.round(preview.seconds)}s`);
+        // Capped, since anything past a full tile floods it and runs off rather than counting.
         setText(card.querySelector(".intensity-water"), !environmentBought()
             ? ""
-            : id ? `+${percent(preview.soak)} water on the tile`
-            : `Soaks in by how much the ground can take`);
+            : id ? `+${percent(Math.min(1, preview.soak))} ${buildupNoun(kind)} on the tile`
+            : `Settles in by how much the ground can take`);
     }
 }
 
@@ -648,7 +663,7 @@ function summary(world, s, kind) {
         + ` over and over while the heavy ones pay more now and eventually turn it to`
         + ` ${TERRAIN[PRECIPITATION[kind].becomes].name.toLowerCase()}.`
         + ` Ground left alone gives up a full tile's worth every`
-        + ` ${(1 / BUILDUP_LOST_PER_SECOND / 60).toFixed(0)} minutes.`
+        + ` ${(DRYING_SECONDS / 60).toFixed(1)} minutes, quicker the drier it gets.`
         + (wettest
             ? ` The ground furthest along is ${wettest.id} at ${Math.round(wettest.at * 100)}% ${held}.`
             : ` No ground is holding any yet.`);
@@ -696,6 +711,9 @@ function cloudArt(kind, index) {
 
 
 const percent = (value) => `${(value * 100).toFixed(value < 0.1 ? 1 : 0)}%`;
+
+// What's piling up on the tile, so a Flurry doesn't promise water.
+const buildupNoun = (kind) => PRECIPITATION[kind].makes === "ice" ? "snow" : "water";
 
 function setText(el, text) {
     const value = String(text);

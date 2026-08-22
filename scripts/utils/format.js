@@ -17,11 +17,28 @@ export function formatNumber(value, places) {
     if (n.lt(1000)) return n.toFixed(places - 1); // Numbers less than 1000 like 999.0
 
     const exponent = n.log10().floor().toNumber();
-    
+
     if (exponent < 6) return n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",");    // Numbers like 80,000,000,000 won't be fully written out
-    if (exponent >= 6) return n.toExponential(places).replace("e+", "e");
-    const mantissa = n.div(D(10).pow(exponent));
-    return `${mantissa.toFixed(places)}e${exponent}`;
+    return exponential(n, places);
+}
+
+// How many decimals the mantissa gets, based on how big the exponent is. Keeps the whole
+// thing about the same width all the way up: 9.99e19, then 9.9e100, then 9e1000.
+const mantissaPlaces = (exponent) => exponent < 100 ? 2 : exponent < 1000 ? 1 : 0;
+
+// The mantissa is cut rather than rounded, so a round number reads as 9.99e19
+// instead of rolling up to 10e19. toExponential() rounds it to 10 and leaves it there.
+function exponential(n, places) {
+    let exponent = n.log10().floor().toNumber();
+    let mantissa = n.div(D(10).pow(exponent)).toNumber();
+
+    // log10's last digit is put back in range instead of being over the mark.
+    if (mantissa >= 10) { mantissa /= 10; exponent++; }
+    if (mantissa < 1) { mantissa *= 10; exponent--; }
+
+    const decimals = Math.min(places, mantissaPlaces(exponent));
+    const step = Math.pow(10, decimals);
+    return `${(Math.floor(mantissa * step) / step).toFixed(decimals)}e${exponent}`;
 }
 
 // For rates and other values where a bare integer reads better.

@@ -83,7 +83,7 @@ function buildGrid(layer, built, upgradeIds) {
             <div class="upgrade-cost"></div>
         `;
         btn.querySelector(".upgrade-title").textContent = def.title;
-        btn.querySelector(".upgrade-description").textContent = def.description;
+        if (typeof def.description !== "function") btn.querySelector(".upgrade-description").textContent = def.description;
         btn.addEventListener("click", () => purchaseUpgrade(layer, upgradeId));
 
         grid.appendChild(btn);
@@ -198,6 +198,11 @@ function updateUpgrades(layer, built, layerState) {
         if (btn.dataset.state !== wantState) {
             btn.className = `upgrade-button ${wantState}`;
             btn.dataset.state = wantState;
+        }
+
+        // Descriptions that quote live numbers come in as functions, so they refresh here.
+        if (typeof def.description === "function") {
+            setText(btn.querySelector(".upgrade-description"), def.description(layerState, level));
         }
 
         // Only repeatable upgrades show the purchase count.

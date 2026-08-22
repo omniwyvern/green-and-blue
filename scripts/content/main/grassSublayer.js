@@ -12,8 +12,8 @@ import { addResource, getLevel } from "../../core/resources.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber, formatWhole } from "../../utils/format.js";
 import {
-    MAP, SEED, GROWING, MATURE, STAGE_NAMES,
-    worldState, grassOn, grassTiles, growableTiles, growthRate, production,
+    mapTiles, SEED, GROWING, MATURE, STAGE_NAMES,
+    worldState, grassOn, grassTiles, growableTiles, growthRate, production, soakedBlue,
 } from "./worldMap.js";
 import { canSacrificeStage, sacrificeValue, sacrificeStage } from "./coresLayer.js";
 
@@ -192,7 +192,7 @@ const stageCounts = (s) => {
 // How long the fastest-growing tile is growing. Might remove later idk
 function fastestStageSeconds(s) {
     let best = 0;
-    for (const tile of MAP) {
+    for (const tile of mapTiles()) {
         if (!grassOn(s, tile.id)) continue;
         best = Math.max(best, growthRate(s, tile));
     }
@@ -333,6 +333,7 @@ function summary() {
         + ` ${growing} ${STAGE_NAMES[GROWING].toLowerCase()},`
         + ` ${mature} ${STAGE_NAMES[MATURE].toLowerCase()}.`
         + ` Producing ${formatNumber(production(world))} Green Essence/s,`
+        + (soakedBlue(world) > 0 ? ` ${formatNumber(soakedBlue(world))} Blue Essence/s off the wet ground,` : "")
         + ` a stage every ${seconds.toFixed(1)}s at best.`
         + (planted === open
             ? " Every tile it can reach is grassed over - claim more for it to spread into."
@@ -448,7 +449,12 @@ registerLayer("grass", {
     // Grass growing is on the World's tick, this one is just payout.
     onTick(dt, layer) {
         if (!grassBought()) return;
-        addResource(layer, "greenEssence", D(production(worldState())).mul(greenMultiplier()).mul(dt));
+        const world = worldState();
+        addResource(layer, "greenEssence", D(production(world)).mul(greenMultiplier()).mul(dt));
+
+        // Whatever rain is still in the ground pays out in Blue on top of that.
+        const blue = soakedBlue(world);
+        if (blue > 0) addResource(layer, "blueEssence", D(blue).mul(dt));
         notePeak();
     },
 

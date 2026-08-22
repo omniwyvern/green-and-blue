@@ -20,7 +20,7 @@ import {
 
 // One point per tile grown all the way to mature. Partly-grown tiles count for nothing.
 // THIS WILL BE CHANGED. SOON.
-const POINTS_PER_MATURE_TILE = D(1);
+const POINTS_PER_MATURE_TILE = D(2);
 
 const DRAW_BASE_COST = D(5);      // For a draw that names no banner, which only an old save can
 const DRAW_COST_SCALE = D(1.2);   // Per draw already taken on that banner
@@ -60,8 +60,8 @@ function resetLivingThings() {
     world.grass = {};
     //world.terrain = {};
 
-    // Precipitation
-    world.moisture = {}; // Resets precipitation and buildup
+    // Resets precipitation and buildup
+    world.moisture = {};
     world.snowpack = {};
     world.weatherSeconds = 0;
     world.weatherTotal = 0;

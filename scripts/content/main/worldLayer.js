@@ -11,7 +11,7 @@ import { state, getLayerState } from "../../core/state.js";
 import { spend } from "../../core/resources.js";
 import { switchToLayer } from "../../render/canvasRouter.js";
 import {
-    MAP, TILE_SIZE, STAGE_NAMES, MATURE, LAND_COST, TERRAIN, grassOn, tileCost, canPlant, plantGrass,
+    mapTiles, TILE_SIZE, STAGE_NAMES, MATURE, LAND_COST, TERRAIN, grassOn, tileCost, canPlant, plantGrass,
     growFully, tickGrass, tickPrecipitation, tickBuildup,
     PRECIPITATION, precipitationKind,
     isPrecipitating, precipitatingOn, fallingKind, snowOn, shedsPrecipitation,
@@ -213,7 +213,7 @@ registerLayer("world", {
 
     tiles: {
         size: TILE_SIZE,
-        list: () => MAP,
+        list: () => mapTiles(),
         hidden: () => !landBought(),
 
         // Tiles cost more based on how many you own. Price is in worldMap.js since rain price is based on it.

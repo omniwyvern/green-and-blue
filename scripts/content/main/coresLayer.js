@@ -42,8 +42,13 @@ const CONSEC_WINDOW_SECONDS = 3; // Time before consec. chain ending while sitti
 
 // Card things.
 const cardCut = (key) => 1 / (1 + cardBonus(key)); // Cards that give minuses sometimes divided by 0 without this
+
 const OVERGROWTH_CAP = 2; // Overgrowth card. Green prod. increases up to +200%, reset when you spend green
 const overgrowthBonus = (s) => Math.min(OVERGROWTH_CAP, cardBonus("overgrowth") * (s.idleSeconds || 0));
+onSpend((resourceId) => {
+    if (resourceId === "greenEssence") getLayerState("cores").idleSeconds = 0;
+});
+
 // Feedback loop card. Blue core consecutive full-charge clicks increase green prod.
 const feedbackBonus = (s) => cardBonus("feedbackLoop") * (Number(s.consecFullActivations) || 0); 
 
@@ -53,14 +58,14 @@ const valveBonus = (s) => cardActive("controlledOverflow")  // Controlled Overfl
     ? Math.min(PRESSURE_CAP, cardBonus("pressureValve") * Math.max(0, s.charge - chargeCap()))
     : Math.min(PRESSURE_CAP, s.valveBonus || 0);
 
+
 // How much charge the meter holds. Increased by a few cards and things.
 const chargeCap = () => 1 + cardBonus("chargeCapacity");
-
 
 const stageCost = (stage) => GROWTH_BASE.mul(GROWTH_SCALE.pow(stage - 1)); // Growth stage cost, so sacrifice can ask.
 const growthNeeded = (s) => stageCost(s.growthStage).mul(cardCut("growthNeeded"));
 
-// Some stuff increases the growth stage cap by a percentage, this makes sure the stage is always a whole number.
+// This makes sure the stage cap is always a whole number after boosts are applied.
 function stageCap(s) {
     const bonus = cardBonus("stageCap");
     if (bonus <= 0) return Number(s.growthStageCap);
@@ -80,23 +85,17 @@ export function sacrificeStage() {
 
     earnGrowth(stageCost(s.growthStage - 1).div(CORE_GROWTH_PER_GROWTH));
     s.growthStage--;
-
-    // Same thing as production increase per growth stage equation, but backwards.
     [s.greenProdPrev, s.greenProdCurr] = [s.greenProdCurr.sub(s.greenProdPrev), s.greenProdPrev];
     return true;
 }
 
-
-// For the overgrowth card, there's a thing above about it.
-onSpend((resourceId) => {
-    if (resourceId === "greenEssence") getLayerState("cores").idleSeconds = 0;
-});
 
 // Biomass multiplier applies to essence wherever it's produced, and card mult is summed up before being counted.
 const greenProduction = (s) => s.greenProdCurr.mul(s.baseProductionMult)
     .mul(s.stageProdMult.mul(s.growthStage).add(1)).mul(biomassMultiplier()).mul(greenMultiplier())
     .mul(1 + cardBonus("greenProduction") + overgrowthBonus(s) + feedbackBonus(s) + valveBonus(s));
 
+    
 const blueBase = (s) => BLUE_BASE.add(s.baseBonus);
 
 function clickValue(s) {
@@ -132,6 +131,7 @@ registerLayer("cores", {
         greenEssence: { name: "Green Essence", color: "#3aa876" },
         blueEssence: { name: "Blue Essence", color: "#4a90d9" },
         biomass: { ...BIOMASS_RESOURCE, from: "pond", hidden: (s) => !owned(s, "life") }, // Hidden until you have some.
+        evolutionPoints: {name: "Evolution Points", from: "evolution", color: "#b06ad0", hidden: (s) => !owned(s, "evolution")}
     },
 
     initialState: {
@@ -429,7 +429,7 @@ registerLayer("cores", {
         },
         blueDeeper: {
             kind: "unlock",
-            parent: "blueDeeper",
+            parent: "blueDeep",
             title: "Deeper Waters",
             color: "#2f92ee",
             position: { x: 525, y: -125 },
@@ -439,7 +439,7 @@ registerLayer("cores", {
         },
         blueDeepest: {
             kind: "unlock",
-            parent: "blueDeepest",
+            parent: "blueDeeper",
             title: "Deepest Waters",
             color: "#2f92ee",
             position: { x: 650, y: -125 },
@@ -645,9 +645,9 @@ registerLayer("cores", {
             position: { x: 0, y: 750},
             description: "Green and blue stop taking turns on the land. Rain soaks into it, and what's"
                 + " grown on it can be traded up for something larger.\n",
-            prereq: (s) => owned(s, "grass") && owned(s, "rain"),  // Make it need like X number of cards or smthn
-            hint: () => `The rain has to land somewhere...`,
-            cost: () => ({ greenEssence: D(1e8), blueEssence: D(1e8)}), // Also make this cost evolution points later
+            prereq: (s) => owned(s, "evolution"),  // Make it need like X number of cards or smthn
+            hint: () => `The world must hold on to the rewards of multiple evolutions...`,
+            cost: () => ({ greenEssence: D(1e8), blueEssence: D(1e8), evolutionPoints: D(25) }), // Also make this cost evolution points later
             onPurchase() { getLayerState("environment").unlocked = true},
         },
 
