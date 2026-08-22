@@ -47,7 +47,7 @@ export const STAGE_NAMES = ["Seed", "Growing", "Mature"];
 
 
 // How many seconds the grass growth stages take. Last one is the wait time before mature grass spreads.
-const STAGE_SECONDS = [30, 30, 30];
+const STAGE_SECONDS = [30, 20, 10];
 // Mature grass that's been boxed in waits this long once a tile finally opens up, so unlocking or
 // transforming a tile next to long-since-mature grass doesn't spread into it the same instant.
 const BLOCKED_WAIT_SECONDS = 10;

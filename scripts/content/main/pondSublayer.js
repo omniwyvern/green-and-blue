@@ -549,11 +549,12 @@ export const POND_VIEW = {
             setText(el.querySelector(".pond-state"), waterState(s));
             el.querySelector(".pond-meter-fill").style.width = `${(fraction * 100).toFixed(1)}%`;
 
-            const blueLine = `${formatNumber(pondBlue(s))} Blue Essence/s`;
+            const blueLine = `${formatNumber(pondBlue(s))} Blue Essence/s,      `;
+            const essenceLine = blueLine + `${formatNumber(greenProduction)} Green Essence/s`;
             const second = el.querySelector(".pond-rate-second");
             if (lifeBought()) {
                 setText(el.querySelector(".pond-rate"), `${formatNumber(biomassProduction(s))} Biomass/s`);
-                setText(second, blueLine);
+                setText(second, essenceLine);
                 second.style.display = "";
             } else {
                 setText(el.querySelector(".pond-rate"), blueLine);
@@ -626,7 +627,7 @@ export const POND_VIEW = {
                 },
                 nutrientDense: {
                     title: "Nutrient Dense",
-                    description: "Algae counts for 15% more than it is for biomass production, without taking up any more room.",
+                    description: "Algae counts for 15% more than it is when the pond works out its biomass, without taking up any more room.",
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },
@@ -691,7 +692,7 @@ export const POND_VIEW = {
                 },
                 richRoe: {
                     title: "Rich Roe",
-                    description: "Fish count for +15% more than they are for biomass production, without taking up any more room.",
+                    description: "Fish count for +15% more than they are when the pond works out its biomass, without taking up any more room.",
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },

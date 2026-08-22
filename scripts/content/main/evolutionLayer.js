@@ -54,8 +54,6 @@ function resetLivingThings() {
     pond.algaeSurgeReady = 0;
     pond.fishSurge = 0;
     pond.fishSurgeReady = 0;
-    pond.fishClicks = 0;
-    pond.fishClickWindow = 0;
 
     const world = getLayerState("world");
     //world.tiles = { [ORIGIN_TILE]: true };

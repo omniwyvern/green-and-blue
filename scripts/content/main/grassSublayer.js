@@ -21,7 +21,6 @@ const grassBought = () => !!getLayerState("cores").purchasedUpgrades.grass;
 const grassState = () => getLayerState("grass");
 const level = (id) => getLevel(grassState(), id);
 
-// ---------- Growth ----------
 
 export const GROWTH_RESOURCE = { name: "Growth", color: "#8ccf5e" };
 
@@ -73,7 +72,7 @@ export const GRASS_TYPES = {
         name: "Ryegrass",
         color: "#b6d94f",
         output: 0.55, speed: 2.2, growth: 1,
-        blurb: "Coarse, thin, and in a tearing hurry. Covers ground faster than anything else will.",
+        blurb: "Coarse, thin, and in a rush. Covers ground faster than any other grass.",
     },
     sedge: {
         name: "Sedge",
@@ -85,7 +84,7 @@ export const GRASS_TYPES = {
         name: "Switchgrass",
         color: "#d6c94a",
         output: 4, speed: 0.3, growth: 1,
-        blurb: "Roots three metres down. A tile of it is worth four of anything else, and it is in no hurry whatsoever.",
+        blurb: "Roots three metres down. A tile of it is worth four of anything else, and it is in no rush whatsoever.",
     },
 };
 

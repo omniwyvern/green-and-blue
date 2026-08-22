@@ -97,4 +97,3 @@ body {
 
 /* Taps shouldn't wait on a double-tap-to-zoom that this game never wants. */
 button { touch-action: manipulation; }
-
