@@ -550,7 +550,7 @@ export const POND_VIEW = {
             el.querySelector(".pond-meter-fill").style.width = `${(fraction * 100).toFixed(1)}%`;
 
             const blueLine = `${formatNumber(pondBlue(s))} Blue Essence/s,      `;
-            const essenceLine = blueLine + `${formatNumber(greenProduction)} Green Essence/s`;
+            const essenceLine = blueLine + `${formatNumber(greenProduction(s))} Green Essence/s`;
             const second = el.querySelector(".pond-rate-second");
             if (lifeBought()) {
                 setText(el.querySelector(".pond-rate"), `${formatNumber(biomassProduction(s))} Biomass/s`);
