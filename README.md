@@ -48,7 +48,7 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
 
 index.html                       skeleton containers only, makes completely new things easier to add. Also imports all the stylesheets
 css/                             one file per subject. Tons of files, but makes it easier to find specific styling
-    base.css                     theme variables, reset, body
+    base.css                     theme variables, reset, body, and the root font size the whole interface scales off
     navigation.css               category bar, sidebar layer tabs, sub-layer flyout
     layer.css                    what a layer draws into, has its panel, the header strip, resource chips
     upgrades.css                 the static canvas, has upgrade grid, drawers, scene wrapper

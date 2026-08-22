@@ -1,8 +1,8 @@
 .upgrade-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
     align-content: start;
-    gap: 12px;
+    gap: 0.75rem;
     padding: var(--page-pad);
     overflow-y: auto;
     height: 100%;
@@ -10,8 +10,8 @@
 
 .canvas-note {
     flex-shrink: 0;
-    padding: 16px var(--page-pad) 0;
-    font-size: 13px;
+    padding: 1rem var(--page-pad) 0;
+    font-size: 0.8125rem;
     color: var(--text-dim);
     font-variant-numeric: tabular-nums;
 }
@@ -23,8 +23,8 @@
 
 .upgrade-button {
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
+    border-radius: 0.5rem;
+    padding: 0.875rem;
     text-align: left;
     cursor: pointer;
     background: var(--panel-light);
@@ -34,23 +34,23 @@
 .upgrade-button.affordable { border-color: var(--accent); }
 .upgrade-button.owned { border-color: var(--green); opacity: 0.7; cursor: default; }
 
-.upgrade-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.upgrade-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
 .upgrade-title { font-weight: 600; }
 .upgrade-level {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--text-dim);
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 1px 7px;
+    border-radius: 62.4375rem;
+    padding: 0.0625rem 0.4375rem;
     white-space: nowrap;
 }
 .upgrade-level:empty { display: none; }
-.upgrade-description { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; }
-.upgrade-cost { font-size: 12px; color: var(--text-dim); }
+.upgrade-description { font-size: 0.8125rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+.upgrade-cost { font-size: 0.75rem; color: var(--text-dim); }
 
 .upgrade-drawer {
-    --drawer-height: 210px;
+    --drawer-height: 13.125rem;
     position: absolute;
     inset: 0;
     z-index: 20;
@@ -71,24 +71,24 @@
 .drawer-tabs {
     display: flex;
     align-items: flex-end;
-    gap: 6px;
-    padding-left: 12px;
+    gap: 0.375rem;
+    padding-left: 0.75rem;
 }
 
 .drawer-handle {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
     background: var(--panel);
     color: var(--text-dim);
     border: 1px solid var(--border);
     border-bottom: none;
     border-top: 3px solid var(--drawer-color, var(--border));
-    border-radius: 8px 8px 0 0;
+    border-radius: 0.5rem 0.5rem 0 0;
     cursor: pointer;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 0.8125rem;
     pointer-events: auto;
 }
 .drawer-handle:hover { color: var(--text); border-color: var(--accent); }
@@ -96,7 +96,7 @@
 .drawer-handle.active { color: var(--text); background: var(--panel-light); }
 
 .drawer-chevron {
-    font-size: 18px;
+    font-size: 1.125rem;
     line-height: 1;
     font-weight: 700;
     transition: transform 0.25s ease;
@@ -108,7 +108,7 @@
     height: var(--drawer-height);
     background: var(--panel);
     border-top: 1px solid var(--border);
-    box-shadow: 0 -6px 24px var(--shadow);
+    box-shadow: 0 -6px 1.5rem var(--shadow);
     pointer-events: auto;
     overflow: hidden;
 }
@@ -118,8 +118,8 @@
     display: flex;
     flex-direction: column;
 }
-.drawer-page .canvas-note { padding: 12px 20px 0; }
-.drawer-page .upgrade-grid { padding-top: 12px; }
+.drawer-page .canvas-note { padding: 0.75rem 1.25rem 0; }
+.drawer-page .upgrade-grid { padding-top: 0.75rem; }
 
 .static-scene {
     position: absolute;

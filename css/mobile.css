@@ -1,97 +1,97 @@
 @media (max-width: 700px) {
     :root {
-        --sidebar-width: 94px;
-        --flyout-inset: 78px;
-        --page-pad: 12px;
+        --sidebar-width: 5.875rem;
+        --flyout-inset: 4.875rem;
+        --page-pad: 0.75rem;
 
-        --corner-size: 34px;
-        --corner-edge: 10px;
+        --corner-size: 2.125rem;
+        --corner-edge: 0.625rem;
     }
 
-    #category-bar { padding: 2px 6px; gap: 3px; }
-    .category-button { padding: 5px 10px; font-size: 12px; }
+    #category-bar { padding: 0.125rem 0.375rem; gap: 0.1875rem; }
+    .category-button { padding: 0.3125rem 0.625rem; font-size: 0.75rem; }
 
-    #sidebar { padding: 5px; gap: 3px; }
-    .sidebar-group + .sidebar-group { margin-top: 6px; padding-top: 6px; }
-    .sidebar-group-label { font-size: 9px; padding: 0 2px 1px; }
+    #sidebar { padding: 0.3125rem; gap: 0.1875rem; }
+    .sidebar-group + .sidebar-group { margin-top: 0.375rem; padding-top: 0.375rem; }
+    .sidebar-group-label { font-size: 0.5625rem; padding: 0 0.125rem 0.0625rem; }
     .layer-tab {
-        padding: 9px 5px;
-        font-size: 10px;
+        padding: 0.5625rem 0.3125rem;
+        font-size: 0.625rem;
         border-left-width: 2px;
         overflow-wrap: anywhere;
     }
 
-    #sidebar-flyout { width: 72px; padding: 5px; }
+    #sidebar-flyout { width: 4.5rem; padding: 0.3125rem; }
     .sub-layer-tab {
-        padding: 8px 4px;
-        font-size: 9px;
+        padding: 0.5rem 0.25rem;
+        font-size: 0.5625rem;
         border-left-width: 2px;
         overflow-wrap: anywhere;
     }
 
-    #nav-toggle { width: 20px; height: 46px; }
+    #nav-toggle { width: 1.375rem; height: 3.5rem; }
 
     .layer-header {
-        gap: 12px;
-        padding: 6px 10px;
-        font-size: 11px;
+        gap: 0.75rem;
+        padding: 0.375rem 0.625rem;
+        font-size: 0.6875rem;
         overflow-x: auto;
         overscroll-behavior-x: contain;
         scrollbar-width: none;
-        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
-        mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1.375rem), transparent);
+        mask-image: linear-gradient(to right, #000 calc(100% - 1.375rem), transparent);
     }
     .layer-header::-webkit-scrollbar { display: none; }
     .resource-chip { flex: none; white-space: nowrap; }
     .resource-value { min-width: 0; }
 
-    .upgrade-drawer { --drawer-height: min(210px, 40vh); }
+    .upgrade-drawer { --drawer-height: min(13.125rem, 40vh); }
     .drawer-tabs {
-        padding-left: 6px;
+        padding-left: 0.375rem;
         overflow-x: auto;
         scrollbar-width: none;
     }
     .drawer-tabs::-webkit-scrollbar { display: none; }
-    .drawer-handle { flex: none; padding: 7px 10px; font-size: 11px; }
-    .drawer-chevron { font-size: 15px; }
-    .hud-drawer-handle { height: 26px; }
+    .drawer-handle { flex: none; padding: 0.4375rem 0.625rem; font-size: 0.6875rem; }
+    .drawer-chevron { font-size: 0.9375rem; }
+    .hud-drawer-handle { height: 1.625rem; }
 
-    .upgrade-grid { grid-template-columns: 1fr; gap: 8px; }
-    .canvas-note { padding-top: 10px; font-size: 12px; }
+    .upgrade-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+    .canvas-note { padding-top: 0.625rem; font-size: 0.75rem; }
 
-    .recipe-row { padding: 10px; }
-    .recipe-line { flex-direction: column; gap: 4px; }
+    .recipe-row { padding: 0.625rem; }
+    .recipe-line { flex-direction: column; gap: 0.25rem; }
     .recipe-line .transform-inputs,
     .recipe-line .transform-outputs { width: 100%; }
     .recipe-arrow { transform: rotate(90deg); }
-    .terrain-list { gap: 8px; }
+    .terrain-list { gap: 0.5rem; }
 
     .pond-scene { --pond-corner-width: 0px; }
     .pond-balance {
-        top: 8px;
-        left: 8px;
-        right: 8px;
+        top: 0.5rem;
+        left: 0.5rem;
+        right: 0.5rem;
         width: auto;
     }
-    .pond-readout { top: 64px; padding: 0 10px; }
-    .pond-state { font-size: 15px; }
-    .pond-rate { font-size: 11px; }
+    .pond-readout { top: 4rem; padding: 0 0.625rem; }
+    .pond-state { font-size: 0.9375rem; }
+    .pond-rate { font-size: 0.6875rem; }
 
-    .transform-window { width: 168px; padding: 9px; }
+    .transform-window { width: 10.5rem; padding: 0.5625rem; }
     .transform-preview { min-height: 0; }
     .transform-note { min-height: 0; }
 
     .cards-stage { min-height: 0; }
-    .cards-lower { gap: 12px; }
+    .cards-lower { gap: 0.75rem; }
 
-    .evolve-panel { padding: 0 14px; }
-    .evolve-button { min-width: 0; padding: 18px 22px; }
-    .evolve-verb { font-size: 19px; }
+    .evolve-panel { padding: 0 0.875rem; }
+    .evolve-button { min-width: 0; padding: 1.125rem 1.375rem; }
+    .evolve-verb { font-size: 1.1875rem; }
 
     #settings-button,
     #guide-button,
-    #dev-button { font-size: 17px; }
-    #recenter-button { padding: 7px 10px; font-size: 12px; }
+    #dev-button { font-size: 1.0625rem; }
+    #recenter-button { padding: 0.4375rem 0.625rem; font-size: 0.75rem; }
 }
 
 @media (hover: none) {

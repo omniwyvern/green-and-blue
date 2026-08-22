@@ -50,23 +50,29 @@
 }
 
 :root {
-    --sidebar-width: 130px;
-    --flyout-inset: 106px;
+    --sidebar-width: 8.125rem;
+    --flyout-inset: 6.625rem;
     /* The breathing room every page keeps between its text and the edge of the screen. The
        flyout insets are floored at it, so folding the navigation away never takes it to zero. */
-    --page-pad: 20px;
+    --page-pad: 1.25rem;
 
     /* The round buttons floating in the corners. Everything down there is laid out off these,
        so stacking one above another is --corner-step and the mobile override is three numbers. */
-    --corner-size: 40px;
-    --corner-edge: 14px;
-    --corner-gap: 6px;
+    --corner-size: 2.5rem;
+    --corner-edge: 0.875rem;
+    --corner-gap: 0.375rem;
     --corner-step: calc(var(--corner-edge) + var(--corner-size) + var(--corner-gap));
 }
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* Every measurement in the interface is in rem, so this one number is how big the whole thing
+   is. Floored at the old 16px so small screens are unchanged, and grown from there - a 1080p
+   desktop lands near 20px and a 1440p one at the cap. */
+html {
+    font-size: clamp(16px, 0.45vw + 0.4vh + 7.5px, 24px);
+    -webkit-text-size-adjust: 100%;
+}
 
 body {
     margin: 0;
