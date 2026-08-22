@@ -157,6 +157,7 @@ registerLayer("cores", {
         consecCounter: D(0),
         consecBonus: D(0),
         consecSpeedBonus: 0,
+        consecWindow: CONSEC_WINDOW_SECONDS,
 
         idleSeconds: 0,   // Time since Green was last spent, for the overgrowth card.
         valveBonus: 0,    // Green multiplier banked by a full meter, for the pressure valve card.
@@ -199,7 +200,7 @@ registerLayer("cores", {
             }
 
             s.consecCounter = Number(s.consecCounter) + dt;
-            if (s.consecCounter > CONSEC_WINDOW_SECONDS) {
+            if (s.consecCounter > s.consecWindow) {
                 s.consecFullActivations = 0
                 s.consecCounter = 0;
             }
@@ -416,25 +417,35 @@ registerLayer("cores", {
             cost: () => ({ blueEssence: D(250) }),
             onPurchase(s) { s.fullChargeBonus = s.fullChargeBonus.add(1); },
         },
-        blueDeeper: {
+        blueDeep: {
             kind: "unlock",
             parent: "blueCore",
-            title: "Deeper Waters",
+            title: "Deep Waters",
             color: "#2f92ee",
             position: { x: 400, y: -125 },
             description: "Increases base click production from 4 to 6.",
             cost: () => ({ blueEssence: D(100) }),
             onPurchase(s) { s.baseBonus = 2; },
         },
-        blueDeepest: {
+        blueDeeper: {
             kind: "unlock",
             parent: "blueDeeper",
-            title: "Deepest Waters",
+            title: "Deeper Waters",
             color: "#2f92ee",
             position: { x: 525, y: -125 },
             description: "Increases base click production from 6 to 8.",
             cost: () => ({ blueEssence: D(200) }),
             onPurchase(s) { s.baseBonus = 4; },
+        },
+        blueDeepest: {
+            kind: "unlock",
+            parent: "blueDeepest",
+            title: "Deepest Waters",
+            color: "#2f92ee",
+            position: { x: 650, y: -125 },
+            description: "Increases base click production from 8 to 16.",
+            cost: () => ({ blueEssence: D(100000) }),
+            onPurchase(s) { s.baseBonus = 12; },
         },
         blueReservoir: {
             kind: "unlock",
@@ -466,12 +477,22 @@ registerLayer("cores", {
             title: "Ripples",
             color: "#2f92ee",
             position: { x: 525, y: 250 },
-            description: "Each consecutive full-charge click within a few seconds of hitting full charge adds +.5 production to the next ones.",
+            description: "Each consecutive full-charge click within 3 seconds of hitting full charge adds +.5 production to the next ones.",
             hidden: (s) => !owned(s, "blueResonance"),
             cost: () => ({ blueEssence: D(1250) }),
             onPurchase(s) { s.consecBonus = D(.5); },
         },       
-
+        blueTides: {
+            kind: "unlock",
+            parents: ["blueResonance", "blueReservoir", "blueRipples"],
+            title: "Tides",
+            color: "#2f92ee",
+            position: { x: 525, y: 350 },
+            description: "The Blue Core loses its consecutive full-charge click combo after 8 seconds instead of 3.",
+            hidden: (s) => !owned(s, "blueResonance"),
+            cost: () => ({ blueEssence: D("1e6") }),
+            onPurchase(s) { s.consecWindow = 8; },
+        },       
         pond: {
             kind: "layer",
             parents: ["world", "blueReservoir"],
@@ -524,7 +545,7 @@ registerLayer("cores", {
                 + " up to two and a half times as much when they're even.",
             hidden: (s) => !owned(s, "life"),
             // Gated behind Life, so it's paid for in what a living pond makes.
-            cost: () => ({ greenEssence: D(3e5), blueEssence: D(3e5), biomass: D(3000) }),
+            cost: () => ({ greenEssence: D(3e5), blueEssence: D(3e5), biomass: D(1500) }),
         },
 
 
@@ -570,7 +591,7 @@ registerLayer("cores", {
             position: { x: -200, y: 250 },
             description: "Ground for things to grow on. The world is expanding...\n",
             prereq: (s) => owned(s, "life"),
-            cost: () => ({ greenEssence: D(5e6), blueEssence: D(5e6), biomass: D(10000) }),
+            cost: () => ({ greenEssence: D(1e6), blueEssence: D(1e6), biomass: D(10000) }),
         },
 
         grass: {
@@ -583,7 +604,7 @@ registerLayer("cores", {
             description: "Green things can take root. Sow the first life on land.\n",
             hint: () => "There isn't enough space in the world...",
             prereq: (s) => owned(s, "land") && claimedTiles(getLayerState("world")).length > 2,
-            cost: () => ({ greenEssence: D(1.5e6), biomass: D(10000) }),
+            cost: () => ({ greenEssence: D(2e6), biomass: D(10000) }),
             onPurchase() { getLayerState("grass").unlocked = true; },
         },
 
@@ -597,7 +618,7 @@ registerLayer("cores", {
             description: "Weather worth clicking at.\n",
             hint: () => "More life must flourish...",
             prereq: (s) => owned(s, "grass") && matureTiles(getLayerState("world")).length > 2,
-            cost: () => ({ blueEssence: D(1.5e6) }),
+            cost: () => ({ blueEssence: D(3e6) }),
             onPurchase() { getLayerState("precipitation").unlocked = true; },
         },
 
@@ -626,7 +647,7 @@ registerLayer("cores", {
                 + " grown on it can be traded up for something larger.\n",
             prereq: (s) => owned(s, "grass") && owned(s, "rain"),  // Make it need like X number of cards or smthn
             hint: () => `The rain has to land somewhere...`,
-            cost: () => ({ greenEssence: D(3e7), blueEssence: D(3e7)}), // Also make this cost evolution points later
+            cost: () => ({ greenEssence: D(1e8), blueEssence: D(1e8)}), // Also make this cost evolution points later
             onPurchase() { getLayerState("environment").unlocked = true},
         },
 
