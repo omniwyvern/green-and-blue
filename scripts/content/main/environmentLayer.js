@@ -23,7 +23,7 @@ import {
 import { kindChip } from "./terrainArt.js";
 import { BIOMASS_RESOURCE, biomassMultiplier } from "./pondSublayer.js";
 import { ECOSYSTEM_VIEW } from "./ecosystemSublayer.js";
-import { GRASS_VIEW, GRASS_RESOURCES, GROWTH_RESOURCE, greenMultiplier } from "./grassSublayer.js";
+import { GRASS_VIEW, GRASS_RESOURCES, GROWTH_RESOURCE, greenMultiplier, blueMultiplier } from "./grassSublayer.js";
 import { PRECIPITATION_VIEW, PRECIPITATION_RESOURCES } from "./precipitationSublayer.js";
 
 // How long a full cloud's worth takes to drain back off the ground when left alone.
@@ -59,7 +59,7 @@ registerLayer("environment", {
         const output = terrainProduction(worldState());
         const fromBiomass = biomassMultiplier(); // Multiplies essences wherever they are produced (here)
         if (output.greenEssence > 0) addResource(layer, "greenEssence", D(output.greenEssence).mul(fromBiomass).mul(greenMultiplier()).mul(dt));
-        if (output.blueEssence > 0) addResource(layer, "blueEssence", D(output.blueEssence).mul(fromBiomass).mul(dt));
+        if (output.blueEssence > 0) addResource(layer, "blueEssence", D(output.blueEssence).mul(fromBiomass).mul(blueMultiplier()).mul(dt));
     },
 
     subLayers: {

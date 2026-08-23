@@ -32,7 +32,7 @@
 #dev-button {
     left: var(--corner-edge);
     bottom: var(--corner-step);
-    font-size: calc(1.125 * var(--u));
+    font-size: calc(1.1 * var(--u));
     color: var(--text-dim);
 }
 #guide-button {

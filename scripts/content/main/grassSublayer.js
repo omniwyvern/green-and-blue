@@ -8,12 +8,14 @@
 
 import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
-import { addResource, getLevel } from "../../core/resources.js";
+import { getLevel } from "../../core/resources.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber, formatWhole } from "../../utils/format.js";
 import {
-    mapTiles, SEED, GROWING, MATURE, STAGE_NAMES,
-    worldState, grassOn, grassTiles, growableTiles, growthRate, production, soakedBlue,
+    mapTiles, SEED, GROWING, MATURE, STAGE_NAMES, ADJACENT_SHARE,
+    worldState, grassOn, grassTiles, growableTiles, growthRate,
+    grassGreenMultiplier, grassBlueMultiplier, grassBonuses,
+    GROWTH_PER_LEVEL as SOIL_PER_LEVEL, OUTPUT_PER_LEVEL as BLADES_PER_LEVEL,
 } from "./worldMap.js";
 import { canSacrificeStage, sacrificeValue, sacrificeStage } from "./coresLayer.js";
 
@@ -90,8 +92,6 @@ export const GRASS_TYPES = {
 
 export const DEFAULT_TYPE = "meadow";
 
-// Falls back rather than trusting the save: a grass can be selected and then, on a later load,
-// not exist any more. Better to quietly grow meadow grass than to read modifiers off undefined.
 export function activeTypeId() {
     const id = grassState().grassType;
     return GRASS_TYPES[id] && typeUnlocked(id) ? id : DEFAULT_TYPE;
@@ -99,9 +99,6 @@ export function activeTypeId() {
 
 export const activeType = () => GRASS_TYPES[activeTypeId()];
 
-// The world grows one grass per evolution. Everything before the first seed is still a choice,
-// and the seed is what settles it - the grass on the map is the grass, until an evolution
-// clears the map and opens the question again.
 export const grassSown = () => grassTiles(worldState()).length > 0;
 
 export function setGrassType(typeId) {
@@ -114,12 +111,12 @@ export const GROWTH_MILESTONES = [
     { at: 200, title: "First Roots", effect: "Grass grows 25% faster.", speed: 1.25 },
     { at: 800, title: "Clover", effect: "A second grass to grow.", unlocks: "clover" },
     { at: 2000, title: "Runners", effect: "Everything gives 50% more Growth.", growth: 1.5 },
-    { at: 5000, title: "Thick Sward", effect: "Grass produces 50% more Green Essence.", output: 1.5 },
+    { at: 5000, title: "Thick Sward", effect: "Every grassy tile is worth 50% more.", output: 1.5 },
     { at: 12000, title: "Ryegrass", effect: "A grass that covers ground.", unlocks: "ryegrass" },
     { at: 30000, title: "Rhizomes", effect: "Everything pays twice the Growth.", growth: 2 },
     { at: 75000, title: "Green Tide", effect: "Everything produces 30% more Green Essence.", green: 1.3 },
     { at: 190000, title: "Sedge", effect: "A grass that spreads in the wettest of conditions.", unlocks: "sedge" },
-    { at: 480000, title: "Deep Sward", effect: "Grass produces three times the amount of Green Essence.", output: 3 },
+    { at: 480000, title: "Deep Sward", effect: "Every grassy tile is worth three times as much.", output: 3 },
     { at: 1200000, title: "Switchgrass", effect: "A grass worth four of any other", unlocks: "switchgrass" },
     { at: 3000000, title: "Verdance", effect: "All Green Essence production doubled", green: 2 },
 ];
@@ -151,6 +148,9 @@ const FINGERS_PER_LEVEL = 0.4;     // More Green Essence from grass.
 const temper = (value, levels) =>
     value >= 1 ? value : Math.min(1, value + (1 - value) * TEMPER_PER_LEVEL * levels);
 
+// What the levels bought so far add up to.
+const soFar = (perLevel, levels) => `${round(100 * perLevel * Math.max(1, levels))}%`;
+
 
 export const grassSpeedMultiplier = () =>
     temper(activeType().speed, level("hardyStrains")) * fromMilestones("speed");
@@ -159,7 +159,10 @@ export const grassOutputMultiplier = () =>
     temper(activeType().output, level("hardyStrains")) * fromMilestones("output")
     * (1 + FINGERS_PER_LEVEL * level("greenFingers"));
 
-export const greenMultiplier = () => fromMilestones("green");
+// What the grass on the map is worth to everything that makes essence, milestones included.
+// Blue only comes off the tiles that are wet, so a dry world leaves it at 1.
+export const greenMultiplier = () => fromMilestones("green") * grassGreenMultiplier(worldState());
+export const blueMultiplier = () => grassBlueMultiplier(worldState());
 
 // How grown a tile is when the grass first reaches it. worldMap adds this to what the cards give.
 export const grassSeedStart = () => SEED_BANK_PER_LEVEL * level("seedBank");
@@ -169,7 +172,7 @@ export function typeEffects(type) {
     const levels = level("hardyStrains");
     const out = [];
     const say = (value, tail) => { if (value !== 1) out.push(`x${round(value)} ${tail}`); };
-    say(temper(type.output, levels), "Green Essence from grass");
+    say(temper(type.output, levels), "to what a tile of it is worth");
     say(temper(type.speed, levels), "growth speed");
     say(type.growth, "Growth when it spreads");
     return out;
@@ -203,7 +206,7 @@ export const GRASS_VIEW = {
     name: "Grass",
     color: "#5aa84f",
     canvasType: "static",
-    // Splits the canvas: this scene down the left, the upgrade grid down the right.
+    // Splits the canvas into two columns.
     canvasClass: "grass-canvas",
 
     scene: {
@@ -212,6 +215,19 @@ export const GRASS_VIEW = {
             el.innerHTML = `
                 <div class="grass-page flyout-inset">
                     <div class="grass-summary"></div>
+
+                    <div class="yield-panel">
+                        <div class="yield-stat yield-green">
+                            <span class="yield-value"></span>
+                            <span class="yield-label">to all Green Essence</span>
+                        </div>
+                        <div class="yield-stat yield-blue">
+                            <span class="yield-value"></span>
+                            <span class="yield-label">to all Blue Essence</span>
+                        </div>
+                    </div>
+                    <div class="yield-share"></div>
+                    <div class="yield-breakdown"></div>
 
                     <div class="growth-panel">
                         <div class="growth-head">
@@ -251,6 +267,7 @@ export const GRASS_VIEW = {
 
         update(el) {
             setText(el.querySelector(".grass-summary"), summary());
+            updateYield(el);
             updateGrowth(el);
             updateSacrifice(el);
 
@@ -281,38 +298,45 @@ export const GRASS_VIEW = {
     upgrades: {
         tillering: {
             title: "Tillering",
-            description: "Every tile the grass takes for itself is worth +30% more Growth.",
+            description: (s, lvl) =>
+                `Every tile the grass takes for itself is worth +${soFar(TILLERING_PER_LEVEL, lvl)} more Growth.`,
             max: 4,
             cost: (s, lvl) => ({ growth: D(200).mul(D(4).pow(lvl)) }),
         },
         seedBank: {
             title: "Seed Bank",
-            description: "Grass spreads onto a new tile starting +20% grown instead of as a bare seed.",
+            description: (s, lvl) =>
+                `Grass spreads onto a new tile starting +${soFar(SEED_BANK_PER_LEVEL, lvl)} grown`
+                + ` instead of as a bare seed.`,
             max: 3,
             cost: (s, lvl) => ({ growth: D(400).mul(D(5).pow(lvl)) }),
         },
         greenFingers: {
             title: "Green Fingers",
-            description: "Every grassy tile is worth 40% more Green Essence, whichever type it is.",
+            description: (s, lvl) =>
+                `Every grassy tile is worth ${soFar(FINGERS_PER_LEVEL, lvl)} more, whichever type it is.`,
             max: 3,
             cost: (s, lvl) => ({ growth: D(600).mul(D(6).pow(lvl)) }),
         },
         hardyStrains: {
             title: "Hardy Strains",
-            description: "Grasses give back some of whatever their species trades away.",
+            description: (s, lvl) =>
+                `Grasses give back ${soFar(TEMPER_PER_LEVEL, lvl)} of whatever their species trades away.`,
             max: 3,
             hidden: () => growthPeak().lt(800),
             cost: (s, lvl) => ({ growth: D(1200).mul(D(5).pow(lvl)) }),
         },
         richerSoil: {
             title: "Richer Soil",
-            description: "Grass moves through its stages +10% faster, everywhere.",
+            description: (s, lvl) =>
+                `Grass moves through its stages +${soFar(SOIL_PER_LEVEL, lvl)} faster, everywhere.`,
             max: 10,
             cost: (s, lvl) => ({ greenEssence: D("1e7").mul(D(1.7).pow(lvl)) }),
         },
         greenerBlades: {
             title: "Greener Blades",
-            description: "Every grassy tile produces +50% more Green Essence.",
+            description: (s, lvl) =>
+                `Every grassy tile is worth +${soFar(BLADES_PER_LEVEL, lvl)} more.`,
             max: 25,
             cost: (s, lvl) => ({ greenEssence: D("1e7").mul(D(1.3).pow(lvl)) }),
         },
@@ -332,13 +356,90 @@ function summary() {
         + ` - ${seeds} ${STAGE_NAMES[SEED].toLowerCase()},`
         + ` ${growing} ${STAGE_NAMES[GROWING].toLowerCase()},`
         + ` ${mature} ${STAGE_NAMES[MATURE].toLowerCase()}.`
-        + ` Producing ${formatNumber(production(world))} Green Essence/s,`
-        + (soakedBlue(world) > 0 ? ` ${formatNumber(soakedBlue(world))} Blue Essence/s off the wet ground,` : "")
-        + ` a stage every ${seconds.toFixed(1)}s at best.`
+        + ` A stage every ${seconds.toFixed(1)}s at best.`
         + (planted === open
             ? " Every tile it can reach is grassed over - claim more for it to spread into."
             : ` Each tile it takes is worth ${formatNumber(spreadValue())} Growth.`);
 }
+
+// The two multipliers the grass is handing the rest of the game, and where they came from.
+function updateYield(el) {
+    const world = worldState();
+    const green = greenMultiplier();
+    const blue = blueMultiplier();
+
+    setText(el.querySelector(".yield-green .yield-value"), `x${formatNumber(green)}`);
+    setText(el.querySelector(".yield-blue .yield-value"), `x${formatNumber(blue)}`);
+    // Nothing is wet, so the Blue half is sitting at 1 and says why rather than looking broken.
+    el.querySelector(".yield-blue").classList.toggle("idle", blue <= 1);
+    setText(el.querySelector(".yield-blue .yield-label"), blue > 1
+        ? "to all Blue Essence" : "Blue needs wet grass");
+
+    setText(el.querySelector(".yield-share"),
+        `Every tile also hands ${Math.round(ADJACENT_SHARE * 100)}% of its own bonus to each`
+        + ` neighbouring tile that produces, on top of this.`);
+
+    const breakdown = breakdownMarkup(world);
+    const target = el.querySelector(".yield-breakdown");
+    if (target.__markup !== breakdown) {
+        target.__markup = breakdown;
+        target.innerHTML = breakdown;
+    }
+}
+
+// One row per stage on the map, plus whatever is wet, so it's clear which tiles are carrying it.
+function breakdownMarkup(s) {
+    const tiles = grassTiles(s);
+    if (tiles.length === 0) {
+        return `<div class="cards-empty">Nothing planted, so nothing is multiplied.</div>`;
+    }
+
+    const bonuses = grassBonuses(s);
+    const byStage = [[], [], []];
+    for (const id of tiles) byStage[s.grass[id].stage].push(bonuses.green(id));
+
+    const rows = [];
+    for (let stage = MATURE; stage >= SEED; stage--) {
+        if (byStage[stage].length > 0) rows.push(yieldRow(STAGE_NAMES[stage], byStage[stage], "green"));
+    }
+
+    const wet = tiles.map(id => bonuses.blue(id)).filter(bonus => bonus > 0);
+    if (wet.length > 0) rows.push(yieldRow("Wet ground", wet, "blue"));
+
+    // Milestones multiply what the tiles add up to instead of adding to it, so they only show once
+    // there are some - and when they do, the tile total goes in as well, or the two don't follow.
+    const fromGreen = fromMilestones("green");
+    if (fromGreen > 1) {
+        rows.push(totalRow("All tiles together", grassGreenMultiplier(s)));
+        rows.push(totalRow("Growth milestones", fromGreen));
+    }
+
+    return rows.join("");
+}
+
+function totalRow(name, multiplier) {
+    return `
+        <div class="yield-row green summed">
+            <span class="yield-row-name">${name}</span>
+            <span class="yield-row-total">x${formatNumber(multiplier)}</span>
+        </div>`;
+}
+
+function yieldRow(name, bonuses, tone) {
+    const total = bonuses.reduce((sum, bonus) => sum + bonus, 0);
+    const each = total / bonuses.length;
+    const even = bonuses.every(bonus => Math.abs(bonus - each) < 1e-9);
+
+    return `
+        <div class="yield-row ${tone}">
+            <span class="yield-row-name">${name}</span>
+            <span class="yield-row-count">${bonuses.length} tile${bonuses.length === 1 ? "" : "s"}</span>
+            <span class="yield-row-each">${even ? "" : "avg "}+${percent(each)} each</span>
+            <span class="yield-row-total">+${percent(total)}</span>
+        </div>`;
+}
+
+const percent = (value) => `${formatNumber(value * 100)}%`;
 
 function updateGrowth(el) {
     setText(el.querySelector(".growth-amount"), formatNumber(growthTotal()));
@@ -446,15 +547,9 @@ registerLayer("grass", {
         growthPeak: D(0),
     },
 
-    // Grass growing is on the World's tick, this one is just payout.
+    // Grass growing is on the World's tick, 
     onTick(dt, layer) {
         if (!grassBought()) return;
-        const world = worldState();
-        addResource(layer, "greenEssence", D(production(world)).mul(greenMultiplier()).mul(dt));
-
-        // Whatever rain is still in the ground pays out in Blue on top of that.
-        const blue = soakedBlue(world);
-        if (blue > 0) addResource(layer, "blueEssence", D(blue).mul(dt));
         notePeak();
     },
 

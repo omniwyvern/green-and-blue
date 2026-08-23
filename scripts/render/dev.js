@@ -7,7 +7,7 @@
 
 import { state, getLayerState, saveState } from "../core/state.js";
 import { layers, getVisibleSubLayers } from "../core/registry.js";
-import { addResource, resourceHolderId } from "../core/resources.js";
+import { addResource, resourceHolderId, resyncProduction } from "../core/resources.js";
 import { parentsOf, prereqMet } from "../core/nodes.js";
 import { refreshCoordReadouts } from "./dragCanvas.js";
 import { D } from "../utils/decimal.js";
@@ -180,6 +180,7 @@ function grantHere() {
     if (!ids.length) return setStatus(`${view.name} has no resources.`);
 
     for (const id of ids) addResource(view, id, GRANT);
+    resyncProduction();
     const names = ids.map(id => view.resources[id].name).join(", ");
     setStatus(`Granted ${GRANT.toString()} ${names} on ${view.name}.`);
 }
@@ -196,6 +197,7 @@ function zeroResources() {
             emptied++;
         }
     }
+    resyncProduction();
     setStatus(emptied ? `Emptied ${emptied} pool${emptied === 1 ? "" : "s"}.` : "Everything is already empty.");
 }
 

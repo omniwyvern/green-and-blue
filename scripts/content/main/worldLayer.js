@@ -9,6 +9,7 @@
 import { registerLayer } from "../../core/registry.js";
 import { state, getLayerState } from "../../core/state.js";
 import { spend } from "../../core/resources.js";
+import { formatNumber } from "../../utils/format.js";
 import { switchToLayer } from "../../render/canvasRouter.js";
 import {
     mapTiles, TILE_SIZE, STAGE_NAMES, MATURE, LAND_COST, TERRAIN, grassOn, tileCost, canPlant, plantGrass,
@@ -18,12 +19,16 @@ import {
     terrainOn, moistureOn, tileKind, soak, setTerrain, selectTile, clearTransform, dampGrowth,
     clickTransformTile, isTransformCandidate, isTransformFodder, transformInputs,
     matchedTransform, applyTransform, transformAvailable, transformHint, transformReady, fodderNote,
+    oneSoakedBlue, grassGreenOutput, ADJACENT_SHARE
 } from "./worldMap.js";
 import { TERRAIN_ART, kindChip } from "./terrainArt.js";
 import { activeType } from "./grassSublayer.js";
 // The cloud is charged and let go on its own page. All the map keeps is the thing drifting over
 // it, which says how the cloud is doing and is the way back to that page.
 import { fillOf, readyIndex, canRelease } from "./precipitationSublayer.js";
+
+const bonusNote = (name, bonus) => `x${formatNumber(bonus)} ${name}`
+    + ` (+${formatNumber(bonus * ADJACENT_SHARE)}x nearby)`;
 
 const landBought = () => !!getLayerState("cores").purchasedUpgrades.land;
 const grassBought = () => !!getLayerState("cores").purchasedUpgrades.grass;
@@ -105,6 +110,13 @@ const PRECIPITATION_ICON = {
 
 // Manual interactions the player can do on the map.
 const INTERACTIONS = [
+    // No tool at all. Clicking a tile just selects it, which is what every other interaction
+    // falls back to anyway - this is the way back out of one without picking another.
+    { id: "select", name: "Select", available: () => true, icon: `
+        <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path class="cursor-arrow" d="M10 5 L10 24 L14.8 19.6 L18.2 27 L21.6 25.4 L18.2 18.2 L24.6 17.6 Z"/>
+        </svg>` },
+
     // Merge/transform tiles into other ones. Interaction is in the transform window thing.
     { id: "transform", name: "Transform", available: () => environmentBought(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
@@ -185,7 +197,7 @@ registerLayer("world", {
         selectedTile: null,
 
         // Which interaction is picked out of the drawer, and some stuff based on what that they do.
-        selectedInteraction: "transform", // Reset to whatever is actually unlocked on the first render
+        selectedInteraction: "select", // Reset to whatever is actually unlocked on the first render
         weatherKind: "rain", // Rain or snow, precipitation layer is where you switch them.
 
         // What's currently falling, all of it decided by the release that started it.
@@ -267,13 +279,22 @@ registerLayer("world", {
             const wet = moistureOn(s, tile.id);
             const buried = snowOn(s, tile.id);
             const damp = grass ? dampGrowth(s, tile.id) : 1;
-            if (wet > 0) {
-                parts.push(`${Math.round(wet * 100)}% soaked`
-                    + (damp === 1 ? "" : ` (${damp > 1 ? "+" : ""}${Math.round((damp - 1) * 100)}% growth)`));
-            }
-            if (buried > 0) parts.push(`${Math.round(buried * 100)}% buried`);
-            if (precipitatingOn(s, tile.id)) parts.push(fallingKind(s) === "snow" ? "snowing" : "raining");
-            return parts.join(" - ");
+            // What this tile is worth everywhere, and the share of it its neighbours keep.
+            // A seed is worth nothing yet, and "x0 Green" reads like it is taking something away.
+            const green = grassGreenOutput(s, tile.id);
+            const soaked = oneSoakedBlue(s, tile.id);
+            if (green > 0) parts.push(bonusNote("Green", green));
+            if (soaked > 0) parts.push(bonusNote("Blue", soaked));
+            // What the weather has done to it goes on one line between them - three separate
+            // lines for soaked/buried/falling made the tooltip taller than the tile.
+            const state = [];
+            if (wet > 0) state.push(`${Math.round(wet * 100)}% soaked`);
+            if (buried > 0) state.push(`${Math.round(buried * 100)}% buried`);
+            if (damp !== 1) state.push(`${damp > 1 ? "+" : ""}${Math.round((damp - 1) * 100)}% growth`);
+            if (precipitatingOn(s, tile.id)) state.push(fallingKind(s) === "snow" ? "snowing" : "raining");
+            if (state.length > 0) parts.push(state.join(", "));
+
+            return parts.join("\n");
         },
 
         // Clicking a tile you own selects it.

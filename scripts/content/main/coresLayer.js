@@ -13,7 +13,7 @@ import { claimedTiles, matureTiles } from "./worldMap.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
 import { biomassMultiplier, BIOMASS_RESOURCE } from "./pondSublayer.js";
 import { openBiome } from "./ecosystemSublayer.js";
-import { greenMultiplier, growthGain, earnGrowth, CORE_GROWTH_PER_GROWTH } from "./grassSublayer.js";
+import { greenMultiplier, blueMultiplier, growthGain, earnGrowth, CORE_GROWTH_PER_GROWTH } from "./grassSublayer.js";
 import { getResource, onSpend, registerCostGroup } from "../../core/resources.js";
 import { nodeBuyable } from "../../core/nodes.js";
 
@@ -100,11 +100,11 @@ const blueBase = (s) => BLUE_BASE.add(s.baseBonus);
 
 function clickValue(s) {
     const value = blueBase(s).mul(s.charge).mul(1 + cardBonus("blueClick"));
-    if (isFullCharge(s)) {
-        return value.mul(D(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))
-            .add(D(s.consecFullActivations).mul(s.consecBonus));
-    }
-    return value
+    const full = isFullCharge(s)
+        ? value.mul(D(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))
+            .add(D(s.consecFullActivations).mul(s.consecBonus))
+        : value;
+    return full.mul(blueMultiplier());
 }
 
 // Cards can increase charge cap so everything just uses this to see if charge is full.
@@ -631,7 +631,7 @@ registerLayer("cores", {
             position: { x: 0, y: 600 },
             description: "Everything that grew can grow again, better.\n",
             prereq: (s) => owned(s, "life") && owned(s, "rain") && matureTiles(getLayerState("world")).length >= EVOLUTION_TILES,
-            hint: () => "Cover the world in green...",
+            hint: () => "Cover the world in green, and soak it with blue...",
             cost: () => ({ greenEssence: D(1e7), blueEssence: D(1e7) }),
             onPurchase() { getLayerState("evolution").unlocked = true; },
         },

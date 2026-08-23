@@ -56,6 +56,74 @@
 
 .grass-page .cards-heading { margin-top: 0.5rem; }
 
+/* ---------- What the grass is worth ---------- */
+
+/* The two multipliers side by side. Grass makes no essence of its own any more, so this is the
+   first thing on the page - the Growth readout below it is what you spend, not what you get. */
+/* auto-fit rather than two fixed columns: this sits in the left half of a split canvas, which is
+   narrow long before the viewport is, so the pair has to stack on its own container's width. */
+.yield-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0.625rem;
+}
+
+.yield-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.875rem 1rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+}
+
+.yield-value {
+    font-size: 1.625rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.yield-label { font-size: 0.75rem; color: var(--text-dim); }
+
+.yield-green { border-left: 3px solid var(--art-grass); }
+.yield-green .yield-value { color: var(--art-grass); }
+.yield-blue { border-left: 3px solid var(--art-water); }
+.yield-blue .yield-value { color: var(--art-water); }
+
+/* Sitting at x1 because nothing is wet. Dimmed rather than hidden, so the half of the page it
+   belongs to doesn't appear and vanish with the weather. */
+.yield-stat.idle { opacity: 0.5; border-left-color: var(--border); }
+.yield-stat.idle .yield-value { color: var(--text-dim); }
+
+.yield-share { font-size: 0.75rem; color: var(--text-dim); }
+
+.yield-breakdown { display: flex; flex-direction: column; gap: 0.25rem; }
+
+/* Wrapping rather than four columns, for the same reason. What each tile is worth drops onto its
+   own line when the row runs out of room, and the total stays hard right whichever line it is on. */
+.yield-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.75rem;
+    row-gap: 0.125rem;
+    padding: 0.375rem 0.875rem;
+    background: var(--panel);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.yield-row-name { font-weight: 600; }
+.yield-row-count, .yield-row-each { color: var(--text-dim); font-size: 0.6875rem; }
+.yield-row-total { margin-left: auto; font-weight: 600; }
+.yield-row.green .yield-row-total { color: var(--art-grass); }
+.yield-row.blue .yield-row-total { color: var(--art-water); }
+
+/* The rows that multiply the ones above rather than adding to them. */
+.yield-row.summed { background: var(--panel-light); }
+.yield-row.summed .yield-row-name { font-weight: 500; color: var(--text-dim); }
+
 /* ---------- Growth and the next milestone ---------- */
 
 .growth-panel {

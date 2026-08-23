@@ -127,15 +127,19 @@
 
 .hex-tooltip {
     position: absolute;
-    top: calc(100% - 1.125rem);
+    top: calc(100% - .5rem);
     left: 50%;
+    /* Sized to whatever is in it, between a tile's width and something still readable at a
+       glance. A fixed narrow box wrapped every line of a full tile into a paragraph. */
+    width: max-content;
+    min-width: 7rem;
+    max-width: 14rem;
     transform: translateX(-50%);
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 0.375rem;
-    padding: 0.4375rem 0.75rem;
+    padding: 0.375rem 0.625rem;
     text-align: center;
-    white-space: nowrap;
     box-shadow: 0 0.375rem 1.125rem var(--shadow);
     opacity: 0;
     pointer-events: none;
@@ -152,5 +156,9 @@
     font-size: 0.6875rem;
     color: var(--text-dim);
     margin-top: 0.0625rem;
+    /* A tile's facts are joined with newlines and mean them - one line each, rather than one
+       paragraph wrapping wherever it runs out of room. */
+    white-space: pre-line;
+    line-height: 1.35;
 }
 

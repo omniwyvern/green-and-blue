@@ -18,7 +18,7 @@ import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
 import { shoreGrassTiles } from "./worldMap.js";
-import { greenMultiplier } from "./grassSublayer.js";
+import { greenMultiplier, blueMultiplier } from "./grassSublayer.js";
 
 const TURBULENCE_MAX = 100;
 const SETTLE_PER_SECOND = 10;   // How fast the water returns to calm when left alone
@@ -353,6 +353,7 @@ const pondGreen = (s) => greenProduction(s)
 const pondBlue = (s) => production(s)
     .mul(balanceMultiplier(s))
     .mul(biomassMultiplier())
+    .mul(blueMultiplier())
     .add(pondGreen(s).mul(oxygenShare(s)));
 
 function waterState(s) {
@@ -512,7 +513,7 @@ export const POND_VIEW = {
             setText(el.querySelector(".pond-state"), waterState(s));
             el.querySelector(".pond-meter-fill").style.width = `${(fraction * 100).toFixed(1)}%`;
 
-            const blueLine = `${formatNumber(pondBlue(s))} Blue Essence/s,`;
+            const blueLine = `${formatNumber(pondBlue(s))} Blue Essence/s, `;
             const essenceLine = blueLine + `${formatNumber(greenProduction(s))} Green Essence/s`;
             const second = el.querySelector(".pond-rate-second");
             if (lifeBought()) {

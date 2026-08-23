@@ -71,14 +71,19 @@ const STAGE_SECONDS = [30, 20, 10];
 // If mature grass has no empty adjacent tiles, it wait so unlocking doesn't spread into it instantly.
 const BLOCKED_WAIT_SECONDS = 10;
 const NEIGHBOUR_BONUS = 0.05;   // Faster per adjacent grassy tile.
-const GROWTH_PER_LEVEL = 0.10; 
+export const GROWTH_PER_LEVEL = 0.10;   // per level of richer soil.
 
 export const LAND_COST = () => ({ greenEssence: D(2e6), blueEssence: D(2e6) });
 
 // !!!! MAYBE CHANGE THIS !!!!
-// Green Essence per second, per tile, by stage
-export const STAGE_OUTPUT = [0, 20, 50];
-const OUTPUT_PER_LEVEL = 0.5;   // per level of greener blades.
+// Grass doesn't make essence of its own - it multiplies whatever does. This is the fraction one
+// tile adds on top of the multiplier, by stage, before anything scales it.
+export const STAGE_BONUS = [0, 0.25, 1];
+export const OUTPUT_PER_LEVEL = 0.5;   // per level of greener blades.
+
+// A neighbouring tile that produces on its own keeps this much of a grass tile's bonus for itself,
+// on top of the whole-world multiplier it already gets.
+export const ADJACENT_SHARE = 0.2;
 
 
 // How much the next tile cost. It's stored here because rain is priced off of it.
@@ -412,6 +417,10 @@ export const tileKind = (s, id) => terrainOn(s, id) || (grassOn(s, id) ? "grass"
 export const canHoldGrass = (s, id) => isClaimed(s, id) && !terrainOn(s, id);
 export const growableTiles = (s) => claimedTiles(s).filter(id => canHoldGrass(s, id));
 
+// What the ground itself makes per second, before weather and the grass around it.
+export const tileGreenProd = (s, id) => (TERRAIN_OUTPUT[tileKind(s, id)] || {}).greenEssence || 0;
+export const tileBlueProd = (s, id) => (TERRAIN_OUTPUT[tileKind(s, id)] || {}).blueEssence || 0;
+
 const adjacentGrass = (s, tile) => neighbouringTiles(tile).filter(n => grassOn(s, n.id)).length;
 
 // For tracking where land meets water, a few things deal with it.
@@ -488,8 +497,6 @@ export function startPrecipitation(s, id, event) {
 export function tickPrecipitation(s, dt) {
     if (!isPrecipitating(s)) return;
     const kind = precipitationKind(s);
-    // The water owed goes with the time served rather than with the frame, so the part tick an
-    // event ends on hands over its share and not a whole one.
     const slice = Math.min(dt, s.weatherSeconds);
 
     // Precipitation doesn't build up until the environment unlock is bought.
@@ -603,12 +610,24 @@ export function hasSeenKind(s, kind) {
 
 export function terrainProduction(s) {
     const total = { greenEssence: 0, blueEssence: 0 };
+    const bonuses = grassBonuses(s);
     for (const id of terrainTiles(s)) {
-        const output = TERRAIN_OUTPUT[s.terrain[id]];
         const boost = 1 + weatherBoostOn(s, id);
-        for (const resourceId in output) total[resourceId] += output[resourceId] * boost;
+        const green = tileGreenProd(s, id);
+        const blue = tileBlueProd(s, id);
+        if (green > 0) total.greenEssence += green * boost * (1 + neighbourGrassBonus(s, id, bonuses.green));
+        if (blue > 0) total.blueEssence += blue * boost * (1 + neighbourGrassBonus(s, id, bonuses.blue));
     }
     return total;
+}
+
+// The share of the grass around a tile that the tile keeps for itself.
+function neighbourGrassBonus(s, id, bonusOf) {
+    const tile = tileById(id);
+    if (!tile) return 0;
+    let total = 0;
+    for (const n of neighbouringTiles(tile)) if (grassOn(s, n.id)) total += bonusOf(n.id);
+    return ADJACENT_SHARE * total;
 }
 
 // Counts how many tiles of each kind there are.
@@ -820,42 +839,54 @@ function ageBonus(s, id) {
     return bonus * (age / (age + DEEP_ROOTS_SECONDS));
 }
 
-// The bits every tile shares are worked out once, then it hands back what one tile makes.
-function grassOutputs(s) {
+// The bits every tile shares are worked out once, then it hands back what one tile is worth.
+export function grassOutputs(s) {
     const perLevel = 1 + OUTPUT_PER_LEVEL * level("greenerBlades") + cardBonus("grassOutput") + canopyBonus(s);
     // For the fertile waters card.
     const fromAlgae = cardBonus("shoreExchange") > 0
         ? cardBonus("shoreExchange") * (getLayerState("pond").algae || 0) : 0;
-
+    // Which grass is being grown, and the milestones that make all of them worth more.
+    const fromGrass = grassOutputMultiplier();
     return (id) => {
         const shore = fromAlgae > 0 && onShore(s, id) ? fromAlgae : 0;
-        return STAGE_OUTPUT[s.grass[id].stage] * (perLevel + ageBonus(s, id) + shore)
-            * (1 + weatherBoostOn(s, id));
+        return STAGE_BONUS[s.grass[id].stage] * (perLevel + ageBonus(s, id) + shore)
+            * (1 + weatherBoostOn(s, id)) * fromGrass;
     };
 }
 
-export function production(s) {
-    const outputOf = grassOutputs(s);
-    let total = 0;
-    for (const id of grassTiles(s)) total += outputOf(id);
-    // Which grass is being grown, and the milestones that make all of them worth more.
-    return total * grassOutputMultiplier();
-}
-
-// Wet ground gives Blue Essence as well as Green, worth this much of what the grass on it makes,
-// and drying off with the buildup the same way the boost does.
+// Wet ground works on Blue the same way, worth this much of what the grass on it is worth to
+// Green, and drying off with the buildup the same way the boost does.
 export const SOAKED_BLUE = 3;
 
-export function soakedBlue(s) {
-    const outputOf = grassOutputs(s);
-    let total = 0;
-    for (const id of grassTiles(s)) {
-        const wet = buildupTotalOn(s, id);
-        if (wet > 0) total += outputOf(id) * SOAKED_BLUE * wet;
-    }
-    return total * grassOutputMultiplier();
+// Both per-tile figures, prepared once for a whole pass over the map. Anything reading more than
+// one tile should take these rather than the single-tile pair below, which redoes the shared
+// work every call.
+export function grassBonuses(s) {
+    const green = grassOutputs(s);
+    return { green, blue: (id) => green(id) * SOAKED_BLUE * buildupTotalOn(s, id) };
 }
 
+// What one tile of grass adds to each multiplier, as the fraction on top of it. For tooltips.
+export const grassGreenOutput = (s, id) => grassOn(s, id) ? grassBonuses(s).green(id) : 0;
+export const oneSoakedBlue = (s, id) => grassOn(s, id) ? grassBonuses(s).blue(id) : 0;
+
+// All the grass in the world together, as the fraction it adds to the multiplier.
+export function greenBonus(s) {
+    const { green } = grassBonuses(s);
+    let total = 0;
+    for (const id of grassTiles(s)) total += green(id);
+    return total;
+}
+
+export function blueBonus(s) {
+    const { blue } = grassBonuses(s);
+    let total = 0;
+    for (const id of grassTiles(s)) total += blue(id);
+    return total;
+}
+
+export const grassGreenMultiplier = (s = worldState()) => 1 + greenBonus(s);
+export const grassBlueMultiplier = (s = worldState()) => 1 + blueBonus(s);
 
 
 // If there's no grass in the world and grass is unlocked, you must plant the first seed.
@@ -913,7 +944,6 @@ export function tickGrass(dt) {
             } else if (grass.blockedWait > 0) {
                 grass.blockedWait = Math.max(0, grass.blockedWait - dt);
             }
-            console.log(grass.blockedWait)
             grass.progress = Math.min(1, grass.progress);
             if (grass.progress >= 1 && !(grass.blockedWait > 0)) ready.push(tile);
         }

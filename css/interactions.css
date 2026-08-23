@@ -100,6 +100,13 @@
 }
 .weather-jump[data-state="falling"] .weather-meter-fill { background: #3f6f92; }
 
+.interaction-icon .cursor-arrow {
+    fill: #c9dced;
+    stroke: #c9dced;
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+}
+
 .interaction-icon .cloud { fill: #c9dced; }
 .interaction-icon .raindrop {
     stroke: #58a8e8;

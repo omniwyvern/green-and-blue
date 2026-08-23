@@ -100,6 +100,16 @@ export function productionRate(layer, resourceId) {
     return rates[`${resourceHolderId(layer, resourceId)}:${resourceId}`] || D(0);
 }
 
+// A pool that moved by something other than production - a dev grant or a wipe - would
+// otherwise be read as a tick that made (or unmade) all of it, and the smoothing would take
+// the best part of a minute to walk that spike back. Forgetting the history instead makes
+// the next sample the new baseline: one tick reading nothing, then the real rate again.
+export function resyncProduction() {
+    for (const key in lastSeen) delete lastSeen[key];
+    for (const key in spentSince) delete spentSince[key];
+    for (const key in rates) delete rates[key];
+}
+
 // When multiple currencies are used at the same time same amount, this makes it shorten the display of it.
 const costGroups = [];
 
