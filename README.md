@@ -136,7 +136,7 @@ Guide:              tutorial information given on opening a layer for the first 
 
 ## Known issues (bugs or unimplemented things)
 
-- No visual indicator for Floodwater or Tidal Cycle cards.
+- No visual indicator for the Tidal Cycle card.
 - The pond's capacity is fixed at 3 and there's no upgrade for it yet. Needs balancing.
 - A tooltip on a node near the canvas edge is clipped by the viewport.
 - No offline progress calculation on load

@@ -14,7 +14,7 @@ import { matureTiles, grassTiles, ORIGIN_TILE } from "./worldMap.js";
 import {
     CARDS, SLOTS, COPIES_TO_COMBINE, collection, cardEntry, cardName, cardArt, rarityOf, knownCard,
     comboStatus, rollDraw, collectCard, equipCard, unequipSlot, firstFreeSlot,
-    BANNERS, BANNER_IDS, bannerArt,
+    BANNERS, BANNER_IDS, bannerArt, bannerUnlocked, unlockedBannerIds,
     loadoutLocked, lockLoadout, releaseLoadout,
 } from "./cards.js";
 
@@ -199,8 +199,11 @@ registerLayer("evolution", {
                 },
 
                 update(el, s, layer) {
+                    // The open banners are in here too, so a layer unlocked while this page is
+                    // up brings its banner in rather than waiting for the next change.
                     const signature = JSON.stringify([s.cards, s.equipped, s.draw, s.banner,
-                                                      s.bannerDraws, s.unlockedCards, s.loadoutLocked]);
+                                                      s.bannerDraws, s.unlockedCards, s.loadoutLocked,
+                                                      unlockedBannerIds()]);
                     if (el.__signature !== signature) {
                         el.__signature = signature;
                         buildSlots(el, s);
@@ -300,7 +303,6 @@ const MOD_NAMES = {
     blueClick: "Blue Essence per click",
     fullChargeBonus: "full-charge click bonus",
     chargeCapacity: "charge capacity",
-    conversionRate: "Green-to-Blue conversion",
     growthNeeded: "-growth needed per stage",
     stageCap: "growth stage cap",
 
@@ -313,7 +315,6 @@ const MOD_NAMES = {
     stirPower: "turbulence per click",
     settleResist: "-how fast water settles",
     turbulenceMax: "maximum turbulence",
-    calmFish: "fish growth in calm water",
     roughFish: "fish growth in rough water",
     calmAlgae: "algae growth in calm water",
     pondCapacity: "Pond capacity",
@@ -326,14 +327,13 @@ const MOD_NAMES = {
     grassOutput: "grass output",
     adjacencyBonus: "bonus per adjacent grassy tile",
     matureWait: "-wait before mature grass spreads",
-    canopyOutput: "grass output while the map is full",
 
     // Rain
-    rainDuration: "rain duration",
-    rainBoost: "rain's effect on grass",
-    rainCharge: "rain gathered per click",
-    rainCost: "-cost per click on the cloud",
-    moistureRate: "how fast rain wets the ground",
+    rainDuration: "how long weather lasts",
+    rainBoost: "what a cloud is worth to the tile under it",
+    rainCharge: "how fast the cloud gathers",
+    rainCost: "-Blue Essence to fill the cloud",
+    moistureRate: "how much weather leaves in the ground",
     rainSoak: "rain on ground with nothing growing on it",
 };
 
@@ -359,6 +359,9 @@ function effectText(id, level) {
 function buildStage(el, s, layer) {
     const host = el.querySelector(".cards-draw");
     host.innerHTML = "";
+
+    // A banner is only open while its layer is, so a closed one drops you back to the choice.
+    if (s.banner && !bannerUnlocked(s.banner)) s.banner = null;
 
     if (!s.banner && !s.draw) return buildBannerChoice(host, s);
 
@@ -401,7 +404,10 @@ function buildBannerChoice(host, s) {
     const grid = document.createElement("div");
     grid.className = "banner-grid";
 
+    // A banner whose layer isn't open is left out entirely - naming it would give away
+    // something that hasn't been found yet.
     for (const id of BANNER_IDS) {
+        if (!bannerUnlocked(id)) continue;
         const banner = BANNERS[id];
         const btn = document.createElement("button");
         btn.className = "banner-card";

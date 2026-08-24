@@ -9,7 +9,7 @@
 import { registerLayer } from "../../core/registry.js";
 import { state, getLayerState } from "../../core/state.js";
 import { spend } from "../../core/resources.js";
-import { formatNumber } from "../../utils/format.js";
+import { formatPercent } from "../../utils/format.js";
 import { switchToLayer } from "../../render/canvasRouter.js";
 import {
     mapTiles, TILE_SIZE, STAGE_NAMES, MATURE, LAND_COST, TERRAIN, grassOn, tileCost, canPlant, plantGrass,
@@ -27,8 +27,9 @@ import { activeType } from "./grassSublayer.js";
 // it, which says how the cloud is doing and is the way back to that page.
 import { fillOf, readyIndex, canRelease } from "./precipitationSublayer.js";
 
-const bonusNote = (name, bonus) => `x${formatNumber(bonus)} ${name}`
-    + ` (+${formatNumber(bonus * ADJACENT_SHARE)}x nearby)`;
+// What the tile adds on top, and the share of that one neighbour keeps.
+const bonusNote = (name, bonus) => `+${formatPercent(bonus)} ${name}`
+    + ` (+${formatPercent(bonus * ADJACENT_SHARE)} nearby)`;
 
 const landBought = () => !!getLayerState("cores").purchasedUpgrades.land;
 const grassBought = () => !!getLayerState("cores").purchasedUpgrades.grass;
@@ -280,7 +281,7 @@ registerLayer("world", {
             const buried = snowOn(s, tile.id);
             const damp = grass ? dampGrowth(s, tile.id) : 1;
             // What this tile is worth everywhere, and the share of it its neighbours keep.
-            // A seed is worth nothing yet, and "x0 Green" reads like it is taking something away.
+            // A seed is worth nothing yet, and a line of x1.00 says nothing worth the room.
             const green = grassGreenOutput(s, tile.id);
             const soaked = oneSoakedBlue(s, tile.id);
             if (green > 0) parts.push(bonusNote("Green", green));

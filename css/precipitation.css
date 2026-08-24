@@ -92,6 +92,7 @@
     align-items: center;
     gap: 0.5rem;
     padding-right: 1.625rem;
+    touch-action: manipulation;
 }
 
 .charge-track {

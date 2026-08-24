@@ -161,8 +161,6 @@
 
 .growth-best { font-size: 0.75rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
-/* ---------- Giving a core stage back ---------- */
-
 .grass-sacrifice {
     display: flex;
     flex-direction: column;
@@ -184,7 +182,6 @@
 .sacrifice-title { font-weight: 600; font-size: 0.8125rem; }
 .sacrifice-detail { font-size: 0.75rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
-/* ---------- The grasses ---------- */
 
 .grass-types {
     display: grid;
@@ -202,12 +199,10 @@
     border-radius: 0.5rem;
     cursor: pointer;
 }
-/* The one being grown gets the blade colour it paints the map with, so the card and the tiles
-   are obviously the same thing. */
+/* The one being grown gets the blade colour it paints the map with */
 .grass-card.active { border-color: var(--blade); background: var(--panel-light); }
 .grass-card:hover:not(.active):not(.locked):not(.sown) { border-color: var(--accent); }
 .grass-card.locked { border-style: dashed; opacity: 0.55; cursor: default; }
-/* Unlocked, but the world already has its grass - nothing to click until the next evolution. */
 .grass-card.sown { opacity: 0.45; cursor: default; }
 
 .grass-sown { text-transform: none; letter-spacing: 0; opacity: 0.8; }
@@ -234,9 +229,6 @@
 .grass-card.locked .grass-card-effects { color: var(--gold); }
 .grass-card-blurb { font-size: 0.6875rem; color: var(--text-dim); line-height: 1.4; }
 
-/* ---------- Milestones ---------- */
-
-/* The next one is a single row, with deliberately nothing to say whether anything follows it. */
 .milestone-row {
     display: flex;
     align-items: center;
@@ -252,8 +244,7 @@
 .milestone-title { font-size: 0.8125rem; font-weight: 600; }
 .milestone-effect { font-size: 0.6875rem; color: var(--text-dim); }
 
-/* The ones already passed. Quieter than the next one, so the thing still to reach for is the
-   thing the eye lands on, and stacked newest first. */
+/* The milestones already passed */
 .milestone-earned { display: flex; flex-direction: column; gap: 0.375rem; }
 
 .milestone-row.earned {
@@ -263,7 +254,6 @@
 }
 .milestone-row.earned .milestone-title { font-weight: 500; color: var(--text-dim); }
 
-/* Only ever on an earned row - a threshold already passed says nothing about what is left. */
 .milestone-at {
     margin-left: auto;
     flex-shrink: 0;

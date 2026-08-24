@@ -92,6 +92,7 @@
 
 .node-core .node-face {
     background: color-mix(in srgb, var(--node-color, var(--accent)) 70%, var(--panel));
+    touch-action: manipulation; /* !!! TESTING IF THIS WORKS !!! */
 }
 .node-core .node-title { font-size: 14px; }
 .node-core:hover .node-face { background: color-mix(in srgb, var(--node-color, var(--accent)) 60%, var(--panel)); }

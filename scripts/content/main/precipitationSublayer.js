@@ -34,7 +34,7 @@ const CHARGE_PER_LEVEL = 0.15;
 
 const STABILITY_DECAY = 0.05;
 const DECAY_RAMP = 3;
-const STABILITY_RECOVERY = 0.055;
+const STABILITY_RECOVERY = 0.06;
 const RECOVERY_PER_LEVEL = 0.2;
 const PRESSURE = 0.12;              // Lost per second per fill past what it can hold.
 const TOLERANCE = 0.5;              // How full it can sit without any loss.
@@ -49,8 +49,6 @@ const LIFT = 3;
 const GRAVITY = 1.5;
 const DRAG = 2;
 
-// The scale starts above where the band rests, so charge zero isn't a mark the band lifts
-// straight off the instant it's held.
 const MARK_FLOOR = 0.2;
 
 const GRACE_SECONDS = 0.75;
@@ -64,17 +62,15 @@ const DRIFTING_CHARGE = 0.4;        // What a cloud that wasn't built is worth (
 
 const IDLE_AFTER_MS = 250;          // How long without a frame before the tick takes the cloud over.
 
-// How much of its duration a release keeps, by the Stability it was let go at. A full cloud runs
-// the intensity's whole time and a quarter-stability one runs half of it, so a Downpour is 30
-// seconds against 15. Shorter rain leaves proportionally less water behind as well.
-const DURATION_FLOOR = 1 / 3;       // What's left of it with no Stability at all.
+// How much of its duration a release keeps, by the Stability it was let go at.
+const DURATION_FLOOR = 1 / 3;       // What's left of it with no stability
 const durationFactor = (stability) => DURATION_FLOOR + (1 - DURATION_FLOOR) * stability;
 
-// `soak` is what one full-charge release at full Stability leaves in a GRASS tile, as a share of
+// "soak" is what one full-charge release at full Stability leaves in a GRASS tile, as a share of
 // the way to flooding it. Ground that takes more or less than grass moves off of that in eventFor.
 export const INTENSITIES = [
     {
-        id: "light", at: 0.25, power: 0.6, soak: 0.2, seconds: 0.8, upgrade: "fineMist",
+        id: "light", at: 0.25, power: 0.6, soak: 0.1, seconds: 0.8, upgrade: "fineMist",
         names: { rain: "Drizzle", snow: "Flurry" },
     },
     {
@@ -93,6 +89,8 @@ export const intensityName = (intensity, kind) => intensity.names[kind] || inten
 
 export const capacity = () => BASE_CAPACITY * (1 + CAPACITY_PER_LEVEL * level("deeperClouds"));
 export const chargeHeld = (s = cloudState()) => s.charge || 0;
+// How much of what's in the cloud has already been paid for.
+const paidFor = (s = cloudState()) => s.paidCharge || 0;
 export const fillOf = (s = cloudState()) => Math.min(1, chargeHeld(s) / capacity());
 export const stabilityOf = (s = cloudState()) => (s.stability === undefined ? 1 : s.stability);
 
@@ -150,7 +148,7 @@ function eventFor(world, id, intensity, charge, stability) {
     return {
         strength: charge * power * wetnessFactor(world, id, kind) * (1 + cardBonus("rainBoost")),
         seconds: PRECIPITATION_SECONDS * intensity.seconds * lasting * (1 + cardBonus("rainDuration")),
-        // Off the grass the soak numbers are quoted against, and onto whatever is being rained on.
+        // Off the grass the soak numbers are quoted against, and onto whatever is being rained on
         soak: charge * water * lasting * soakScaleForKind("grass") / soakScale(world, id),
     };
 }
@@ -159,14 +157,13 @@ const runoff = (intensity) => intensity.id === "heavy"
     ? 1 + DELUGE_PER_LEVEL * level("deluge")
     : Math.max(MIN_RUNOFF, 1 - RUNOFF_PER_LEVEL * level("lightTouch"));
 
-// With no tile picked this reads off the origin.
+// With no tile picked this reads off the origin
 export const previewOf = (world, id, intensity, charge, stability) => {
     const event = eventFor(world, id || ORIGIN_TILE, intensity, charge, stability);
     return { boost: PRODUCTION_BOOST * event.strength, seconds: event.seconds, soak: event.soak };
 };
 
-// A cloud that just Appears, for the rain dance card. Nothing wore it down on the way, so it
-// falls for its whole duration.
+// A cloud that just Appears, for the rain dance card
 export function driftingEvent(world, id) {
     return eventFor(world, id, INTENSITIES[0], capacity() * DRIFTING_CHARGE, 1);
 }
@@ -174,6 +171,8 @@ export function driftingEvent(world, id) {
 export function addCharge(fraction) {
     const s = cloudState();
     s.charge = Math.min(capacity(), chargeHeld(s) + fraction * capacity());
+    // A cloud that blew in on its own is already paid for
+    s.paidCharge = Math.max(paidFor(s), s.charge);
 }
 
 export function releaseCloud(layer) {
@@ -185,19 +184,19 @@ export function releaseCloud(layer) {
     startPrecipitation(world, id,
         eventFor(world, id, pickedIntensity(s), chargeHeld(s), stabilityOf(s)));
     s.charge = 0;
+    s.paidCharge = 0;
     return true;
 }
 
-// If stability hits zero, the cloud falls for part of what it held so it's not a complete waste.
+// If stability hits zero, the cloud falls for part of what it held so it's not a complete waste
 function burst(s) {
     const world = worldState();
     const index = readyIndex(s);
     const id = targetTile(world);
-    // Stability is at zero by the time this runs, so the burst falls for what the cloud pulls
-    // itself back to rather than for the floor. It's already paying for the collapse in charge.
     if (index >= 0 && id && !isPrecipitating(world)) {
         startPrecipitation(world, id,
             eventFor(world, id, INTENSITIES[index], chargeHeld(s) * BURST_SHARE, BURST_STABILITY));
+        s.paidCharge = Math.max(0, paidFor(s) - chargeHeld(s) * BURST_SHARE);
     }
     s.charge = 0;
     s.stability = BURST_STABILITY;
@@ -246,17 +245,22 @@ function stepCloud(dt, layer) {
     if (s.stability <= 0) burst(s);
 }
 
+// Charge is billed against a receipt rather than per drop gathered. A burst empties the cloud
+// but leaves the receipt behind, so climbing back to where it collapsed isn't paid for twice -
+// what gets billed is the water that actually leaves the cloud, which is what the label quotes.
 function gatherCharge(s, dt, layer) {
     const room = capacity() - chargeHeld(s);
     if (room <= 0) return;
 
     const gained = Math.min(room, chargeRate(fillOf(s)) * capacity() * dt);
-    if (!spend(layer, { blueEssence: chargeCost(worldState()).mul(gained) })) {
+    const billable = Math.max(0, chargeHeld(s) + gained - paidFor(s));
+    if (billable > 0 && !spend(layer, { blueEssence: chargeCost(worldState()).mul(billable) })) {
         starved = true;
         return;
     }
     starved = false;
     s.charge = chargeHeld(s) + gained;
+    s.paidCharge = Math.max(paidFor(s), s.charge);
 }
 
 // The bar runs off the render loop so it moves at the screen's rate.
@@ -429,35 +433,29 @@ export const PRECIPITATION_VIEW = {
             label: "Cloud",
             color: "#7fc8ff",
             upgrades: {
-                deeperClouds: {
-                    title: "Deeper Clouds",
-                    description: "The cloud holds more before it's full. Fills in the same time, so it's simply worth more when it goes.",
-                    max: 10,
-                    cost: (s, lvl) => ({ blueEssence: D(5e5).mul(D(2).pow(lvl)) }),
-                },
                 updraft: {
                     title: "Updraft",
                     description: "Charge builds faster, so less of the cloud's Stability is spent getting there.",
                     max: 10,
-                    cost: (s, lvl) => ({ blueEssence: D(3e5).mul(D(1.8).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(1e7).mul(D(1.8).pow(lvl)) }),
                 },
                 calmAir: {
                     title: "Calm Air",
                     description: "Stability comes back faster whenever the cloud is left alone.",
-                    max: 8,
-                    cost: (s, lvl) => ({ blueEssence: D(4e5).mul(D(1.9).pow(lvl)) }),
+                    max: 4,
+                    cost: (s, lvl) => ({ blueEssence: D(2e7).mul(D(1.9).pow(lvl)) }),
                 },
                 pressureTolerance: {
                     title: "Pressure Tolerance",
                     description: "The cloud can sit fuller before the weight of it starts costing Stability by itself.",
                     max: 6,
-                    cost: (s, lvl) => ({ blueEssence: D(8e5).mul(D(2.2).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(8e6).mul(D(2.2).pow(lvl)) }),
                 },
                 broadFront: {
                     title: "Broad Front",
                     description: "Widens the band, so the mark is easier to hold on to.",
                     max: 5,
-                    cost: (s, lvl) => ({ blueEssence: D(6e5).mul(D(2.4).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(5e6).mul(D(2.4).pow(lvl)) }),
                 },
             },
         },
@@ -470,31 +468,31 @@ export const PRECIPITATION_VIEW = {
                     title: "Fine Mist",
                     description: "The lightest intensity is worth more for the charge it spends.",
                     max: 5,
-                    cost: (s, lvl) => ({ blueEssence: D(2.5e5).mul(D(1.7).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(1e7).mul(D(1.7).pow(lvl)) }),
                 },
                 steadyFall: {
                     title: "Steady Fall",
                     description: "The middle intensity is worth more for the charge it spends.",
                     max: 5,
-                    cost: (s, lvl) => ({ blueEssence: D(4e5).mul(D(1.8).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(1e7).mul(D(1.8).pow(lvl)) }),
                 },
                 cloudburst: {
                     title: "Cloudburst",
                     description: "The heaviest intensity is worth more for the charge it spends.",
                     max: 5,
-                    cost: (s, lvl) => ({ blueEssence: D(7e5).mul(D(2).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(1e7).mul(D(2).pow(lvl)) }),
                 },
                 lightTouch: {
                     title: "Light Touch",
                     description: "The two lighter intensities leave less water behind, so the same ground takes them for longer.",
                     max: 5,
-                    cost: (s, lvl) => ({ blueEssence: D(6e5).mul(D(2.1).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(1e7).mul(D(2.1).pow(lvl)) }),
                 },
                 deluge: {
                     title: "Deluge",
                     description: "The heaviest intensity drives water far deeper, for ground you mean to change rather than keep.",
                     max: 5,
-                    cost: (s, lvl) => ({ blueEssence: D(9e5).mul(D(2.1).pow(lvl)) }),
+                    cost: (s, lvl) => ({ blueEssence: D(1e7).mul(D(2.1).pow(lvl)) }),
                 },
             },
         },
@@ -512,6 +510,7 @@ registerLayer("precipitation", {
 
     initialState: {
         charge: 0,
+        paidCharge: 0,  // What the cloud has been billed for, so a burst isn't paid for twice.
         stability: 1,
         intensity: 1,   // The middle one, which is the kind the cloud is named after.
     },
@@ -582,7 +581,6 @@ function updateIntensities(el, s, world, kind) {
     const ready = readyIndex(s);
     const id = targetTile(world);
 
-    // The numbers move constantly; the cards themselves only change on a kind or an upgrade.
     const signature = `${kind}::${INTENSITIES.map(i => level(i.upgrade)).join(",")}`
         + `::${level("lightTouch")}:${level("deluge")}`;
     if (el.__intensities !== signature) {
@@ -611,7 +609,7 @@ function updateIntensities(el, s, world, kind) {
         const preview = previewOf(world, id, intensity, chargeHeld(s), stabilityOf(s));
         setText(card.querySelector(".intensity-effect"),
             `+${percent(preview.boost)} output for ${Math.round(preview.seconds)}s`);
-        // Capped, since anything past a full tile floods it and runs off rather than counting.
+        // Capped, since anything past a full tile floods it and runs off rather than counting
         setText(card.querySelector(".intensity-water"), !environmentBought()
             ? ""
             : id ? `+${percent(Math.min(1, preview.soak))} ${buildupNoun(kind)} on the tile`
@@ -633,7 +631,7 @@ function updateRelease(el, s, world, kind) {
         : `Release ${intensityName(intensity, kind).toLowerCase()}`);
 
     setText(el.querySelector(".release-target"), isPrecipitating(world)
-        ? `${PRECIPITATION[fallingKind(world)].name} is already falling on ${world.weatherTile}.`
+        ? `${PRECIPITATION[fallingKind(world)].name} is already falling on ${world.weatherTile}, for ${Math.ceil(world.weatherSeconds)} more seconds.`
         : !id ? "No target. Pick a tile over on the World map."
         : `Target ${id} - ${TERRAIN[tileKind(world, id)].name.toLowerCase()}`
             + `, ${Math.round(buildupOn(world, id, kind) * 100)}% ${PRECIPITATION[kind].makes === "ice" ? "buried" : "soaked"}.`
@@ -651,22 +649,17 @@ function summary(world, s, kind) {
 
     const cost = chargeCost(world).mul(capacity());
     const opening = `A cloud of this size costs ${formatNumber(cost)} Blue Essence to fill.`
-        + ` Charge builds while the band covers the mark, and Stability drains the whole time`
-        + ` charge is going in - faster the fuller the cloud is. Stop charging and it comes back.`;
 
     if (!environmentBought()) return `${opening} Aim it at a grassy tile to speed its growth.`;
 
     const wettest = wettestTile(world, kind);
     const held = PRECIPITATION[kind].makes === "ice" ? "buried" : "soaked";
-    return `${opening} Ground already ${held} gets much less of a boost out of the next cloud,`
-        + ` though it still soaks up the same water - so the light intensities pay the same tile`
-        + ` over and over while the heavy ones pay more now and eventually turn it to`
+    return `${opening} Grass with weather above it as well as ${held} tiles will give a blue multiplier as well.`
+        + ` Duration is based on the cloud's current stability. Ground already ${held} gets less of a boost.`
+        + ` If a tile becomes 100% ${held}, it will turn into`
         + ` ${TERRAIN[PRECIPITATION[kind].becomes].name.toLowerCase()}.`
         + ` Ground left alone gives up a full tile's worth every`
         + ` ${(DRYING_SECONDS / 60).toFixed(1)} minutes, quicker the drier it gets.`
-        + (wettest
-            ? ` The ground furthest along is ${wettest.id} at ${Math.round(wettest.at * 100)}% ${held}.`
-            : ` No ground is holding any yet.`);
 }
 
 function wettestTile(world, kind) {

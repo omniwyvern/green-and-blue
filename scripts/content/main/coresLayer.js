@@ -85,6 +85,10 @@ export function sacrificeStage() {
 
     earnGrowth(stageCost(s.growthStage - 1).div(CORE_GROWTH_PER_GROWTH));
     s.growthStage--;
+    // Progress toward the next stage goes with the stage. Left banked, the tick below spends
+    // it to buy the stage straight back on the same frame, so the sacrifice costs nothing and
+    // can be repeated at the same price until the bank runs dry.
+    s.growth = D(0);
     [s.greenProdPrev, s.greenProdCurr] = [s.greenProdCurr.sub(s.greenProdPrev), s.greenProdPrev];
     return true;
 }
@@ -492,7 +496,8 @@ registerLayer("cores", {
             hidden: (s) => !owned(s, "blueResonance"),
             cost: () => ({ blueEssence: D("1e6") }),
             onPurchase(s) { s.consecWindow = 8; },
-        },       
+        },
+
         pond: {
             kind: "layer",
             parents: ["world", "blueReservoir"],
@@ -607,6 +612,23 @@ registerLayer("cores", {
             cost: () => ({ greenEssence: D(2e6), biomass: D(10000) }),
             onPurchase() { getLayerState("grass").unlocked = true; },
         },
+        /*
+        grassyCore: {
+            kind: "unlock",
+            parent: "grass",
+            title: "Grassy Core",
+            color: "#22b47c",
+            position: {x: 300, y: 450},
+            description: "Grass begins to sprout on the Green Core, each growing the other.",
+            cost: () => ({ greenEssence: D()}),
+            onPurchase() {  },
+        },
+        smthn: {
+            increase core growth based on blue core combo
+        }
+       
+        */
+       
 
         rain: {
             kind: "sublayer",

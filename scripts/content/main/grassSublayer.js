@@ -10,7 +10,7 @@ import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
 import { getLevel } from "../../core/resources.js";
 import { D } from "../../utils/decimal.js";
-import { formatNumber, formatWhole } from "../../utils/format.js";
+import { formatNumber, formatWhole, formatPercent } from "../../utils/format.js";
 import {
     mapTiles, SEED, GROWING, MATURE, STAGE_NAMES, ADJACENT_SHARE,
     worldState, grassOn, grassTiles, growableTiles, growthRate,
@@ -315,7 +315,7 @@ export const GRASS_VIEW = {
             title: "Green Fingers",
             description: (s, lvl) =>
                 `Every grassy tile is worth ${soFar(FINGERS_PER_LEVEL, lvl)} more, whichever type it is.`,
-            max: 3,
+            max: 5,
             cost: (s, lvl) => ({ growth: D(600).mul(D(6).pow(lvl)) }),
         },
         hardyStrains: {
@@ -326,19 +326,22 @@ export const GRASS_VIEW = {
             hidden: () => growthPeak().lt(800),
             cost: (s, lvl) => ({ growth: D(1200).mul(D(5).pow(lvl)) }),
         },
+        // The two that spend Green rather than Growth, so they're priced against the same
+        // curve the tiles are. Both were flat enough that clearing all ten levels cost less
+        // than a single mid-game tile - the scaling does the work now, not just the base.
         richerSoil: {
             title: "Richer Soil",
             description: (s, lvl) =>
                 `Grass moves through its stages +${soFar(SOIL_PER_LEVEL, lvl)} faster, everywhere.`,
             max: 10,
-            cost: (s, lvl) => ({ greenEssence: D("1e7").mul(D(1.7).pow(lvl)) }),
+            cost: (s, lvl) => ({ greenEssence: D("6e7").mul(D(1.75).pow(lvl)) }),
         },
         greenerBlades: {
             title: "Greener Blades",
             description: (s, lvl) =>
-                `Every grassy tile is worth +${soFar(BLADES_PER_LEVEL, lvl)} more.`,
-            max: 25,
-            cost: (s, lvl) => ({ greenEssence: D("1e7").mul(D(1.3).pow(lvl)) }),
+                `Every grassy tile is worth +${soFar(BLADES_PER_LEVEL, lvl)} more, whichever type it is.`,
+            max: 10,
+            cost: (s, lvl) => ({ greenEssence: D("1e8").mul(D(1.85).pow(lvl)) }),
         },
     },
 };
@@ -377,7 +380,7 @@ function updateYield(el) {
 
     setText(el.querySelector(".yield-share"),
         `Every tile also hands ${Math.round(ADJACENT_SHARE * 100)}% of its own bonus to each`
-        + ` neighbouring tile that produces, on top of this.`);
+        + ` neighbouring tile that produces, and those stack on each other.`);
 
     const breakdown = breakdownMarkup(world);
     const target = el.querySelector(".yield-breakdown");
@@ -434,12 +437,11 @@ function yieldRow(name, bonuses, tone) {
         <div class="yield-row ${tone}">
             <span class="yield-row-name">${name}</span>
             <span class="yield-row-count">${bonuses.length} tile${bonuses.length === 1 ? "" : "s"}</span>
-            <span class="yield-row-each">${even ? "" : "avg "}+${percent(each)} each</span>
-            <span class="yield-row-total">+${percent(total)}</span>
+            <span class="yield-row-each">${even ? "" : "avg "}+${formatPercent(each)} each</span>
+            <span class="yield-row-total">+${formatPercent(total)}</span>
         </div>`;
 }
 
-const percent = (value) => `${formatNumber(value * 100)}%`;
 
 function updateGrowth(el) {
     setText(el.querySelector(".growth-amount"), formatNumber(growthTotal()));
@@ -466,6 +468,7 @@ function updateSacrifice(el) {
     el.querySelector(".grass-sacrifice").disabled = !able;
     setText(el.querySelector(".sacrifice-detail"), able
         ? `Stage ${cores.growthStage} down to ${cores.growthStage - 1}, for ${formatNumber(sacrificeValue(cores))} Growth.`
+            + (cores.growth.gt(0) ? " Progress toward the next stage goes with it." : "")
         : "The core is down to its first stage. Nothing left to give.");
 }
 

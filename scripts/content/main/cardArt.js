@@ -77,7 +77,7 @@ const roots = (y, depth = 14, x = 42) => `
     <path class="art-ground" d="M${x + 1} ${y + 2} C${x + 13} ${y - 1} ${x + 20} ${y + 3} ${x + 23} ${y + depth}"/>
 `;
 
-// A core. "fill" is how much of the meter is filled, from 0 to 1.
+// A core. "fill" is how much of the meter is filled, from 0 to 1
 const core = (x, y, r = 15) => `<circle class="art-line" cx="${x}" cy="${y}" r="${r}"/>`;
 const coreArc = (x, y, r, fill) => {
     const end = -Math.PI / 2 + fill * Math.PI * 2;
@@ -117,7 +117,7 @@ const clock = (x, y, r = 10) => `
     <path class="art-line art-accent" d="M${x} ${y} L${x} ${y - r + 3} M${x} ${y} L${x + r - 4} ${y}"/>
 `;
 
-// A curved arrow, for things like a cycle, loop, or return.
+// A curved arrow, for things like a cycle, loop, or return
 const cycleArrow = (x, y, r = 13) => `
     <path class="art-line art-accent" d="M${x - r} ${y} A${r} ${r} 0 1 1 ${x} ${y + r}"/>
     <path class="art-fill art-accent" d="M${x - 4} ${y + r} L${x + 4} ${y + r - 5} L${x + 4} ${y + r + 5} Z"/>
@@ -131,12 +131,10 @@ const vessel = (x, y, level = 0.6, w = 13) => `
 `;
 
 
-// Cards themselves
 // Probably not as much explanation as there should be in here. There are so so many.
 export const CARD_ART = {
     // Cores: green
     quickGrowth: frame(`${core(32, 31, 18)}${coreArc(32, 31, 18, 0.7)}${arrowUp(74, 48, 26)}`),
-    rapidGrowth: frame(`${core(30, 31, 18)}${coreArc(30, 31, 18, 0.85)}${arrowsUp(72, 50)}`),
     verdantPulse: frame(`${core(32, 31, 17)}${coreArc(32, 31, 17, 0.6)}${sparkle(66, 18, 1.6)}${sparkle(80, 34, 1.2)}${sparkle(68, 46, 0.9)}`),
     verdantAbundance: frame(`${core(28, 31, 17)}${coreArc(28, 31, 17, 0.8)}${sparkle(60, 16, 1.7)}${sparkle(78, 30, 1.4)}${sparkle(62, 46, 1.1)}`),
     thickRoots: frame(`${ground(32)}${core(50, 18, 13)}${roots(32, 26, 50)}`),
@@ -150,9 +148,7 @@ export const CARD_ART = {
 
     // Cores: blue
     quickening: frame(`${core(32, 31, 18)}${coreArc(32, 31, 18, 0.75)}${arrowUp(74, 48, 26)}`),
-    acceleratedCharge: frame(`${core(30, 31, 18)}${coreArc(30, 31, 18, 0.9)}${arrowsUp(72, 50)}`),
-    spark: frame(`${core(50, 31, 21)}${bolt(50, 31, 1.5)}${sparkle(18, 16, 1)}${sparkle(84, 44, 1)}`),
-    surge: frame(`${core(50, 31, 21)}${coreArc(50, 31, 21, 1)}${bolt(50, 31, 1.5)}${sparkle(16, 14, 1.1)}${sparkle(86, 46, 1.1)}`),
+    staticCharge: frame(`${core(50, 31, 21)}${bolt(50, 31, 1.5)}${sparkle(18, 16, 1)}${sparkle(84, 44, 1)}`),
     powerSurge: frame(`
         ${core(50, 31, 22)}${coreArc(50, 31, 22, 1)}${bolt(50, 31, 1.9)}
         ${sparkle(14, 14, 1.3)}${sparkle(88, 46, 1.3)}${sparkle(86, 14, 0.9)}${sparkle(14, 46, 0.9)}
@@ -170,25 +166,17 @@ export const CARD_ART = {
     `),
 
     // Pond
-    something: frame(`${ground(54)}${weeds([32, 42, 52], 54, 30)}${arrowUp(74, 48, 18)}`),
+    thrivingAlgae: frame(`${ground(54)}${weeds([32, 42, 52], 54, 30)}${arrowUp(74, 48, 18)}`),
     productiveAlgae: frame(`${ground(54)}${weeds([32, 42, 52], 54, 30)}${sparkle(74, 26, 1.3)}`),
     healthyFish: frame(`${waves([20], 4)}${fish(34, 38, 1.1)}${arrowUp(78, 46, 16)}`),
     productiveFish: frame(`${waves([20], 4)}${fish(32, 38, 1.1)}${sparkle(78, 32, 1.3)}`),
     turbulentWaters: frame(`${waves([20, 34, 48], 9)}`),
-    violentCurrent: frame(`${waves([18, 32, 46], 12)}${sparkle(84, 10, 1)}`),
     stillness: frame(`${waves([22, 34, 46], 1)}${clock(80, 14, 8)}`),
-    lingeringCurrent: frame(`${waves([22, 36, 50], 3)}${clock(80, 14, 9)}`),
     restlessWaters: frame(`${waves([30, 48], 11)}${arrowUp(50, 28, 14)}`),
-    shallowFeeding: frame(`${waves([18], 2)}${fish(38, 34, 1.1)}${ground(52)}`),
     strongCurrent: frame(`${waves([18], 11)}${fish(36, 38, 1.2)}`),
     nutrientRich: frame(`${waves([16], 2)}${ground(54)}${weeds([34, 44, 54], 54, 28)}`),
     deepWaters: frame(`${waves([16], 4)}${arrowDown(50, 40, 18)}${ground(56)}`),
     abundantLife: frame(`${waves([16], 4)}${weeds([24, 32], 54, 26)}${fish(52, 34, 1.1)}${ground(54)}`),
-    floodwater: frame(`
-        ${wave(22, 6)}
-        <path class="art-ground" d="M12 40 q9 -5 18 0 t18 0 t18 0 t16 0"/>
-        ${arrowUp(84, 34, 12)}${arrowDown(20, 30, 12)}
-    `),
     deeperDepths: frame(`
         ${waves([14], 4)}${weeds([28, 38, 48], 34, 18)}
         <path class="art-ground" d="M12 38 H88"/>
@@ -206,7 +194,6 @@ export const CARD_ART = {
 
     // Grass
     rapidSprouting: frame(`${ground(52)}${blades(52)}${arrowUp(74, 50, 20)}`),
-    rapidGermination: frame(`${ground(52)}${blades(52, 38)}${arrowsUp(76, 50)}`),
     lushGrowth: frame(`${ground(52)}${blades(52)}${sparkle(74, 24, 1.3)}`),
     verdantFields: frame(`
         ${ground(52)}${blades(52, 34)}
@@ -224,25 +211,12 @@ export const CARD_ART = {
         ${roots(34, 22, 28)}${roots(34, 22, 50)}
         <path class="art-ground" d="M20 48 H80"/>
     `),
-    earlyBloom: frame(`${ground(52)}${blades(52, 36)}${clock(76, 26, 9)}`),
     quickMaturation: frame(`${ground(52)}${blades(52, 34)}${clock(74, 24, 10)}${arrowDown(74, 46, 8)}`),
-    fullCanopy: frame(`
-        ${ground(54)}
-        ${blade(18, 54, 24, 2)}${blade(28, 54, 30, -2)}${blade(38, 54, 26, 3)}${blade(48, 54, 32, -1)}
-        ${blade(58, 54, 27, 2)}${blade(68, 54, 31, -3)}${blade(78, 54, 25, 1)}
-        ${sparkle(86, 16, 1.1)}
-    `),
-    unrestrictedGrowth: frame(`
+    creepingGrowth: frame(`
         ${ground(52)}${blades(52, 50)}
         <path class="art-line art-accent" d="M28 40 L16 30 M72 40 L84 30"/>
         <path class="art-fill art-accent" d="M14 24 L22 30 L14 34 Z"/>
         <path class="art-fill art-accent" d="M86 24 L78 30 L86 34 Z"/>
-    `),
-    verdance: frame(`
-        ${ground(54)}${blades(54)}
-        <path class="art-line art-grass" d="M22 54 C20 44 22 38 20 32"/>
-        <path class="art-line art-grass" d="M64 54 C67 45 69 39 72 34"/>
-        ${sparkle(26, 22, 1.5)}${sparkle(76, 28, 1.1)}
     `),
     chainReaction: frame(`
         ${hexTile(22, 31, 17)}${hexTile(78, 31, 17, "art-ground")}
@@ -253,6 +227,12 @@ export const CARD_ART = {
     deepRoots: frame(`
         ${ground(34)}${blades(34, 44)}
         ${roots(34, 26, 36)}${roots(34, 22, 56)}
+    `),
+    deepDrinkers: frame(`
+        ${drops(14, [26, 42, 58], 1)}
+        ${ground(44)}${blades(44, 40)}
+        ${roots(44, 30, 34)}${roots(44, 26, 52)}
+        ${droplet(80, 24, 1.1)}
     `),
     seedstorm: frame(`
         ${cloud(50, 14, 0.9)}
@@ -265,23 +245,15 @@ export const CARD_ART = {
 
     // Rain
     gatheringClouds: frame(`${cloud(30, 22, 0.9)}${cloud(62, 30, 1.2)}${arrowUp(88, 46, 16)}`),
-    heavyClouds: frame(`${cloud(46, 26, 1.35)}${arrowUp(84, 34, 14)}`),
-    prolongedShower: frame(`${cloud(42, 18, 0.9)}${drops(30, [32, 42, 52])}${clock(80, 40, 9)}`),
     prolongedStorm: frame(`${cloud(40, 16, 1.15)}${drops(28, [26, 38, 50])}${drops(38, [32, 44])}${clock(80, 42, 10)}`),
     gentleRain: frame(`${cloud(46, 12, 0.75)}${drops(20, [38, 48, 58])}${ground(54)}${blades(54, 48)}`),
-    fertilizingRain: frame(`${cloud(44, 12, 0.9)}${drops(20, [34, 46, 58])}${ground(54)}${blades(54, 44)}${sparkle(80, 30, 1.2)}`),
     condensation: frame(`${cloud(36, 24, 0.9)}${droplet(68, 26, 1.1)}${arrowUp(84, 48, 12)}`),
-    rapidCondensation: frame(`${cloud(36, 28, 1)}${droplet(72, 22, 1.2)}${arrowsUp(78, 60)}`),
     lightDrizzle: frame(`${cloud(36, 20, 0.95)}${drops(30, [26, 36, 46])}${arrowDown(80, 36, 20)}`),
     soakingRain: frame(`
         ${cloud(44, 12, 0.8)}${drops(20, [36, 46, 56])}
         ${ground(38)}
         <path class="art-ground" d="M26 44 q6 -4 12 0 t12 0 t12 0 t10 0"/>
         <path class="art-ground" d="M26 52 q6 -4 12 0 t12 0 t12 0 t10 0"/>
-    `),
-    drivingRain: frame(`
-        ${cloud(42, 12, 1)}${drops(20, [28, 40, 52, 64], 6)}${drops(32, [34, 46, 58], 6)}
-        ${ground(52)}
     `),
     cloudBreak: frame(`
         ${sun(50, 30, 8)}
@@ -298,7 +270,7 @@ export const CARD_ART = {
         ${ground(54)}${blades(54, 62)}
         ${cycleArrow(62, 26, 11)}
     `),
-    floodPlain: frame(`
+    saturation: frame(`
         ${cloud(30, 12, 0.75)}${drops(20, [24, 34])}
         ${waves([38, 48], 4)}
         <path class="art-ground" d="M12 56 H88"/>

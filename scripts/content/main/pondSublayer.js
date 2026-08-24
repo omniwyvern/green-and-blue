@@ -48,7 +48,10 @@ const ALGAE_PER_LEVEL = 0.25;
 const FISH_GROWTH = 0.05;       // Fish per second in fully turbulent water, nothing in calm
 const FISH_PER_LEVEL = 0.25;
 
-const FOOD_PER_FISH = 0.2;
+// Two different things: how much algae a fish gets through in a second, and how much has to
+// be standing there for the school to count as fed. The second one is a stock, not a rate
+const FISH_APPETITE = 0.02;
+const FOOD_PER_FISH = 0.1;
 const STARVATION_PER_SECOND = 0.15;
 
 // For the feeding frenzy and dormant spores upgrades
@@ -60,7 +63,8 @@ const COOLDOWN_PER_LEVEL = 3;   // !!! REMOVE THIS ONCE YOU FIGURE IT OUT !!!
 const MIN_BURST_COOLDOWN = 15;
 
 
-const ALGAE_CROWDING = 0.2; // Fraction of algae's growth that can push into occupied space
+const ALGAE_CROWDING = 0.25; // Fraction of algae's growth that can push into occupied space
+const FISH_CROWDING = 0.4;   // Same for fish. Higher, since the fish are the side being driven
 
 const rateFor = (fraction, calm, rough) => calm + fraction * (rough - calm);
 
@@ -74,10 +78,8 @@ const sceneAnimations = new WeakMap();  // Animations are per scene element so t
 const CALM_BELOW = DISTURBED_AT / TURBULENCE_MAX;
 const ROUGH_ABOVE = TURBULENT_AT / TURBULENCE_MAX;
 
-const TIDE_SECONDS = 80;  // Tidal cycle card things (how long the cycle takes)
+const TIDE_SECONDS = 20;  // Tidal cycle card things (how long the cycle takes)
 const tidalActive = () => cardActive("tidalCycle");
-
-const FLOOD_SECONDS = 55; // Floodwater card duration
 
 
 const worldRaining = () => {
@@ -126,15 +128,15 @@ function spriteCounts(s) {
     const wantFish = shareOfSlots(fish, living, slots);
     if (wantAlgae + wantFish <= budget) return { algae: wantAlgae, fish: wantFish };
 
-    // Only one of them is actually in the pond.
+    // Only one of them is actually in the pond
     if (wantAlgae <= 0 || wantFish <= 0) {
         const only = Math.min(budget, wantAlgae + wantFish);
         return wantAlgae > 0 ? { algae: only, fish: 0 } : { algae: 0, fish: only };
     }
-    // Not enough budget to show both, so the bigger population gets the pond.
+    // Not enough budget to show both, so the bigger population gets the pond
     if (budget < 2) return algae >= fish ? { algae: 1, fish: 0 } : { algae: 0, fish: 1 };
 
-    // Past the budget the two of them share what's left by population, one of each guaranteed.
+    // Past the budget the two of them share what's left by population, one of each guaranteed
     const extra = budget - 2;
     const algaeShare = algae / living * extra;
     const fishShare = extra - algaeShare;
@@ -148,13 +150,13 @@ function spriteCounts(s) {
 }
 
 
-// Which upgrade owns each burst, and where its two timers live on the pond's state.
+// Which upgrade owns each burst, and where its two timers live on the pond's state
 const BURSTS = {
     spores: { upgrade: "dormantSpores", running: "algaeBurst", ready: "algaeBurstReady" },
     frenzy: { upgrade: "feedingFrenzy", running: "fishBurst", ready: "fishBurstReady" },
 };
 
-// Level 0 reads as level 1 so the upgrade can quote the cooldown it is about to buy.
+// Level 0 reads as level 1 so the upgrade can quote the cooldown it is about to buy
 const burstCooldown = (s, key) => Math.max(MIN_BURST_COOLDOWN,
     BURST_COOLDOWN - COOLDOWN_PER_LEVEL * (Math.max(1, getLevel(s, BURSTS[key].upgrade)) - 1));
 
@@ -180,7 +182,7 @@ function tickBursts(s, dt) {
     s.fishBurstReady = Math.max(0, (s.fishBurstReady || 0) - dt);
 }
 
-// Every click on the water, whether or not anything happens.
+// Every click on the water, whether or not anything happens
 function registerStir(s) {
     if (!tidalActive()) s.turbulence = Math.min(turbulenceCeiling(), s.turbulence + stirPerClick(s));
 }
@@ -192,9 +194,7 @@ function payMaelstrom(s, layer) {
     addResource(layer, "blueEssence", pondBlue(s).mul(seconds));
 }
 
-// Clicking a burst sets it off, and clicking it again cuts it short. Cutting it short
-// starts the cooldown from there rather than from where the burst would have ended, so
-// stopping early is never worse than letting it run out.
+// Clicking the burst button activates it, clicking again stops it
 function useBurst(s, key) {
     const burst = BURSTS[key];
     if (getLevel(s, burst.upgrade) === 0) return;
@@ -212,19 +212,18 @@ function useBurst(s, key) {
 // Turbulence as the fish see it.
 const fishPeak = (s) => Math.max(0.3, 1 - 0.1 * getLevel(s, "hardyStock"));
 
-// Capped at the ceiling rather than at 1. A frenzy breeds at peak however still the water is,
-// the way spores grow through turbulence, and stirring on top of it still counts.
+// Bursts make growth ignore turbulence
 const fishTurbulence = (s) => Math.min(turbulenceLimit(),
     Math.max(frenzyActive(s) ? 1 : 0, turbulenceFraction(s) / fishPeak(s)));
 const turbulenceLimit = () => 1 + cardBonus("turbulenceMax");
 
 const fishGrowth = (s) => FISH_GROWTH * fishTurbulence(s)
     * (1 + FISH_PER_LEVEL * getLevel(s, "spawningGrounds") + cardBonus("fishGrowth")
-        + (turbulenceFraction(s) <= CALM_BELOW ? cardBonus("calmFish") : 0)
         + (turbulenceFraction(s) >= ROUGH_ABOVE ? cardBonus("roughFish") : 0)
         + shoreBoost())                                   // Living Shore
     + frenzyBonus(s);
 
+const appetite = (s) => FISH_APPETITE * s.fish;
 const foodWanted = (s) => FOOD_PER_FISH * s.fish;
 const wellFed = (s) => foodWanted(s) <= 0 ? 1 : Math.min(1, s.algae / foodWanted(s));
 const starvation = (s) => cardActive("noStarvation")
@@ -251,17 +250,18 @@ function biomassProduction(s) {
 
     const low = Math.min(algae, fish);
     const high = Math.max(algae, fish);
-    const evening = biomassEvening(s, 2 * low / living);
+    const evening = biomassEvening(s, 2 * low / living); // Wider margins upgrade
 
     const half = living / 2;
-    const min = low + (half - low) * evening;
-    const max = high + (half - high) * evening;
+    const min = low + (half - low) * evening; 
+    const max = high + (half - high) * evening; 
+    const biomassExponent = 1.5 + cardBonus("biomassExponent")
 
-    return D(max * Math.pow(min, 2.5 + cardBonus("biomassExponent"))).mul(1 + cardBonus("biomassOutput"));
+    return D((Math.pow(max, biomassExponent) * Math.pow(min, biomassExponent)) * (1 + cardBonus("biomassOutput")));
 }
 
 
-// Biomass bonuses (what it affects).
+// Biomass bonuses (what it affects, how much bonus)
 const MULT_PER_DECADE = 0.5;
 const MULT_ACCEL = 1.5;      // >1, so later decades are worth more than earlier ones
 const SOFTCAP_BONUS = 6;      // Where the curve bends (around 5e9 biomass)
@@ -300,41 +300,36 @@ const fishMultiplier = (s) => 1 + s.fish
     * (BLUE_PER_FISH + BLUE_FISH_PER_LEVEL * getLevel(s, "biggerSchools"))
     * (1 + cardBonus("fishBlue"));
 
-// Turbulence as blue production sees it, which isn't the same as the one the creatures use.
+// Turbulence as blue production sees it, which isn't the same as the one the creatures use
 const productionPeak = (s) => Math.max(0.3,
     1 - 0.1 * getLevel(s, "sensitiveCurrents"));
 const productionTurbulence = (s) => Math.min(turbulenceLimit(), turbulenceFraction(s) / productionPeak(s));
 
 const turbulenceBonus = (s) => TURBULENCE_BONUS + 2 * getLevel(s, "stormChannels");
 
-// How fast turbulence goes away.
+// How fast turbulence goes away
 const settleRate = () => SETTLE_PER_SECOND
     * Math.max(.25, 1 - (coreNode("pondChoppy") ? 0.26 : 0))
     / (1 + cardBonus("settleResist"));
 
-// Capacity is recomputed from the nodes every tick rather than added to on purchase.
-// Mainly because some cards influence it on a per-tick basis.
+// Capacity is recomputed from the nodes every tick rather than added to on purchase
+// Mainly because some cards influence it on a per-tick basis
 function capacityFor(s) {
     const base = (BASE_CAPACITY + (coreNode("pondDeep") ? 1 : 0))
         * (1 + cardBonus("pondCapacity")
             + (rainwaterActive() ? cardBonus("rainwater") : 0)
             + (worldRaining() ? cardBonus("rainCapacity") : 0));   // Dancing Waters
-    return base * (1 + floodSwing(s));
+    return base;
 }
 
-// Floodwater stuff.
-const floodSwing = (s) => cardBonus("floodwater") > 0
-    ? cardBonus("floodwater") * Math.sin(2 * Math.PI * (s.tideSeconds || 0) / FLOOD_SECONDS)
-    : 0;
-
-// Deeper depths stuff.
+// Deeper depths stuff
 const algaeCeiling = (s) => s.capacity * (1 - Math.min(0.9, cardBonus("fishReserve")));
 
 function production(s) {
     const fromTurbulence = 1 + productionTurbulence(s) * turbulenceBonus(s);
     const fromUpgrades = 1 + .25 * getLevel(s, "richerWaters");
     return BASE_PRODUCTION.mul(fromTurbulence).mul(fromUpgrades).mul(fishMultiplier(s))
-        .mul(1 + cardBonus("pondOutput") + bandBoost(s));   // ...and Feeding / Tidal Frenzy
+        .mul(1 + cardBonus("pondOutput") + bandBoost(s));
 }
 
 // Algae bloom card stuff.
@@ -384,10 +379,14 @@ function tickPond(s, dt, layer) {
         fishGain -= fishShare;
     }
 
-    // Total space taken is capped at capacity, since they push against each other they kinda cancel out a bit.
+    // Total space taken is capped at capacity, since they push against each other they kinda cancel out a bit
     const push = fishGain - algaeGain;
     if (push > 0) {
-        const taken = Math.min(push, s.algae);
+        // Fish won't crowd out the mat they're feeding on, so only the algae over what the
+        // school needs standing is up for grabs. Without that they convert the last of their
+        // own food into more mouths and the whole pond starves itself out in a few seconds.
+        const spare = Math.max(0, s.algae - foodWanted(s));
+        const taken = Math.min(push * FISH_CROWDING, spare);
         s.algae -= taken;
         s.fish += taken;
     } else if (push < 0) {
@@ -396,14 +395,14 @@ function tickPond(s, dt, layer) {
         s.algae += taken;
     }
 
-    // Fish eating.
-    s.algae -= Math.min(s.algae, foodWanted(s) * dt);
+    // Fish eating
+    s.algae -= Math.min(s.algae, appetite(s) * dt);
     s.fish = Math.max(0, s.fish - starvation(s) * dt);
 
-    // More deeper depths stuff.
+    // More deeper depths stuff
     s.algae = Math.min(s.algae, algaeCeiling(s));
 
-    // A shrinking tide takes the populations in equal proportions.
+    // A shrinking tide takes the populations in equal proportions
     const living = s.algae + s.fish;
     if (living > s.capacity && living > 0) {
         const keep = s.capacity / living;
@@ -413,7 +412,7 @@ function tickPond(s, dt, layer) {
 }
 
 
-// The pond's resources. This way so that it can be absorbed into the environment layer.
+// The pond's resources. This way so that it can be absorbed into the environment layers
 export const BIOMASS_RESOURCE = { name: "Biomass", color: "#005f5a", note: biomassNote };
 
 export const POND_RESOURCES = {
@@ -425,7 +424,7 @@ export const POND_RESOURCES = {
 const showingPond = (layer) => layer.stateKey === "pond"
     || (!!layer.subLayers && getLayerState(layer.stateKey).activeSubLayer === "pond");
 
-// Everything about how the pond looks.
+// Everything about how the pond looks
 export const POND_VIEW = {
     name: "Pond",
     color: "#2f8fb5",
@@ -484,7 +483,7 @@ export const POND_VIEW = {
                 useBurst(getLayerState(layer.stateKey), button.dataset.key);
             });
 
-            // Driven through the Web Animations API rather than CSS animations since it changes every frame.
+            // Driven through the Web Animations API rather than CSS animations since it changes every frame
             sceneAnimations.set(el, {
                 surface: el.querySelector(".pond-surface").animate(
                     [{ transform: "translateX(0px)" },
@@ -579,13 +578,13 @@ export const POND_VIEW = {
             upgrades: {
                 fertileWater: {
                     title: "Fertile Water",
-                    description: (s) => `Algae grows ${100 * Math.max(ALGAE_PER_LEVEL, ALGAE_PER_LEVEL * getLevel(s, "fertileWater"))}% faster.`,
+                    description: (s) => `Algae grows ${Math.round(100 * Math.max(ALGAE_PER_LEVEL, ALGAE_PER_LEVEL * getLevel(s, "fertileWater")))}% faster.`,
                     max: 10,
                     cost: (s, level) => ({ biomass: D(60).mul(D(1.3).pow(level)) }),
                 },
                 denseMats: {
                     title: "Dense Mats",
-                    description: (s) => `Algae produces ${100 * Math.max(GREEN_PER_LEVEL, GREEN_PER_LEVEL * getLevel(s, "denseMats"))}% more Green Essence.`,
+                    description: (s) => `Algae produces ${Math.round(100 * Math.max(GREEN_PER_LEVEL, GREEN_PER_LEVEL * getLevel(s, "denseMats")))}% more Green Essence.`,
                     max: 25,
                     cost: (s, level) => ({ biomass: D(45).mul(D(1.14).pow(level)) }),
                 },
@@ -597,7 +596,7 @@ export const POND_VIEW = {
                 },
                 oxygenation: {
                     title: "Oxygenation",
-                    description: (s) => `Algae additionally produces Blue Essence equal to ${100 * Math.max(0.05, oxygenShare(s))}% of the Green Essence.`,
+                    description: (s) => `Algae additionally produces Blue Essence equal to ${Math.round(100 * Math.max(0.05, oxygenShare(s)))}% of the Green Essence.`,
                     max: 5,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.26).pow(level)) }),
                 },
@@ -682,9 +681,9 @@ registerLayer("pond", {
         const s = getLayerState(layer.id);
         addResource(layer, "blueEssence", pondBlue(s).mul(dt));
 
-        s.tideSeconds = ((s.tideSeconds || 0) + dt) % (TIDE_SECONDS * FLOOD_SECONDS);
+        s.tideSeconds = ((s.tideSeconds || 0) + dt) % TIDE_SECONDS;
 
-        // The combo timers run down whether or not the pond is visibile.
+        // The combo timers run down whether or not the pond is visibile
         s.bandBoostLeft = Math.max(0, (s.bandBoostLeft || 0) - dt);
         const world = getLayerState("world");
         world.shoreBoostLeft = Math.max(0, (world.shoreBoostLeft || 0) - dt);
@@ -696,13 +695,12 @@ registerLayer("pond", {
             s.turbulence = tide * turbulenceCeiling();
         } else {
             s.turbulence = Math.max(0, s.turbulence - settleRate() * dt); // Settles the pond even if it's not on screen
-            // Rainwater holds the water above still while it's raining up on the world.
+            // Rainwater holds the water above still while it's raining up on the world
             if (rainwaterActive()) {
                 s.turbulence = Math.max(s.turbulence, cardBonus("rainwater") * TURBULENCE_MAX);
             }
         }
 
-        // Feeding frenzy stuff.
         const band = bandOf(s);
         if (s.turbulenceBand === undefined) s.turbulenceBand = band;
         if (band !== s.turbulenceBand) {
@@ -718,10 +716,7 @@ registerLayer("pond", {
 
 
 
-// In-pond elements
-
-// The pond floor is one thing that's constant throughout loading, it doesn't rearrange every load.
-// Background is always the same.
+// The pond floor is constant throughout loading, it doesn't rearrange every load
 const POND_FLOOR = `
     <svg class="pond-floor" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
         <path class="floor-far" d="M0 44 C 42 28, 78 50, 122 42 C 168 33, 208 58, 258 46
@@ -737,7 +732,6 @@ const POND_FLOOR = `
         <ellipse class="floor-stone" cx="330" cy="90" rx="14" ry="6"/>
     </svg>`;
 
-// Icons for fish and algae.
 const ALGAE_ICON = `
     <svg class="life-icon life-icon-algae" viewBox="0 0 16 16" aria-hidden="true">
         <path d="M8 15.5 C5.5 12 10.5 10 8 6.5 C6.6 4.6 8 2.5 8 2.5"/>
@@ -753,7 +747,6 @@ const FISH_ICON = `
     </svg>`;
 
 // Balance indicator, the percentage bar for fish/algae.
-// The whole row is the button, since there's nothing else in it to click.
 const timerMarkup = (key, label) => `
     <button class="balance-timer" type="button" data-key="${key}" style="display: none">
         <div class="timer-fill"></div>
@@ -801,7 +794,6 @@ function updateTimer(row, owned, remaining, cooldownLeft, cooldownSeconds) {
 }
 
 function updateBalance(host, s) {
-    // Nothing lives in the pond before Life, so there's nothing to divide up.
     const living = s.algae + s.fish;
     if (!lifeBought() || living <= 0) {
         host.style.display = "none";
@@ -809,7 +801,7 @@ function updateBalance(host, s) {
     }
     host.style.display = "";
 
-    // Whole percentage points, which is all the precision the bar can show anyway.
+    // Whole percentage points, which is all the precision the bar can show anyway
     const algaePercent = Math.round(s.algae / living * 100);
     const capacity = Math.max(living, s.capacity);
     const percents = host.querySelectorAll(".balance-percent");
@@ -820,11 +812,10 @@ function updateBalance(host, s) {
     setWidth(fills[0], s.algae / capacity);
     setWidth(fills[1], s.fish / capacity);
 
-    // Flashes the fish red while there's not enough algae to go around and they're dying off.
+    // Flashes the fish red while there's not enough algae to go around and they're dying off
     const starving = starvation(s) > 0;
     const fishTag = host.querySelector('[data-kind="fish"] .balance-tag');
     fishTag.toggleAttribute("data-starving", starving);
-    // Removed rather than blanked, so the pond's own tooltip isn't swallowed by an empty one.
     if (starving) fishTag.title = "Not enough algae - the fish are starving.";
     else fishTag.removeAttribute("title");
 
@@ -841,7 +832,7 @@ function setWidth(el, fraction) {
     if (el.style.width !== width) el.style.width = width;
 }
 
-// Algae frond animation stuff. Segments help them be properly wavy.
+// Algae frond animation stuff. Segments help them be properly wavy
 const FROND_SEGMENTS = 4;
 const FROND_WAVES = 4.2;    // Radians of sine along one frond
 const FROND_ROOTED = 1.6;   // How much the base resists, higher value makes the bottom stiffer
@@ -865,14 +856,14 @@ function frondPath(phase, sway, bias) {
     return d;
 }
 
-// Full cycle of the animation, so it loops properly.
+// Full cycle of the animation, so it loops properly
 function swayKeyframes(sway, bias) {
     return [0, 1, 2, 3, 4].map(i => ({ d: `path("${frondPath(i * Math.PI / 2, sway, bias)}")` }));
 }
 
 const sceneLife = new WeakMap(); 
 
-// Elements are only added or removed when the sprite count changes.
+// Elements are only added or removed when the sprite count changes
 function updateInhabitants(el, s) {
     const alive = lifeBought();
     const algaeHost = el.querySelector(".pond-algae-layer");
@@ -899,7 +890,7 @@ function updateInhabitants(el, s) {
 
 
 
-// Turbulence moves continuously, don't want to rewrite the rate every frame with tiny value changes.
+// Turbulence moves continuously, don't want to rewrite the rate every frame with tiny value changes
 function setRate(animations, rates, key, rate) {
     if (Math.abs(rates[key] - rate) < 0.002) return;
     rates[key] = rate;
@@ -913,7 +904,7 @@ const FADE_OUT_MS = 800;
 const motionAnimations = (host) =>
     host.getAnimations({ subtree: true }).filter(animation => animation.id === MOTION);
 
-// Keyed by index, because a departing element is still in the DOM while it fades.
+// Keyed by index, because a departing element is still in the DOM while it fades
 function syncCount(host, count, build) {
     const existing = new Map();
     for (const el of host.children) existing.set(Number(el.dataset.index), el);
@@ -935,7 +926,7 @@ function syncCount(host, count, build) {
     return changed;
 }
 
-// Algae properly grows/fades depending on its amounts.
+// Algae properly grows/fades depending on its amounts
 const growTransform = (opacity) => opacity >= 1
     ? "none"
     : `translateY(${(8 * (1 - opacity)).toFixed(2)}%) scale(${(0.85 + 0.15 * opacity).toFixed(3)})`;
@@ -948,7 +939,7 @@ function fadeKeyframes(el, from, to) {
     ];
 }
 
-// Fade in/out goes from where the element currently is, so it stops it blinking when it goes back and forth across whole numbers.
+// Fade in/out goes from where the element currently is, so it stops it blinking when it goes back and forth across whole numbers
 function fadeFrom(el, fresh) {
     return el.__fade ? Number(getComputedStyle(el).opacity) : fresh;
 }
@@ -967,7 +958,7 @@ function fadeOut(el) {
     cancelFade(el);
     el.__fade = el.animate(fadeKeyframes(el, from, 0),
         { duration: Math.max(1, FADE_OUT_MS * from), easing: "ease-in", fill: "forwards" });
-    // Only if it's still fading out, fadeIn cancels this animation, which triggers oncancel instead.
+    // Only if it's still fading out, fadeIn cancels this animation, which triggers oncancel instead
     el.__fade.onfinish = () => { if (el.dataset.leaving) el.remove(); };
 }
 
@@ -979,7 +970,7 @@ function cancelFade(el) {
 }
 
 // Algae position is based on the index instead of random, so they don't move when one fades.
-// Each frond is a bit separate so they have different movement and position within the single algae thing.
+// Each frond is a bit separate so they have different movement and position within the single algae thing
 const FRONDS = [
     { sway: 17, bias: -7 },
     { sway: 14, bias: 2 },
@@ -988,7 +979,6 @@ const FRONDS = [
 
 const between = (low, high) => low + Math.random() * (high - low);
 
-// Where the algae clumps stand.
 const ALGAE_FROM = 6, ALGAE_SPAN = 76;
 function clumpLeft(index) {
     let fraction = 0;
@@ -1003,7 +993,7 @@ function buildAlgae(index) {
     el.style.left = `${clumpLeft(index).toFixed(1)}%`;
     el.style.transformOrigin = "50% 100%"; // Grows up from the bottom
 
-    // Algae size is rolled on fading in so they're a bit more varied.
+    // Algae size is rolled on fading in so they're a bit more varied
     el.style.setProperty("--clump-height", between(0.72, 1.34).toFixed(3));
     el.style.setProperty("--clump-scale", between(0.9, 1.15).toFixed(3));
 
@@ -1012,12 +1002,12 @@ function buildAlgae(index) {
         frond.className = "pond-algae-frond";
         frond.style.left = `${4 + i * 18}%`;
         
-        // Makes sure that the fronds are different lengths.
+        // Makes sure that the fronds are different lengths
         frond.style.height = `${Math.max(52, 100 - i * 13 + between(-10, 10)).toFixed(1)}%`;
         frond.innerHTML = `<svg class="algae-frond" viewBox="0 0 40 100" preserveAspectRatio="none" aria-hidden="true">`
             + `<path /></svg>`;
 
-        // Waves pass through the fronds so they move in roughly the same direction but delayed.
+        // Waves pass through the fronds so they move in roughly the same direction but delayed
         const sway = frond.querySelector("path").animate(swayKeyframes(FRONDS[i].sway, FRONDS[i].bias), {
             duration: 7000,
             iterations: Infinity,
@@ -1087,7 +1077,7 @@ function buildFish(index) {
 
 
     // 3 animations, since the fish turns at the end and wiggles throughout the whole movement.
-    // Separating the animations makes them not fight for priority.
+    // Separating the animations makes them not fight for priority
     const wiggleMs = 1900 * (0.8 + n(12) * 0.5);
     const motion = [
         el.animate(swimKeyframes(index, leftward), timing),

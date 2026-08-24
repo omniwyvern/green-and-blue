@@ -101,7 +101,7 @@ registerGuide("grass-intro", {
     title: "Grass",
     body: `
         <p> Grass grows across the world. Seed the first grass with both essences on the world map, and it will grow through maturity stages.
-        Once it reaches maturity, it will spread to a nearby tile and return to the seed stage. Grass doesn't produce Green Essence itself - every tile of it multiplies all the Green Essence you make, and hands a fifth of that again to whatever each tile neighbours. Rain on grass does the same for Blue Essence for as long as the ground stays wet. </p>
+        Once it reaches maturity, it will spread to a nearby tile and return to the seed stage. Grass doesn't produce Green Essence itself - every tile of it multiplies all the Green Essence you make, and hands a tenth of that again to each producing tile it neighbours, stacking per tile of grass. Rain on grass does the same for Blue Essence for as long as the ground stays wet. </p>
         <p> Grass is improved through Growth, which is acquired through either sacrificing Green Core growth levels, or by grass spreading to
         other tiles. You get bonuses based on your highest reached value of growth, however you can also spend it on upgrades. Some of the bonuses
         are new types of grass, which have different stats. </p>

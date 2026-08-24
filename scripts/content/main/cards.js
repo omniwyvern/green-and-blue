@@ -26,27 +26,32 @@ export const RARITIES = {
 // Each card is under a banner. Each banner corresponds to a different layer/sublayer, so
 // you can draw for cards specifically for one layer. Each one scales its prices separately.
 // Cards have to have a banner, if they don't have one they can't be drawn.
+// "layer" is the layer the banner draws for: until that layer is open, neither is the banner.
 export const BANNERS = {
     cores: {
         name: "The Cores",
+        layer: "cores",
         color: "#08c3aa",
         baseCost: 3,
         text: "The two cores themselves, and how quickly they come round.",
     },
     pond: {
         name: "The Pond",
+        layer: "pond",
         color: "#2f8fb5",
         baseCost: 5,
         text: "Algae, fish, and everything the water makes of them.",
     },
     rain: {
         name: "The Weather",
+        layer: "precipitation",
         color: "#58a8e8",
         baseCost: 8,
         text: "Rain: how long it falls, and what it does to what it falls on.",
     },
     grass: {
         name: "Green Fields",
+        layer: "grass",
         color: "#5aa84f",
         baseCost: 12,
         text: "Grass: how fast it grows, and what a tile is worth once it has.",
@@ -56,231 +61,30 @@ export const BANNERS = {
 export const BANNER_IDS = Object.keys(BANNERS);
 
 export const CARDS = {
+    // ---------- The Cores ----------
     quickGrowth: {
         name: "Quick Growth",
         rarity: "common",
         banner: "cores",
         color: "#22b47c",
-        mods: { coreGrowth: 0.05 },
+        mods: { coreGrowth: 0.06 },
         text: "The Green Core's growth meter fills faster.",
-    },
-    verdantPulse: {
-        name: "Verdant Pulse",
-        rarity: "common",
-        banner: "cores",
-        color: "#22b47c",
-        mods: { greenProduction: 0.05 },
-        text: "Every stage of the Green Core pays more.",
     },
     quickening: {
         name: "Quickening",
         rarity: "common",
         banner: "cores",
         color: "#2f92ee",
-        mods: { chargeRate: 0.05 },
+        mods: { chargeRate: 0.06 },
         text: "The Blue Core's charge meter fills faster.",
     },
-    spark: {
-        name: "Spark",
+    staticCharge: {
+        name: "Static Charge",
         rarity: "common",
         banner: "cores",
         color: "#2f92ee",
-        mods: { blueClick: 0.05 },
-        text: "Every click on the Blue Core is worth more, full meter or not.",
-    },
-    surge: {
-        name: "Surge",
-        rarity: "common",
-        banner: "cores",
-        color: "#2f92ee",
-        mods: { fullChargeBonus: 0.05 },
-        text: "Only clicks on a completely full meter are worth more.",
-    },
-    photosynthesis: {
-        name: "Photosynthesis",
-        rarity: "common",
-        banner: "cores",
-        color: "#08c3aa",
-        mods: { conversionRate: 0.05 },
-        text: "Green turned into Blue comes out further, multiplied with the conversion itself.",
-    },
-    thickRoots: {
-        name: "Thick Roots",
-        rarity: "common",
-        banner: "cores",
-        color: "#22b47c",
-        mods: { growthNeeded: 0.05 },
-        text: "Each growth stage needs less growth than it did.",
-    },
-    something: {
-        name: "replace this idk a name",
-        rarity: "common",
-        banner: "pond",
-        color: "#4bbd85",
-        mods: { algaeGrowth: 0.05 },
-        text: "Algae fills the pond faster.",
-    },
-    healthyFish: {
-        name: "Healthy Fish",
-        rarity: "common",
-        banner: "pond",
-        color: "#2f8fb5",
-        mods: { fishGrowth: 0.05 },
-        text: "Fish breed faster in water rough enough for them.",
-    },
-    productiveFish: {
-        name: "Productive Fish",
-        rarity: "common",
-        banner: "pond",
-        color: "#2f8fb5",
-        mods: { fishBlue: 0.05 },
-        text: "Each fish adds more to the pond's Blue Essence.",
-    },
-    productiveAlgae: {
-        name: "Productive Algae",
-        rarity: "common",
-        banner: "pond",
-        color: "#4bbd85",
-        mods: { algaeGreen: 0.05 },
-        text: "Each unit of algae is worth more Green Essence.",
-    },
-    turbulentWaters: {
-        name: "Turbulent Waters",
-        rarity: "common",
-        banner: "pond",
-        color: "#35d0d0",
-        mods: { stirPower: 0.05 },
-        text: "Each click on the water stirs up more turbulence.",
-    },
-    stillness: {
-        name: "Stillness",
-        rarity: "common",
-        banner: "pond",
-        color: "#35d0d0",
-        mods: { settleResist: 0.05 },
-        text: "Rough water takes longer to settle back to calm.",
-    },
-    restlessWaters: {
-        name: "Restless Waters",
-        rarity: "common",
-        banner: "pond",
-        color: "#35d0d0",
-        mods: { turbulenceMax: 0.05 },
-        text: "The water can be stirred past what used to be its roughest.",
-    },
-    shallowFeeding: {
-        name: "Shallow Feeding",
-        rarity: "common",
-        banner: "pond",
-        color: "#2f8fb5",
-        mods: { calmFish: 0.05 },
-        text: "Fish breed faster while the water is calm, below a third of maximum turbulence.",
-    },
-    rapidSprouting: {
-        name: "Rapid Sprouting",
-        rarity: "common",
-        banner: "grass",
-        color: "#5aa84f",
-        mods: { grassGrowth: 0.05 },
-        text: "Grass moves through its stages faster.",
-    },
-    lushGrowth: {
-        name: "Lush Growth",
-        rarity: "common",
-        banner: "grass",
-        color: "#7fe08f",
-        mods: { grassOutput: 0.05 },
-        text: "Every grassy tile is worth more Green Essence.",
-    },
-    spreadingRoots: {
-        name: "Spreading Roots",
-        rarity: "common",
-        banner: "grass",
-        color: "#3aa876",
-        mods: { growthSpill: 0.05 },
-        effect: "5% chance a growth tick also feeds an adjacent grassy tile",
-        text: "What one tile grows, its neighbours sometimes grow too.",
-    },
-    establishedRoots: {
-        name: "Established Roots",
-        rarity: "common",
-        banner: "grass",
-        color: "#3aa876",
-        mods: { spreadRetain: 0.05 },
-        effect: "Grass keeps 5% of its growth after seeding a neighbour",
-        text: "Seeding a tile no longer starts the parent from nothing.",
-    },
-    interwovenRoots: {
-        name: "Interwoven Roots",
-        rarity: "common",
-        banner: "grass",
-        color: "#3aa876",
-        mods: { adjacencyBonus: 0.05 },
-        text: "Each adjacent grassy tile is worth more to a tile's growth.",
-    },
-    earlyBloom: {
-        name: "Early Bloom",
-        rarity: "common",
-        banner: "grass",
-        color: "#5aa84f",
-        mods: { matureWait: 0.05 },
-        text: "Mature grass waits less before it seeds a neighbour.",
-    },
-    gatheringClouds: {
-        name: "Gathering Clouds",
-        rarity: "common",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { moistureRate: 0.05 },
-        text: "Rain wets the ground it falls on faster.",
-    },
-    prolongedShower: {
-        name: "Prolonged Shower",
-        rarity: "common",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { rainDuration: 0.05 },
-        text: "Rain lasts longer once it starts.",
-    },
-    gentleRain: {
-        name: "Gentle Rain",
-        rarity: "common",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { rainBoost: 0.05 },
-        text: "Rain speeds up the grass under it by more.",
-    },
-    condensation: {
-        name: "Condensation",
-        rarity: "common",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { rainCharge: 0.05 },
-        text: "Each click on the cloud gathers more rain.",
-    },
-    lightDrizzle: {
-        name: "Light Drizzle",
-        rarity: "common",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { rainCost: 0.05 },
-        text: "Each click on the cloud costs less Blue Essence.",
-    },
-    soakingRain: {
-        name: "Soaking Rain",
-        rarity: "common",
-        banner: "rain",
-        color: "#7fc8ff",
-        mods: { rainSoak: 0.05 },
-        text: "Rain wets tiles with nothing growing on them faster still.",
-    },
-    rapidGrowth: {
-        name: "Rapid Growth",
-        rarity: "uncommon",
-        banner: "cores",
-        color: "#22b47c",
-        mods: { coreGrowth: 0.12 },
-        text: "The Green Core's growth meter fills faster.",
+        mods: { blueClick: 0.06 },
+        text: "Every click on the Blue Core is worth more, however charged it is.",
     },
     verdantAbundance: {
         name: "Verdant Abundance",
@@ -290,37 +94,13 @@ export const CARDS = {
         mods: { greenProduction: 0.12 },
         text: "Every stage of the Green Core pays more.",
     },
-    acceleratedCharge: {
-        name: "Accelerated Charge",
-        rarity: "uncommon",
-        banner: "cores",
-        color: "#2f92ee",
-        mods: { chargeRate: 0.12 },
-        text: "The Blue Core's charge meter fills faster.",
-    },
     powerSurge: {
         name: "Power Surge",
         rarity: "uncommon",
         banner: "cores",
         color: "#2f92ee",
-        mods: { fullChargeBonus: 0.12 },
-        text: "Only clicks on a completely full meter are worth more.",
-    },
-    deepReservoir: {
-        name: "Deep Reservoir",
-        rarity: "uncommon",
-        banner: "cores",
-        color: "#2f92ee",
-        mods: { chargeCapacity: 0.12 },
-        text: "The charge meter holds past 100%, and a click spends all of it.",
-    },
-    efficientPhotosynthesis: {
-        name: "Efficient Photosynthesis",
-        rarity: "uncommon",
-        banner: "cores",
-        color: "#08c3aa",
-        mods: { conversionRate: 0.12 },
-        text: "Green turned into Blue comes out further, multiplied with the conversion itself.",
+        mods: { fullChargeBonus: 0.15 },
+        text: "Clicks on a completely full meter are worth more.",
     },
     maturation: {
         name: "Maturation",
@@ -329,152 +109,6 @@ export const CARDS = {
         color: "#22b47c",
         mods: { stageCap: 0.12 },
         text: "The Green Core can reach later stages before it caps out. Always at least one more.",
-    },
-    strongRoots: {
-        name: "Strong Roots",
-        rarity: "uncommon",
-        banner: "cores",
-        color: "#22b47c",
-        mods: { growthNeeded: 0.12 },
-        text: "Each growth stage needs less growth than it did.",
-    },
-    deepWaters: {
-        name: "Deep Waters",
-        rarity: "uncommon",
-        banner: "pond",
-        color: "#35d0d0",
-        mods: { pondCapacity: 0.12 },
-        text: "The pond holds more life, algae or fish.",
-    },
-    violentCurrent: {
-        name: "Violent Current",
-        rarity: "uncommon",
-        banner: "pond",
-        color: "#35d0d0",
-        mods: { stirPower: 0.12 },
-        text: "Each click on the water stirs up more turbulence.",
-    },
-    abundantLife: {
-        name: "Abundant Life",
-        rarity: "uncommon",
-        banner: "pond",
-        color: "#4bbd85",
-        mods: { biomassOutput: 0.12 },
-        text: "The pond turns what lives in it into more Biomass.",
-    },
-    lingeringCurrent: {
-        name: "Lingering Current",
-        rarity: "uncommon",
-        banner: "pond",
-        color: "#35d0d0",
-        mods: { settleResist: 0.12 },
-        text: "Rough water takes longer to settle back to calm.",
-    },
-    strongCurrent: {
-        name: "Strong Current",
-        rarity: "uncommon",
-        banner: "pond",
-        color: "#2f8fb5",
-        mods: { roughFish: 0.12 },
-        text: "Fish breed faster while the water is rough, above two thirds of maximum turbulence.",
-    },
-    nutrientRich: {
-        name: "Nutrient-Rich Waters",
-        rarity: "uncommon",
-        banner: "pond",
-        color: "#4bbd85",
-        mods: { calmAlgae: 0.12 },
-        text: "Algae grows faster while the water is calm, below a third of maximum turbulence.",
-    },
-    rapidGermination: {
-        name: "Rapid Germination",
-        rarity: "uncommon",
-        banner: "grass",
-        color: "#5aa84f",
-        mods: { grassGrowth: 0.12 },
-        text: "Grass moves through its stages faster.",
-    },
-    verdantFields: {
-        name: "Verdant Fields",
-        rarity: "uncommon",
-        banner: "grass",
-        color: "#7fe08f",
-        mods: { grassOutput: 0.12 },
-        text: "Every grassy tile is worth more Green Essence.",
-    },
-    rootNetwork: {
-        name: "Root Network",
-        rarity: "uncommon",
-        banner: "grass",
-        color: "#3aa876",
-        mods: { adjacencyBonus: 0.12 },
-        text: "Each adjacent grassy tile is worth more to a tile's growth.",
-    },
-    fullCanopy: {
-        name: "Full Canopy",
-        rarity: "uncommon",
-        banner: "grass",
-        color: "#7fe08f",
-        mods: { canopyOutput: 0.1 },
-        modsFlat: { canopyOutput: 0.15 },
-        text: "Pays only while every tile that can hold grass has grass on it.",
-    },
-    unrestrictedGrowth: {
-        name: "Unrestricted Growth",
-        rarity: "uncommon",
-        banner: "grass",
-        color: "#3aa876",
-        mods: { growthSpillAny: 0.08 },
-        effect: "8% chance a growth tick also feeds any adjacent growing tile",
-        text: "Growth spills over whatever is next to it, grass or not.",
-    },
-    quickMaturation: {
-        name: "Quick Maturation",
-        rarity: "uncommon",
-        banner: "grass",
-        color: "#5aa84f",
-        mods: { matureWait: 0.12 },
-        text: "Mature grass waits less before it seeds a neighbour.",
-    },
-    heavyClouds: {
-        name: "Heavy Clouds",
-        rarity: "uncommon",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { moistureRate: 0.12 },
-        text: "Rain wets the ground it falls on faster.",
-    },
-    prolongedStorm: {
-        name: "Prolonged Storm",
-        rarity: "uncommon",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { rainDuration: 0.12 },
-        text: "Rain lasts longer once it starts.",
-    },
-    fertilizingRain: {
-        name: "Fertilizing Rain",
-        rarity: "uncommon",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { rainBoost: 0.12 },
-        text: "Rain speeds up the grass under it by more.",
-    },
-    rapidCondensation: {
-        name: "Rapid Condensation",
-        rarity: "uncommon",
-        banner: "rain",
-        color: "#58a8e8",
-        mods: { rainCharge: 0.12 },
-        text: "Each click on the cloud gathers more rain.",
-    },
-    drivingRain: {
-        name: "Driving Rain",
-        rarity: "uncommon",
-        banner: "rain",
-        color: "#7fc8ff",
-        mods: { rainSoak: 0.12 },
-        text: "Rain wets tiles with nothing growing on them faster.",
     },
     overgrowth: {
         name: "Overgrowth",
@@ -513,15 +147,104 @@ export const CARDS = {
         text: "One core learns what the other is doing.",
         locked: true,
     },
-    floodwater: {
-        name: "Floodwater",
-        rarity: "rare",
+
+    // ---------- The Pond ----------
+    thrivingAlgae: {
+        name: "Thriving Algae",
+        rarity: "common",
         banner: "pond",
-                  // When capacity decreases, the populations are decreased equally.
+        color: "#4bbd85",
+        mods: { algaeGrowth: 0.06 },
+        text: "Algae fills the pond faster.",
+    },
+    healthyFish: {
+        name: "Healthy Fish",
+        rarity: "common",
+        banner: "pond",
+        color: "#2f8fb5",
+        mods: { fishGrowth: 0.06 },
+        text: "Fish breed faster in water rough enough for them.",
+    },
+    productiveAlgae: {
+        name: "Productive Algae",
+        rarity: "common",
+        banner: "pond",
+        color: "#4bbd85",
+        mods: { algaeGreen: 0.06 },
+        text: "Each unit of algae is worth more Green Essence.",
+    },
+    productiveFish: {
+        name: "Productive Fish",
+        rarity: "common",
+        banner: "pond",
+        color: "#2f8fb5",
+        mods: { fishBlue: 0.06 },
+        text: "Each fish adds more to the pond's Blue Essence.",
+    },
+    turbulentWaters: {
+        name: "Turbulent Waters",
+        rarity: "common",
+        banner: "pond",
         color: "#35d0d0",
-        mods: { floodwater: 0.35 },
-        effect: "The pond's capacity swells and shrinks by 35%",
-        text: "The water remembers where it used to reach.",
+        mods: { stirPower: 0.06 },
+        text: "Each click on the water stirs up more turbulence.",
+    },
+    deepWaters: {
+        name: "Deep Waters",
+        rarity: "uncommon",
+        banner: "pond",
+        color: "#35d0d0",
+        mods: { pondCapacity: 0.12 },
+        text: "The pond holds more life; algae or fish.",
+    },
+    stillness: {
+        name: "Stillness",
+        rarity: "uncommon",
+        banner: "pond",
+        color: "#35d0d0",
+        mods: { settleResist: 0.12 },
+        text: "Rough water takes longer to settle back to calm.",
+    },
+    restlessWaters: {
+        name: "Restless Waters",
+        rarity: "uncommon",
+        banner: "pond",
+        color: "#35d0d0",
+        mods: { turbulenceMax: 0.1 },
+        text: "The water can be stirred past what used to be its roughest, and everything living in it makes use of the room.",
+    },
+    strongCurrent: {
+        name: "Strong Current",
+        rarity: "uncommon",
+        banner: "pond",
+        color: "#2f8fb5",
+        mods: { roughFish: 0.15 },
+        text: "Fish breed faster while the water is rough, above two thirds of maximum turbulence.",
+    },
+    nutrientRich: {
+        name: "Nutrient-Rich Waters",
+        rarity: "uncommon",
+        banner: "pond",
+        color: "#4bbd85",
+        mods: { calmAlgae: 0.15 },
+        text: "Algae grows faster while the water is calm, below a third of maximum turbulence.",
+    },
+    abundantLife: {
+        name: "Abundant Life",
+        rarity: "uncommon",
+        banner: "pond",
+        color: "#4bbd85",
+        mods: { biomassOutput: 0.12 },
+        text: "The pond turns what lives in it into more Biomass.",
+    },
+    algaeBloom: {
+        name: "Algae Bloom",
+        rarity: "uncommon",
+        banner: "pond",
+        locked: true,
+        color: "#6fd18a",
+        mods: { algaeFullGreen: 0.5 },
+        text: "Weed wall to wall, and every inch of it working.",
     },
     deeperDepths: {
         name: "Deeper Depths",
@@ -545,10 +268,61 @@ export const CARDS = {
         name: "Rainwater",
         rarity: "rare",
         banner: "pond",
+        needs: "precipitation",
         color: "#35d0d0",
         mods: { rainwater: 0.25 },
         effect: "+25% pond capacity and a floor under turbulence while it rains",
         text: "Every drop that falls up there ends up down here.",
+    },
+
+    // ---------- The Weather ----------
+    condensation: {
+        name: "Condensation",
+        rarity: "common",
+        banner: "rain",
+        color: "#58a8e8",
+        mods: { rainCharge: 0.06 },
+        text: "The cloud draws water in faster while it is gathering.",
+    },
+    lightDrizzle: {
+        name: "Light Drizzle",
+        rarity: "common",
+        banner: "rain",
+        color: "#58a8e8",
+        mods: { rainCost: 0.06 },
+        text: "Filling the cloud costs less Blue Essence.",
+    },
+    gatheringClouds: {
+        name: "Gathering Clouds",
+        rarity: "common",
+        banner: "rain",
+        color: "#58a8e8",
+        mods: { moistureRate: 0.06 },
+        text: "Weather leaves more behind in the ground it falls on.",
+    },
+    prolongedStorm: {
+        name: "Prolonged Storm",
+        rarity: "uncommon",
+        banner: "rain",
+        color: "#58a8e8",
+        mods: { rainDuration: 0.12 },
+        text: "Weather lasts longer once it has been let go.",
+    },
+    gentleRain: {
+        name: "Gentle Rain",
+        rarity: "uncommon",
+        banner: "rain",
+        color: "#58a8e8",
+        mods: { rainBoost: 0.15 },
+        text: "A cloud is worth more to the tile beneath it, both to what grows there and to what it makes.",
+    },
+    soakingRain: {
+        name: "Soaking Rain",
+        rarity: "uncommon",
+        banner: "rain",
+        color: "#7fc8ff",
+        mods: { rainSoak: 0.15 },
+        text: "Ground with nothing growing on it takes up water faster still.",
     },
     cloudBreak: {
         name: "Break in the Clouds",
@@ -556,7 +330,7 @@ export const CARDS = {
         banner: "rain",
         color: "#7fc8ff",
         mods: { cloudBreak: 1 },
-        effect: "Rain can be called off early",
+        effect: "Weather can be called off early",
         text: "The rain stops when you say it does.",
     },
     monsoon: {
@@ -565,7 +339,7 @@ export const CARDS = {
         banner: "rain",
         color: "#7fc8ff",
         mods: { monsoon: 1 },
-        effect: "Rain moves itself to the neighbour that needs it most",
+        effect: "Weather moves itself to the neighbour that needs it most",
         text: "The rain follows the land.",
     },
     rainDance: {
@@ -574,25 +348,69 @@ export const CARDS = {
         banner: "rain",
         color: "#7fc8ff",
         mods: { rainDance: 0.2 },
-        effect: "20% chance a tile reaching maturity calls rain down nearby",
+        effect: "20% chance a tile reaching maturity calls weather down nearby",
         text: "The ecosystem calls for rain.",
     },
-    floodPlain: {
-        name: "Floodplain",
+    saturation: {
+        name: "Saturation",
         rarity: "rare",
         banner: "rain",
         color: "#7fc8ff",
-        mods: { floodPlain: 1 },
-        effect: "Rain floods tiles straight to Pond instead of Water",
-        text: "Rain changes the shape of the land.",
+        mods: { saturation: 1 },
+        effect: "Flooding a tile leaves Pond instead of Water, and an Ice Field instead of Snow",
+        text: "What falls doesn't sit on the land. It becomes it.",
     },
-    verdance: { // replace this one. not a huge fan
-        name: "Verdance",
-        rarity: "rare",
+
+    // ---------- Green Fields ----------
+    rapidSprouting: {
+        name: "Rapid Sprouting",
+        rarity: "common",
+        banner: "grass",
+        color: "#5aa84f",
+        mods: { grassGrowth: 0.06 },
+        text: "Grass moves through its stages faster.",
+    },
+    establishedRoots: {
+        name: "Established Roots",
+        rarity: "common",
+        banner: "grass",
+        color: "#3aa876",
+        mods: { spreadRetain: 0.06 },
+        effect: "Grass keeps 6% of its growth after seeding a neighbour",
+        text: "Seeding a tile no longer starts the parent from nothing.",
+    },
+    rootNetwork: {
+        name: "Root Network",
+        rarity: "common",
+        banner: "grass",
+        color: "#3aa876",
+        mods: { adjacencyBonus: 0.08 },
+        text: "Each adjacent grassy tile is worth more to a tile's growth.",
+    },
+    verdantFields: {
+        name: "Verdant Fields",
+        rarity: "uncommon",
         banner: "grass",
         color: "#7fe08f",
-        mods: { grassGrowth: 0.3, grassOutput: 0.3 },
-        text: "The whole world greens over at once.",
+        mods: { grassOutput: 0.12 },
+        text: "Every grassy tile is worth more Green Essence.",
+    },
+    quickMaturation: {
+        name: "Quick Maturation",
+        rarity: "uncommon",
+        banner: "grass",
+        color: "#5aa84f",
+        mods: { matureWait: 0.12 },
+        text: "Mature grass waits less before it seeds a neighbour.",
+    },
+    creepingGrowth: {
+        name: "Creeping Growth",
+        rarity: "uncommon",
+        banner: "grass",
+        color: "#3aa876",
+        mods: { growthSpill: 0.1 },
+        effect: "10% chance a growth tick also feeds an adjacent patch of grass",
+        text: "What one tile grows, the tile beside it grows too.",
     },
     chainReaction: {
         name: "Chain Reaction",
@@ -612,6 +430,15 @@ export const CARDS = {
         effect: "Mature tiles pay up to +50% more the longer they stay mature",
         text: "Some things grow slowly for a reason.",
     },
+    deepDrinkers: {
+        name: "Deep Drinkers",
+        rarity: "rare",
+        banner: "grass",
+        color: "#3aa876",
+        mods: { dampMastery: 1 },
+        effect: "Wet ground never slows grass down, however sodden it gets",
+        text: "Roots that reach far enough down don't mind how much came out of the sky.",
+    },
     seedstorm: {
         name: "Seedstorm",
         rarity: "rare",
@@ -620,15 +447,6 @@ export const CARDS = {
         mods: { seedstorm: 0.35 },
         effect: "35% chance starting rain plants a seed under it",
         text: "The wind carries life everywhere.",
-    },
-    algaeBloom: {
-        name: "Algae Bloom",
-        rarity: "uncommon",
-        banner: "pond",
-        locked: true,
-        color: "#6fd18a",
-        mods: { algaeFullGreen: 0.5 },
-        text: "Weed wall to wall, and every inch of it working.",
     },
 };
 
@@ -649,23 +467,15 @@ export const rarityOf = (id) => knownCard(id) ? RARITIES[CARDS[id].rarity] : UNK
 export const COMBOS = [
     { // Deeper depths effect makes minimum fish to 35% instead of 20%
         id: "abyssalDepths",
-        name: "Abyssal Depths", 
+        name: "Abyssal Depths",
         cards: ["deepWaters", "deeperDepths"],
         mods: { fishReserve: 0.15 },
         effect: "Deeper Depths holds 35% of the Pond back instead of 20%",
         text: "The fish begin to dive deeper and deeper, into the inky abyss.",
     },
-    { // The adjacency bonus from interwoven roots is also applied as a modifier to grass' full-map production bonus
-        id: "verdantEmbrace",
-        name: "Verdant Embrace", 
-        cards: ["interwovenRoots", "fullCanopy"],
-        mods: { canopyAdjacency: 1 },
-        effect: "Full Canopy is multiplied by the adjacency bonus",
-        text: "The world closes in, every root and leaf joining the same living network.",
-    },
-    { // Moisture buildup has a change to generate a bit of rain charge
+    { // Moisture buildup has a chance to generate a bit of rain charge
         id: "gatheringStorm",
-        name: "Gathering Storm", 
+        name: "Gathering Storm",
         cards: ["gatheringClouds", "condensation"],
         mods: { moistureCharge: 0.5 },
         effect: "Ground soaking up rain gathers rain back",
@@ -673,31 +483,31 @@ export const COMBOS = [
     },
     { // Rain duration also increases the amount of moisture accumulated by a tile
         id: "endlessDownpour",
-        name: "Endless Downpour", 
+        name: "Endless Downpour",
         cards: ["prolongedStorm", "soakingRain"],
         mods: { soakDuration: 1 },
-        effect: "Rain duration also deepens how far the water soaks",
+        effect: "Weather's duration also deepens how far the water soaks",
         text: "The rain refuses to stop. The world drinks deeply.",
     },
     { // When a grass tile spreads, the new tile starts with some more growth progress
         id: "burstingGrowth",
-        name: "Bursting Growth", 
-        cards: ["rapidSprouting", "spreadingRoots"],
+        name: "Bursting Growth",
+        cards: ["rapidSprouting", "establishedRoots"],
         mods: { seedProgress: 0.25 },
         effect: "A newly seeded tile starts 25% grown",
         text: "Roots race outwards as new growth erupts from every direction.",
     },
     { // Clicks past a certain turbulence threshold generate a big boost to blue
         id: "maelstrom",
-        name: "Maelstrom", 
-        cards: ["turbulentWaters", "violentCurrent"],
+        name: "Maelstrom",
+        cards: ["turbulentWaters", "restlessWaters"],
         mods: { maelstrom: 3 },
         effect: "Stirring rough water pays 3s of Blue Essence at once",
         text: "The water twists upon itself, churning into a violent spiral.",
     },
     { // Instead of converting charge production over 100% to green boost, it just checks it
         id: "controlledOverflow",
-        name: "Controlled Overflow", 
+        name: "Controlled Overflow",
         cards: ["overflow", "pressureValve"],
         mods: { controlledOverflow: 1 },
         effect: "Pressure Valve reads the charge held instead of spending it",
@@ -705,7 +515,7 @@ export const COMBOS = [
     },
     { // Crossing between turbulence boundaries provides temporary boosts to resources produced in the pond layer
         id: "feedingFrenzy",
-        name: "Feeding Frenzy", 
+        name: "Feeding Frenzy",
         cards: ["strongCurrent", "nutrientRich"],
         mods: { bandBoost: 0.5 },
         effect: "+50% Pond output for 8s when the water changes state",
@@ -713,7 +523,7 @@ export const COMBOS = [
     },
     { // Grass grows quicker by a moderate amount
         id: "instantGrove",
-        name: "Instant Grove", 
+        name: "Instant Grove",
         cards: ["rapidSprouting", "quickMaturation"],
         mods: { grassGrowth: 0.15 },
         effect: "+15% grass growth",
@@ -721,7 +531,7 @@ export const COMBOS = [
     },
     { // Rain falling on the pond boosts algae growth
         id: "greenRain",
-        name: "Green Rain", 
+        name: "Green Rain",
         cards: ["gatheringClouds", "algaeBloom"],
         mods: { rainAlgae: 0.3 },
         effect: "+30% algae growth while it rains on the world",
@@ -729,7 +539,7 @@ export const COMBOS = [
     },
     { // Rain on a pond temporarily increases pond capacity
         id: "dancingWaters",
-        name: "Dancing Waters", 
+        name: "Dancing Waters",
         cards: ["turbulentWaters", "gentleRain"],
         mods: { rainCapacity: 0.15 },
         effect: "+15% Pond capacity while it rains",
@@ -737,25 +547,25 @@ export const COMBOS = [
     },
     { // Mature grass adjacent to a pond increases algae growth slightly, and algae increases the production of those grass tiles
         id: "fertileWaters",
-        name: "Fertile Waters", 
-        cards: ["lushGrowth", "productiveAlgae"],
+        name: "Fertile Waters",
+        cards: ["verdantFields", "productiveAlgae"],
         mods: { shoreExchange: 0.25 },
         effect: "Grass on the shore and the algae below it each pay the other 25%",
         text: "The land feeds the water, and the water feeds the land.",
     },
     { // When grass spreads adjacent to a pond, fish growth gets a temporary boost
         id: "livingShore",
-        name: "Living Shore", 
-        cards: ["spreadingRoots", "healthyFish"],
+        name: "Living Shore",
+        cards: ["establishedRoots", "healthyFish"],
         mods: { shoreSpawn: 0.5 },
         effect: "Grass spreading onto a shore tile gives +50% fish growth for 10s",
         text: "Life gathers at the water's edge, each strengthening the other.",
     },
-	
+
 	// THREE CARD COMBOS
     { // Feeding frenzy combo but also with tides. as such, boosts the bonuses from crossing the boundaries
         id: "tidalFrenzy",
-        name: "Tidal Frenzy", 
+        name: "Tidal Frenzy",
         cards: ["strongCurrent", "nutrientRich", "tidalCycle"],
         mods: { bandBoost: 1 },
         effect: "+100% Pond output for 8s when the water changes state",
@@ -763,23 +573,23 @@ export const COMBOS = [
     },
     { // Connected grass regions get bonus off of total size instead of just adjacency
         id: "greenDominion",
-        name: "Green Dominion", 
-        cards: ["rapidSprouting", "spreadingRoots", "lushGrowth"],
-        mods: { seedProgress: 0.25, regionBonus: 0.04 },
+        name: "Green Dominion",
+        cards: ["rapidSprouting", "rootNetwork", "verdantFields"],
+        mods: { regionBonus: 0.04 },
         effect: "Grass grows +4% faster per tile in its connected patch, instead of per neighbour",
         text: "The grass no longer spreads. It conquers.",
     },
     { // Ignores maturity waiting time entirely
         id: "wildfireGrowth",
-        name: "Wildfire Growth", 
-        cards: ["rapidSprouting", "quickMaturation", "spreadingRoots"],
+        name: "Wildfire Growth",
+        cards: ["rapidSprouting", "quickMaturation", "establishedRoots"],
         mods: { grassGrowth: 0.15, seedProgress: 0.25, noMatureWait: 1 },
         effect: "+15% grass growth, a newly seeded tile starts 25% grown, and mature grass spreads at once",
         text: "One plant becomes two. Two become four. Soon there is nowhere left to grow.",
     },
     { // Fish no longer starve at high fish numbers
         id: "rushingSchool",
-        name: "Rushing School", 
+        name: "Rushing School",
         cards: ["turbulentWaters", "strongCurrent", "healthyFish"],
         mods: { noStarvation: 1 },
         effect: "Fish never starve, however many of them there are",
@@ -793,17 +603,34 @@ const evolutionState = () => getLayerState("evolution");
 
 
 // Locked cards
-// They need some condition to be unlocked, not always drawable.
-export const isCardUnlocked = (id, s = evolutionState()) =>
-    knownCard(id) && (!CARDS[id].locked || (s.unlockedCards || []).includes(id));
+// They need some condition to be unlocked, not always drawable. "needs" is a second layer the
+// card reaches into, for one that reads something outside its own banner.
+export const isCardUnlocked = (id, s = evolutionState()) => {
+    const card = CARDS[id];
+    if (!card) return false;
+    if (card.locked && !(s.unlockedCards || []).includes(id)) return false;
+    return !card.needs || !!getLayerState(card.needs).unlocked;
+};
+
+export const unlockedBannerIds = () => BANNER_IDS.filter(bannerUnlocked);
 
 export function unlockCard(id, s = evolutionState()) {
     if (!s.unlockedCards) s.unlockedCards = [];
     if (!s.unlockedCards.includes(id)) s.unlockedCards.push(id);
 }
 
+// Locked banners
+// A banner is closed until the layer it draws for is open, so cards for a layer that
+// doesn't exist yet can't be drawn even if the banner were somehow reached.
+export const bannerUnlocked = (id) => {
+    const banner = BANNERS[id];
+    if (!banner) return false;
+    return !banner.layer || !!getLayerState(banner.layer).unlocked;
+};
+
 // Everything a draw could currently turn up.
-export const drawableCardIds = (s = evolutionState()) => CARD_IDS.filter(id => isCardUnlocked(id, s));
+export const drawableCardIds = (s = evolutionState()) =>
+    CARD_IDS.filter(id => isCardUnlocked(id, s) && bannerUnlocked(CARDS[id].banner));
 
 // Drops anything that isn't in the pool anymore. Deals with removed or changed cards.
 function pruneCards(s) {
@@ -895,7 +722,8 @@ export const cardActive = (key) => cardBonus(key) > 0;
 
 // What can currently be drawn on a specific banner.
 export const bannerCards = (bannerId, s = evolutionState()) =>
-    drawableCardIds(s).filter(id => CARDS[id].banner === bannerId);
+    !bannerUnlocked(bannerId) ? []
+        : drawableCardIds(s).filter(id => CARDS[id].banner === bannerId);
 
 // Draws 3 cards from the banner's pool. Saves it so if you don't pick, you won't just waste the evo points.
 export function rollDraw(bannerId = null, count = SLOTS) {
@@ -948,22 +776,18 @@ export function unequipSlot(slot, s = evolutionState()) {
 export const firstFreeSlot = (s = evolutionState()) =>
     (s.equipped || []).findIndex(id => !id);
 
-// ---------- Locking the loadout in ----------
-//
-// Cards can be swapped as much as you like, but they are worth nothing until they are locked
-// in, and locking in lasts the whole evolution. So a loadout is a decision about the run
-// ahead rather than something re-picked around whatever is happening at the time.
 
+// Cards can be swapped as much as you like, but they are worth nothing until they are locked in
 export const loadoutLocked = (s = evolutionState()) => !!s.loadoutLocked;
 
-// Refuses an empty loadout, since that would spend the run's one lock-in on nothing.
+// Refuses an empty loadout, since that would spend the run's one lock-in on nothing
 export function lockLoadout(s = evolutionState()) {
     if (loadoutLocked(s) || equippedIds(s).length === 0) return false;
     s.loadoutLocked = true;
     return true;
 }
 
-// Evolving is the only thing that hands the cards back.
+// Evolving lets you re-lock in cards
 export function releaseLoadout(s = evolutionState()) {
     s.loadoutLocked = false;
 }

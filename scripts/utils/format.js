@@ -41,6 +41,20 @@ function exponential(n, places) {
     return `${(Math.floor(mantissa * step) / step).toFixed(decimals)}e${exponent}`;
 }
 
+// Takes the fraction, not the percent - 0.25 reads as 25%.
+//
+// Percentages run away from a number much sooner than the number does, so this gives up on
+// digits far earlier than formatNumber: four of them, then the same exponential everything else
+// falls back to. Rounded rather than floored on the way, so a hair under 100% is still 100%.
+const PERCENT_DIGITS = 4;
+const PERCENT_CAP = Math.pow(10, PERCENT_DIGITS);
+
+export function formatPercent(fraction) {
+    const n = D(fraction).mul(100);
+    if (n.lt(0)) return `-${formatPercent(D(fraction).neg())}`;
+    return n.lt(PERCENT_CAP) ? `${n.toFixed(0)}%` : `${exponential(n, 2)}%`;
+}
+
 // For rates and other values where a bare integer reads better.
 // This might be redundant, idk why I made this.
 export function formatWhole(value) {
