@@ -3,10 +3,7 @@ An incremental game based around the constant intrusive phrase I have based on
 the meme that's in the main folder.
 
 Without the following code, I wouldn't have been able to make this game for one reason or another:
-The Modding Tree by Acamaeda
-DodecaDragons by Demonin
-Celestial Incremental by Icecreamdudes
-break_infinity.js by Patashu
+The Modding Tree by Acamaeda, DodecaDragons by Demonin, Celestial Incremental by Icecreamdudes, and break_infinity.js by Patashu.
 
 I've coded in many languages before, but not javascript. Having a reference 
 was instrumental in making this.
