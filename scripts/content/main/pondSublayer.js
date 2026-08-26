@@ -14,11 +14,12 @@
 import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
 import { addResource, getLevel } from "../../core/resources.js";
+import { registerBoost, boostResource } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
-import { shoreGrassTiles } from "./worldMap.js";
-import { greenMultiplier, blueMultiplier } from "./grassSublayer.js";
+import { shoreGrassTiles, pondTiles } from "./worldMap.js";
+
 
 const TURBULENCE_MAX = 100;
 const SETTLE_PER_SECOND = 10;   // How fast the water returns to calm when left alone
@@ -41,6 +42,7 @@ const SURFACE_CYCLE_PX = 360;
 
 
 const BASE_CAPACITY = 2;    // Starting pond capacity
+export const PER_POND_TILE = 0.4;  // What one pond tile on the world map is worth to that capacity
 
 const ALGAE_GROWTH = 0.04;
 const ALGAE_PER_LEVEL = 0.25;
@@ -283,6 +285,10 @@ export function biomassMultiplier() {
 // What the multiplier is worth right now, for the readout on the Biomass chip.
 export const biomassNote = () => `x${formatNumber(biomassMultiplier())} to all essence production`;
 
+// Essence only - biomass boosting itself would run away with the whole game.
+const ESSENCES = new Set(["greenEssence", "blueEssence"]);
+registerBoost("Biomass", (resourceId) => ESSENCES.has(resourceId) ? biomassMultiplier() : 1);
+
 // How even the pond's populations are.
 const evenness = (s) => {
     const living = s.algae + s.fish;
@@ -315,7 +321,10 @@ const settleRate = () => SETTLE_PER_SECOND
 // Capacity is recomputed from the nodes every tick rather than added to on purchase
 // Mainly because some cards influence it on a per-tick basis
 function capacityFor(s) {
-    const base = (BASE_CAPACITY + (coreNode("pondDeep") ? 1 : 0))
+    // Pond tiles feed the capacity rather than paying out on their own, so a map full of
+    // ponds is the slow, compounding option next to turning the same water into ocean -
+    // algae and fish both grow into capacity, and biomass comes out of the pair of them.
+    const base = (BASE_CAPACITY + (coreNode("pondDeep") ? 1 : 0) + PER_POND_TILE * pondTiles())
         * (1 + cardBonus("pondCapacity")
             + (rainwaterActive() ? cardBonus("rainwater") : 0)
             + (worldRaining() ? cardBonus("rainCapacity") : 0));   // Dancing Waters
@@ -342,13 +351,11 @@ const oxygenShare = (s) => 0.05 * getLevel(s, "oxygenation");
 const pondGreen = (s) => greenProduction(s)
     .mul(1 + bloomBonus(s))
     .mul(balanceMultiplier(s))
-    .mul(biomassMultiplier())
-    .mul(greenMultiplier());
+    .mul(boostResource("greenEssence"));
 
 const pondBlue = (s) => production(s)
     .mul(balanceMultiplier(s))
-    .mul(biomassMultiplier())
-    .mul(blueMultiplier())
+    .mul(boostResource("blueEssence"))
     .add(pondGreen(s).mul(oxygenShare(s)));
 
 function waterState(s) {
@@ -513,7 +520,8 @@ export const POND_VIEW = {
             el.querySelector(".pond-meter-fill").style.width = `${(fraction * 100).toFixed(1)}%`;
 
             const blueLine = `${formatNumber(pondBlue(s))} Blue Essence/s, `;
-            const essenceLine = blueLine + `${formatNumber(greenProduction(s))} Green Essence/s`;
+            // pondGreen, not greenProduction - the meter has to read what is actually paid out
+            const essenceLine = `${formatNumber(pondGreen(s))} Green Essence/s,  ` + blueLine;
             const second = el.querySelector(".pond-rate-second");
             if (lifeBought()) {
                 setText(el.querySelector(".pond-rate"), `${formatNumber(biomassProduction(s))} Biomass/s`);

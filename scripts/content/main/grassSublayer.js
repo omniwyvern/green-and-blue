@@ -9,6 +9,7 @@
 import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
 import { getLevel } from "../../core/resources.js";
+import { registerBoost } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber, formatWhole, formatPercent } from "../../utils/format.js";
 import {
@@ -110,15 +111,15 @@ export function setGrassType(typeId) {
 export const GROWTH_MILESTONES = [
     { at: 200, title: "First Roots", effect: "Grass grows 25% faster.", speed: 1.25 },
     { at: 800, title: "Clover", effect: "A second grass to grow.", unlocks: "clover" },
-    { at: 2000, title: "Runners", effect: "Everything gives 50% more Growth.", growth: 1.5 },
-    { at: 5000, title: "Thick Sward", effect: "Every grassy tile is worth 50% more.", output: 1.5 },
-    { at: 12000, title: "Ryegrass", effect: "A grass that covers ground.", unlocks: "ryegrass" },
-    { at: 30000, title: "Rhizomes", effect: "Everything pays twice the Growth.", growth: 2 },
-    { at: 75000, title: "Green Tide", effect: "Everything produces 30% more Green Essence.", green: 1.3 },
-    { at: 190000, title: "Sedge", effect: "A grass that spreads in the wettest of conditions.", unlocks: "sedge" },
-    { at: 480000, title: "Deep Sward", effect: "Every grassy tile is worth three times as much.", output: 3 },
-    { at: 1200000, title: "Switchgrass", effect: "A grass worth four of any other", unlocks: "switchgrass" },
-    { at: 3000000, title: "Verdance", effect: "All Green Essence production doubled", green: 2 },
+    { at: 1500, title: "Runners", effect: "Everything gives 50% more Growth.", growth: 1.5 },
+    { at: 2500, title: "Thick Sward", effect: "Every grassy tile is worth 50% more.", output: 1.5 },
+    { at: 4000, title: "Ryegrass", effect: "A grass that covers ground.", unlocks: "ryegrass" },
+    { at: 7000, title: "Rhizomes", effect: "Everything pays twice the Growth.", growth: 2 },
+    { at: 10000, title: "Green Tide", effect: "Everything produces 30% more Green Essence.", green: 1.3 },
+    { at: 15000, title: "Sedge", effect: "A grass that spreads in the wettest of conditions.", unlocks: "sedge" },
+    { at: 25000, title: "Deep Sward", effect: "Every grassy tile is worth three times as much.", output: 3 },
+    { at: 35000, title: "Switchgrass", effect: "A grass worth four of any other", unlocks: "switchgrass" },
+    { at: 50000, title: "Verdance", effect: "All Green Essence production doubled", green: 2 },
 ];
 
 export const milestoneReached = (milestone) => growthPeak().gte(milestone.at);
@@ -163,6 +164,9 @@ export const grassOutputMultiplier = () =>
 // Blue only comes off the tiles that are wet, so a dry world leaves it at 1.
 export const greenMultiplier = () => fromMilestones("green") * grassGreenMultiplier(worldState());
 export const blueMultiplier = () => grassBlueMultiplier(worldState());
+
+registerBoost("Grass", (resourceId) => resourceId === "greenEssence" ? greenMultiplier()
+    : resourceId === "blueEssence" ? blueMultiplier() : 1);
 
 // How grown a tile is when the grass first reaches it. worldMap adds this to what the cards give.
 export const grassSeedStart = () => SEED_BANK_PER_LEVEL * level("seedBank");
@@ -301,7 +305,7 @@ export const GRASS_VIEW = {
             description: (s, lvl) =>
                 `Every tile the grass takes for itself is worth +${soFar(TILLERING_PER_LEVEL, lvl)} more Growth.`,
             max: 4,
-            cost: (s, lvl) => ({ growth: D(200).mul(D(4).pow(lvl)) }),
+            cost: (s, lvl) => ({ growth: D(200).mul(D(3).pow(lvl)) }),
         },
         seedBank: {
             title: "Seed Bank",
@@ -309,14 +313,14 @@ export const GRASS_VIEW = {
                 `Grass spreads onto a new tile starting +${soFar(SEED_BANK_PER_LEVEL, lvl)} grown`
                 + ` instead of as a bare seed.`,
             max: 3,
-            cost: (s, lvl) => ({ growth: D(400).mul(D(5).pow(lvl)) }),
+            cost: (s, lvl) => ({ growth: D(400).mul(D(3).pow(lvl)) }),
         },
         greenFingers: {
             title: "Green Fingers",
             description: (s, lvl) =>
                 `Every grassy tile is worth ${soFar(FINGERS_PER_LEVEL, lvl)} more, whichever type it is.`,
             max: 5,
-            cost: (s, lvl) => ({ growth: D(600).mul(D(6).pow(lvl)) }),
+            cost: (s, lvl) => ({ growth: D(600).mul(D(4).pow(lvl)) }),
         },
         hardyStrains: {
             title: "Hardy Strains",
@@ -324,11 +328,8 @@ export const GRASS_VIEW = {
                 `Grasses give back ${soFar(TEMPER_PER_LEVEL, lvl)} of whatever their species trades away.`,
             max: 3,
             hidden: () => growthPeak().lt(800),
-            cost: (s, lvl) => ({ growth: D(1200).mul(D(5).pow(lvl)) }),
+            cost: (s, lvl) => ({ growth: D(1200).mul(D(3).pow(lvl)) }),
         },
-        // The two that spend Green rather than Growth, so they're priced against the same
-        // curve the tiles are. Both were flat enough that clearing all ten levels cost less
-        // than a single mid-game tile - the scaling does the work now, not just the base.
         richerSoil: {
             title: "Richer Soil",
             description: (s, lvl) =>
@@ -390,7 +391,7 @@ function updateYield(el) {
     }
 }
 
-// One row per stage on the map, plus whatever is wet, so it's clear which tiles are carrying it.
+// One row per stage on the map, plus whatever is wet, so it's clear which tiles are carrying it
 function breakdownMarkup(s) {
     const tiles = grassTiles(s);
     if (tiles.length === 0) {
@@ -410,7 +411,7 @@ function breakdownMarkup(s) {
     if (wet.length > 0) rows.push(yieldRow("Wet ground", wet, "blue"));
 
     // Milestones multiply what the tiles add up to instead of adding to it, so they only show once
-    // there are some - and when they do, the tile total goes in as well, or the two don't follow.
+    // there are some - and when they do, the tile total goes in as well, or the two don't follow
     const fromGreen = fromMilestones("green");
     if (fromGreen > 1) {
         rows.push(totalRow("All tiles together", grassGreenMultiplier(s)));

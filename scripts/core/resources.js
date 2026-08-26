@@ -8,7 +8,7 @@ import { state, getLayerState } from "./state.js";
 import { D } from "../utils/decimal.js";
 import { formatNumber } from "../utils/format.js";
 
-// Resources can be shared between layers, but they all have one layer they belong to.
+// Resources can be shared between layers, but they all have one layer they belong to
 export function resourceHolderId(layer, resourceId) {
     const def = layer.resources ? layer.resources[resourceId] : null;
     return def && def.from ? def.from : layer.stateKey;
@@ -43,7 +43,7 @@ export function canAfford(layer, cost) {
 const spendListeners = [];
 export const onSpend = (listener) => spendListeners.push(listener);
 
-// Makes sure that you don't have a partial spend, it's all or nothing.
+// Makes sure that you don't have a partial spend, it's all or nothing
 export function spend(layer, cost) {
     if (!canAfford(layer, cost)) return false;
     for (const resourceId in cost) {
@@ -57,12 +57,12 @@ export function spend(layer, cost) {
 }
 
 
-// For tracking resource generation.
+// For tracking resource generation
 const lastSeen = {};
 const spentSince = {};
 const rates = {};
 
-// Smooths out the rate so things appear less like spikes and more like rates.
+// Smooths out the rate so things appear less like spikes and more like rates
 const SMOOTHING = 0.05;
 
 function noteSpend(holderId, resourceId, amount) {
@@ -70,7 +70,7 @@ function noteSpend(holderId, resourceId, amount) {
     spentSince[key] = D(spentSince[key] || 0).add(amount);
 }
 
-// Called once per simulation tick, after every layer did its thing.
+// Called once per simulation tick, after every layer did its thing
 export function sampleProduction(dt) {
     if (dt <= 0) return;
 
@@ -100,17 +100,14 @@ export function productionRate(layer, resourceId) {
     return rates[`${resourceHolderId(layer, resourceId)}:${resourceId}`] || D(0);
 }
 
-// A pool that moved by something other than production - a dev grant or a wipe - would
-// otherwise be read as a tick that made (or unmade) all of it, and the smoothing would take
-// the best part of a minute to walk that spike back. Forgetting the history instead makes
-// the next sample the new baseline: one tick reading nothing, then the real rate again.
+// Big boosts make the production rate look reaaally off, so this makes them the actual rate
 export function resyncProduction() {
     for (const key in lastSeen) delete lastSeen[key];
     for (const key in spentSince) delete spentSince[key];
     for (const key in rates) delete rates[key];
 }
 
-// When multiple currencies are used at the same time same amount, this makes it shorten the display of it.
+// When multiple currencies are used at the same time same amount, this makes it shorten the display of it
 const costGroups = [];
 
 /**
@@ -126,13 +123,13 @@ export function registerCostGroup({ ids, name, color = null }) {
     costGroups.push({ ids, name, color });
 }
 
-// A cost split into the pieces it should be read as.
+// A cost split into the pieces it should be read as
 export function costParts(cost, resourceDefs = {}) {
     const unclaimed = { ...cost };
     const parts = [];
 
     for (const id in cost) {
-        if (!(id in unclaimed)) continue; // Already part of a group.
+        if (!(id in unclaimed)) continue;
 
         const group = groupFilledBy(id, unclaimed);
         if (group) {
@@ -149,7 +146,7 @@ export function costParts(cost, resourceDefs = {}) {
     return parts;
 }
 
-// The first group where all members are still unclaimed and asking for the same amount.
+// The first group where all members are still unclaimed and asking for the same amount
 function groupFilledBy(id, unclaimed) {
     return costGroups.find(group => group.ids.includes(id) && group.ids.every(
         memberId => memberId in unclaimed && D(unclaimed[memberId]).eq(unclaimed[id]))) || null;
@@ -159,7 +156,7 @@ export function formatCost(cost, resourceDefs = {}) {
     return costParts(cost, resourceDefs).map(part => `${part.amount} ${part.label}`).join(" + ");
 }
 
-// How many times a repeatable upgrade has been bought.
+// How many times a repeatable upgrade has been bought
 export function getLevel(layerState, upgradeId) {
     return Number(layerState.purchasedUpgrades[upgradeId]) || 0;
 }

@@ -8,9 +8,11 @@
 import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
 import { addResource, canAfford, spend } from "../../core/resources.js";
+import { boostResource } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber, formatWhole } from "../../utils/format.js";
 import { matureTiles, grassTiles, ORIGIN_TILE } from "./worldMap.js";
+
 import {
     CARDS, SLOTS, COPIES_TO_COMBINE, collection, cardEntry, cardName, cardArt, rarityOf, knownCard,
     comboStatus, rollDraw, collectCard, equipCard, unequipSlot, firstFreeSlot,
@@ -31,7 +33,9 @@ let armEvo = false; // For when you reset but won't gain any points
 // needs to factor in the other tiles
 // but since they only reset the growth and state of them and not the tile itself
 // this is gonna be complicated
-export const pointsOnEvolve = () => POINTS_PER_MATURE_TILE.mul(matureTiles(getLayerState("world")).length);
+export const pointsOnEvolve = () => POINTS_PER_MATURE_TILE
+    .mul(matureTiles(getLayerState("world")).length)
+    .mul(boostResource("evolutionPoints"));
 
 // Each banner scales its price separately based on how many cards you've drawn from it.
 const bannerDraws = (s, banner = s.banner) => (s.bannerDraws || {})[banner] || 0;
@@ -42,6 +46,10 @@ const costOf = (banner, draws) =>
         .mul(DRAW_COST_SCALE.pow(draws)).ceil();
 
 const drawCost = (s) => ({ evolutionPoints: costOf(s.banner, bannerDraws(s)) });
+
+// The ground an evolution takes back: grass, whatever the weather left lying around, and the
+// ponds that fills. Everything built up past those is the world's to keep.
+const RESET_TERRAIN = new Set(["water", "snow", "pond"]);
 
 // The actual reset. Rests growing things, and map size.
 function resetLivingThings() {
@@ -58,7 +66,8 @@ function resetLivingThings() {
     const world = getLayerState("world");
     //world.tiles = { [ORIGIN_TILE]: true };
     world.grass = {};
-    //world.terrain = {};
+    world.terrain = Object.fromEntries(Object.entries(world.terrain || {})
+        .filter(([, kind]) => !RESET_TERRAIN.has(kind)));
 
     // Resets precipitation and buildup
     world.moisture = {};
@@ -120,9 +129,10 @@ registerLayer("evolution", {
                             <div class="evolve-terms">
                                 <div class="evolve-keeps"><b>Kept:</b> the Cores tree, Pond upgrades,
                                     Grass upgrades, and your collection of cards.</div>
-                                <div class="evolve-loses"><b>Reset:</b> Algae, fish, and grass tiles.
-                                    Life needs to be sown again, with cards to lock in and a grass to choose
-                                    before the first seed is planted.</div>
+                                <div class="evolve-loses"><b>Reset:</b> Algae, fish, grass, and the
+                                    ground the weather leaves - water, snow, and ponds. Anything built up
+                                    past those is kept. Life needs to be sown again, with cards to lock in
+                                    and a grass to choose before the first seed is planted.</div>
                             </div>
                         </div>
                     `;

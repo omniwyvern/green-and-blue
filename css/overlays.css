@@ -42,15 +42,17 @@
 
 #recenter-button {
     right: var(--corner-edge);
-    padding: calc(0.6875 * var(--u)) calc(1.0625 * var(--u));
+    height: var(--canvas-corner-size);
+    padding: 0 calc(0.875 * var(--u));
     border-radius: calc(0.375 * var(--u));
+    font-size: calc(0.75 * var(--u));
 }
 #recenter-button[hidden] { display: none; }
 
 #zoom-controls {
     position: fixed;
     right: var(--corner-edge);
-    bottom: var(--corner-step);
+    bottom: var(--canvas-corner-step);
     z-index: 500;
     display: flex;
     gap: var(--corner-gap);
@@ -58,15 +60,15 @@
 #zoom-controls[hidden] { display: none; }
 
 #zoom-controls button {
-    width: calc(2.5 * var(--u));
-    height: calc(2.5 * var(--u));
+    width: var(--canvas-corner-size);
+    height: var(--canvas-corner-size);
     background: var(--panel-light);
     color: var(--text);
     border: 1px solid var(--border);
     border-radius: calc(0.375 * var(--u));
     box-shadow: 0 calc(0.125 * var(--u)) calc(0.5 * var(--u)) var(--shadow);
     font-family: inherit;
-    font-size: calc(1.125 * var(--u));
+    font-size: calc(0.9375 * var(--u));
     line-height: 1;
     cursor: pointer;
 }

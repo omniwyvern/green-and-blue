@@ -12,8 +12,9 @@
 import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
 import { addResource } from "../../core/resources.js";
+import { boostResource } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
-import { formatNumber } from "../../utils/format.js";
+import { formatNumber, formatPercent } from "../../utils/format.js";
 import {
     TERRAIN, TERRAIN_OUTPUT, ACTIVATIONS_BY_TIER, DRYING_SECONDS, activationsForKind,
     worldState, tileCounts, knownKinds, terrainProduction, claimedTiles, moistureOn,
@@ -21,9 +22,10 @@ import {
     contributeMapRadius,
 } from "./worldMap.js";
 import { kindChip } from "./terrainArt.js";
-import { BIOMASS_RESOURCE, biomassMultiplier } from "./pondSublayer.js";
+import { BIOMASS_RESOURCE, PER_POND_TILE } from "./pondSublayer.js";
+import { PER_OCEAN_TILE, REGIONS_AT_FIRST_OCEAN } from "./oceanSublayer.js";
 import { ECOSYSTEM_VIEW } from "./ecosystemSublayer.js";
-import { GRASS_VIEW, GRASS_RESOURCES, GROWTH_RESOURCE, greenMultiplier, blueMultiplier } from "./grassSublayer.js";
+import { GRASS_VIEW, GRASS_RESOURCES, GROWTH_RESOURCE } from "./grassSublayer.js";
 import { PRECIPITATION_VIEW, PRECIPITATION_RESOURCES } from "./precipitationSublayer.js";
 
 // How long a full cloud's worth takes to drain back off the ground when left alone.
@@ -57,9 +59,10 @@ registerLayer("environment", {
 
     onTick(dt, layer) {
         const output = terrainProduction(worldState());
-        const fromBiomass = biomassMultiplier(); // Multiplies essences wherever they are produced (here)
-        if (output.greenEssence > 0) addResource(layer, "greenEssence", D(output.greenEssence).mul(fromBiomass).mul(greenMultiplier()).mul(dt));
-        if (output.blueEssence > 0) addResource(layer, "blueEssence", D(output.blueEssence).mul(fromBiomass).mul(blueMultiplier()).mul(dt));
+        for (const resourceId of ["greenEssence", "blueEssence"]) {
+            if (!(output[resourceId] > 0)) continue;
+            addResource(layer, resourceId, D(output[resourceId]).mul(boostResource(resourceId)).mul(dt));
+        }
     },
 
     subLayers: {
@@ -78,7 +81,6 @@ registerLayer("environment", {
                             <div class="environment-summary"></div>
                             <div class="cards-heading">Transformations</div>
                             <div class="recipe-list"></div>
-                            <div class="cards-heading">The ground</div>
                             <div class="terrain-list"></div>
                         </div>
                     `;
@@ -104,15 +106,14 @@ registerLayer("environment", {
                             : `<div class="cards-empty">Nothing is known yet.</div>`;
                     }
 
-                    // The ground that the world can currently reach.
+                    // The ground that the world can currently reach, and what each kind is worth.
                     const kinds = knownKinds(world);
                     const censusSignature = kinds.map(kind => `${kind}:${counts[kind]}`).join(",");
                     if (el.__census === censusSignature) return;
                     el.__census = censusSignature;
 
-                    el.querySelector(".terrain-list").innerHTML = kinds
-                        .map(kind => terrainMarkup(kind, counts[kind]))
-                        .join("");
+                    el.querySelector(".terrain-list").innerHTML =
+                        kinds.map(kind => terrainMarkup(kind, counts[kind])).join("");
                 },
             },
         },
@@ -122,8 +123,7 @@ registerLayer("environment", {
     },
 });
 
-// One line for where the world's ground is up to. Before anything has changed it says what
-// to do about that instead, since it being empty explains nothing.
+
 function summary(world, counts) {
     const changed = Object.keys(TERRAIN)
         .filter(kind => TERRAIN[kind].stored && counts[kind] > 0)
@@ -141,17 +141,13 @@ function summary(world, counts) {
                     + ` cloud's worth back every ${DRYING_MINUTES.toFixed(0)} minutes.`);
     }
 
-    const output = terrainProduction(world);
-    return `${changed.join(", ")}`
-        + ` - producing ${formatNumber(D(output.greenEssence))} Green`
-        + ` and ${formatNumber(D(output.blueEssence))} Blue Essence per second.`;
 }
 
 // Each transformation recipe. Tile being changed is the first input.
 // When a recipe isn't unlocked, nothing shows. When it's unlocked but not created,
-// it just shows the primary tile and not the fodder.
+// it just shows the primary tile and not the fodder
 //
-// Recipes you haven't made yet only show the initial tile, and not the result or other components.
+// Recipes you haven't made yet only show the initial tile, and not the result or other components
 function recipeMarkup(recipe, world) {
     const locked = !transformAvailable(recipe);
     const found = hasSeenKind(world, recipe.output);
@@ -200,12 +196,23 @@ const LOCK_GLYPH = `
         <rect x="3.4" y="7.4" width="9.2" height="6.4" rx="1.3"/>
     </svg>`;
 
-    
+// What a tile is worth beyond what it makes on the map itself. This is the half that happens in
+// whichever layer the ground belongs to, which is the part a census of the map can't show.
+const TERRAIN_EFFECT = {
+    grass: "Multiplies Green Essence, and Blue while there's weather on it",
+    pond: `+${PER_POND_TILE} capacity on the Pond`,
+    ocean: `Opens ocean regions - ${REGIONS_AT_FIRST_OCEAN} for the first, one more for each after`
+        + `, and +${formatPercent(PER_OCEAN_TILE)} to every school`,
+};
+// A deep ocean still counts as ocean everywhere else, so it reads the same here.
+TERRAIN_EFFECT["deep-ocean"] = TERRAIN_EFFECT.ocean;
+
 function terrainMarkup(kind, count) {
     const output = TERRAIN_OUTPUT[kind];
     const rate = output
         ? Object.keys(output).map(id => `${formatNumber(D(output[id]))} ${RESOURCE_NAMES[id]}/s`).join(", ")
         : "—";
+    const effect = TERRAIN_EFFECT[kind];
 
     return `
         <div class="terrain-row${count > 0 ? " has-some" : ""}">
@@ -213,11 +220,11 @@ function terrainMarkup(kind, count) {
             <div class="terrain-facts">
                 <div class="terrain-count">${count} tile${count === 1 ? "" : "s"}</div>
                 <div class="terrain-rate">${rate}</div>
+                ${effect ? `<div class="terrain-effect">${effect}</div>` : ""}
             </div>
         </div>
     `;
 }
-
 const RESOURCE_NAMES = { greenEssence: "Green", blueEssence: "Blue" };
 
 function setText(el, text) {

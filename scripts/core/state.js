@@ -7,11 +7,10 @@ import * as registry from "./registry.js";
 import { D, isDecimal } from "../utils/decimal.js";
 
 const SAVE_KEY = "greenBlueSave"; // we do be having no real name yet. internally was "incremental game" for a hot minute
-                                        // but I do not want to change it
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 1;           // it genuinely might just stay as "green and blue" lmao
 
 // Keyed by the version each step arrives at, so a save two versions behind runs both in order.
-// They see the save before anything is pruned, which is what makes renaming an id survivable.
+// They see the save before anything is pruned, which is what makes renaming an id survivable
 const MIGRATIONS = {
     // 2: (save) => { ...move or rescale fields here... },
 };
@@ -24,16 +23,16 @@ function defaultState() {
         activeCategory: null,
         activeLayer: null,
 
-        // Most of these are just dev tools.
+        // Most of these are just dev tools
         settings: { theme: "dark", hideNav: false, showCanvasCoords: false, showDevInteractions: false, enableFastGrass: false },
         seen: { layers: {}, subLayers: {}, guides: {} },  // Which tabs the player has seen, so they don't flash
-        layers: {}, // Per-layer save data.
+        layers: {}, // Per-layer save data
     };
 }
 
 export let state = defaultState();
 
-// Makes it not re-save after you deleted.
+// Makes it not re-save after you deleted
 let savingBlocked = false;
 
 export function saveState() {
@@ -41,14 +40,14 @@ export function saveState() {
     localStorage.setItem(SAVE_KEY, encodeSave(serializeState()));
 }
 
-// Decimals are stored as strings, getLayerState() turns them back into Decimals.
+// Decimals are stored as strings, getLayerState() turns them back into Decimals
 export function serializeState() {
     state.lastSaveTime = Date.now();
     return JSON.stringify(state, (key, value) => isDecimal(value) ? value.toString() : value);
 }
 
 // Saves are masked and base64'd, not as a full lock but just so that it's a bit harder to
-// directly manipulate save file variables and add in currency.
+// directly manipulate save file variables and add in currency
 const SAVE_MAGIC = "GNB1";
 const MASK_KEY = "green-and-blue";
 

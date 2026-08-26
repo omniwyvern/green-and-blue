@@ -28,22 +28,24 @@ const DRAG_ROOM = 4;
 // Fixed zoom steps, because it sucks to end up at like 81% zoom and not be at a good size
 const ZOOM_STEPS = [0.6, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75];
 
-// The map opens at whatever size the rest of the interface has scaled itself to, since a tile
-// is drawn in fixed pixels and would otherwise be the one thing that stays small.
+// The map opens at whatever size the rest of the interface has scaled itself to
 const uiScale = () => parseFloat(getComputedStyle(document.documentElement).fontSize) / 16 || 1;
-const defaultZoomStep = () => {
-    const want = uiScale();
+
+// Some layers are larger, so this just sets whatever the starting zoom should be for a layer
+const defaultZoomStep = (layer) => {
+    const want = uiScale() * (layer.defaultZoom || 1);
     return ZOOM_STEPS.reduce((best, step, i) =>
         Math.abs(step - want) < Math.abs(ZOOM_STEPS[best] - want) ? i : best, 0);
 };
 
-// How far apart two fingers have to move before a pinch takes a zoom step. The steps are fixed,
-// so a pinch can't scale smoothly - it takes a step and then measures again from there.
+// How far apart two fingers have to move before a pinch takes a zoom step
 const PINCH_STEP = 1.22;
 
+// How long the view takes to slide when something asks to be centered on
+const PAN_TWEEN_MS = 420;
+
 // How far out past the nodes that you can pan, so that you have some space but you won't
-// be able to just pan super far away. Goes off viewport size, so horizontal and vertical
-// work better plus probably works better for different screen sizes
+// be able to just pan super far away
 const PAN_MARGIN = 400;
 const PAN_MARGIN_SHARE = 0.75;
 const panMargin = (viewportSize) => Math.max(PAN_MARGIN, viewportSize * PAN_MARGIN_SHARE);
@@ -78,12 +80,14 @@ class DragCanvas {
         this.container = container;
         this.panX = 0;
         this.panY = 0;
-        this.zoomStep = defaultZoomStep();
+        this.zoomStep = defaultZoomStep(layer);
         this.isDragging = false;
         this.lastPointer = { x: 0, y: 0 };
-        this.pointers = new Map(); // Live touches on the canvas, so two of them can be a pinch.
+        this.pointers = new Map(); // Live touches on the canvas, so two of them can be a pinch
         this.pinchSpan = 0;
         this.subWindowEls = {};
+        this.sceneEl = null;
+        this.panFrame = null;
         this.nodeEls = {};
         this.connectorEls = {};
         this.tileEls = {};
@@ -119,11 +123,13 @@ class DragCanvas {
         this._updateCoords();
         this._buildSubWindows();
         this._buildNodes();
-        if (layer.hud) layer.hud.build(this.hudEl, getLayerState(layer.stateKey), layer);
+        this._buildScene();
+        if (layer.hud) layer.hud.build(this.hudEl, getLayerState(layer.stateKey), layer, this);
     }
 
     _bindDragEvents() {
         this.viewport.addEventListener("pointerdown", (e) => {
+            this._stopPanTween();
             this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
             if (this.pointers.size >= 2) return this._startPinch();
 
@@ -165,7 +171,10 @@ class DragCanvas {
         });
 
         // Zoom in and out with the mouse wheel if you don't want to use the buttons. Still uses the zoom steps.
+        // A wheel over the HUD is the player scrolling a panel, not zooming the map, so it's
+        // left alone to do what it would have done
         this.viewport.addEventListener("wheel", (e) => {
+            if (this.hudEl.contains(e.target)) return;
             e.preventDefault();
             if (this.stepZoom(e.deltaY < 0 ? 1 : -1, e.clientX, e.clientY)) refreshCanvasControls();
         }, { passive: false });
@@ -174,7 +183,7 @@ class DragCanvas {
         // Click on the canvas itself and not an object on it
         this.viewport.addEventListener("click", (e) => {
             if (!this.layer.onCanvasClick || this.movedWhileDown) return;
-            if (e.target.closest(".hex-tile, .node, .sub-window")) return;
+            if (e.target.closest(".hex-tile, .node, .sub-window, .scene-hit")) return;
             this.layer.onCanvasClick(getLayerState(this.layer.stateKey));
             markDirty(this.layer.stateKey);
         });
@@ -197,7 +206,7 @@ class DragCanvas {
     }
 
     // Two fingers down is a pinch rather than a drag, so whatever the first one was doing stops.
-    // movedWhileDown stays set so lifting off doesn't land as a click on whatever was underneath.
+    // movedWhileDown stays set so lifting off doesn't land as a click on whatever was underneath
     _startPinch() {
         this.pressing = false;
         this.isDragging = false;
@@ -224,7 +233,7 @@ class DragCanvas {
         const direction = ratio > PINCH_STEP ? 1 : ratio < 1 / PINCH_STEP ? -1 : 0;
         if (!direction) return;
 
-        // Measured from here on, so a long pinch keeps stepping instead of stopping at one.
+        // Measured from here on, so a long pinch keeps stepping instead of stopping at one
         this.pinchSpan = span;
         const [a, b] = this._pinchPair();
         if (this.stepZoom(direction, (a.x + b.x) / 2, (a.y + b.y) / 2)) refreshCanvasControls();
@@ -246,7 +255,7 @@ class DragCanvas {
                 <div class="sub-window-body"></div>
             `;
 
-            // Makes it so clicking on a tab and dragging the background don't interfere with each other
+            // Makes it so clicking on a tab and dragging the background don't interfere with each othe
             el.addEventListener("pointerdown", (e) => e.stopPropagation());
 
             if (def.onClick) {
@@ -262,6 +271,15 @@ class DragCanvas {
         }
     }
 
+
+    // Whatever a layer draws for itself, panned and zoomed along with the nodes
+    _buildScene() {
+        if (!this.layer.scene) return;
+        this.sceneEl = document.createElement("div");
+        this.sceneEl.className = "drag-scene";
+        this.inner.appendChild(this.sceneEl);
+        this.layer.scene.build(this.sceneEl, getLayerState(this.layer.stateKey), this.layer, this);
+    }
 
     _buildNodes() {
         const nodes = this.layer.nodes;
@@ -289,7 +307,7 @@ class DragCanvas {
                 lines.push({ line, parentId });
             }
 
-            // Lines can be hidden based on other hidden nodes or not-unlocked nodes.
+            // Lines can be hidden based on other hidden nodes or not-unlocked nodes
             if (lines.length) this.connectorEls[nodeId] = lines;
         }
 
@@ -433,6 +451,11 @@ class DragCanvas {
         badgeEl.style.display = "";
         badgeEl.classList.toggle("full", !!badge.full);
 
+        // How much of the badge is still filled in, for a badge that runs out. Set before the
+        // early return below, since it changes on frames where the number doesn't.
+        badgeEl.style.setProperty("--badge-part",
+            badge.part == null ? 1 : Math.max(0, Math.min(1, badge.part)));
+
         if (badgeEl.dataset.shown === badge.text) return;
         const first = !badgeEl.dataset.shown;
         badgeEl.dataset.shown = badge.text;
@@ -470,6 +493,14 @@ class DragCanvas {
             const pos = layerState.subWindowPositions[subId] || def.defaultPosition;
             // Sub-window positions are a top-left corner, so this needs middle offset
             include(pos.x + 110, pos.y + 60, 110, 60);
+        }
+        const scene = this.layer.scene;
+        if (scene && scene.bounds) {
+            const box = scene.bounds(layerState);
+            if (box) {
+                include(box.minX, box.minY, 0, 0);
+                include(box.maxX, box.maxY, 0, 0);
+            }
         }
         const tiles = this.layer.tiles;
         if (tiles && !(tiles.hidden && tiles.hidden(layerState))) {
@@ -523,7 +554,74 @@ class DragCanvas {
         return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
     }
 
-    // Is the actual recentering.
+    // Since centering goes to the direct center of the whole window, it looks off depending
+    // on if stuff is covering the sides of the screen. So this makes it go based on
+    // how much room there really is for the canvas to be seen
+    _openCenter(width, height) {
+        const spot = { x: width / 2, y: height / 2 };
+        if (!this.hudEl) return spot;
+
+        const view = this.viewport.getBoundingClientRect();
+        for (const cover of this.hudEl.querySelectorAll("[data-canvas-cover]")) {
+            const box = cover.getBoundingClientRect();
+            if (!box.width || !box.height) continue; // Not on screen right now
+
+            if (box.width < width * 0.6) {
+                const left = Math.max(0, box.right - view.left);
+                const right = Math.max(0, view.right - box.left);
+                if (left < right) spot.x = (left + width) / 2;
+                else spot.x = (width - right) / 2;
+            }
+            if (box.height < height * 0.6) {
+                const top = Math.max(0, box.bottom - view.top);
+                const bottom = Math.max(0, view.bottom - box.top);
+                if (top < bottom) spot.y = (top + height) / 2;
+                else spot.y = (height - bottom) / 2;
+            }
+        }
+        return spot;
+    }
+
+    // Centers the view on something, with a smooth pan
+    centerOn(x, y, smooth = true) {
+        const { width, height } = this.viewport.getBoundingClientRect();
+        if (!width || !height) return;
+
+        this._stopPanTween();
+        this.hascenterd = true;
+        const open = this._openCenter(width, height);
+        const toX = open.x - x * this.zoom;
+        const toY = open.y - y * this.zoom;
+
+        if (!smooth) {
+            this.panX = toX;
+            this.panY = toY;
+            this._applyTransform();
+            return;
+        }
+
+        const fromX = this.panX;
+        const fromY = this.panY;
+        const started = performance.now();
+        const step = (now) => {
+            const part = Math.min(1, (now - started) / PAN_TWEEN_MS);
+            const eased = part < 0.5 ? 2 * part * part : 1 - Math.pow(-2 * part + 2, 2) / 2;
+            this.panX = fromX + (toX - fromX) * eased;
+            this.panY = fromY + (toY - fromY) * eased;
+            this._applyTransform();
+            this.panFrame = part < 1 ? requestAnimationFrame(step) : null;
+        };
+        this.panFrame = requestAnimationFrame(step);
+    }
+
+    // Any touch on the canvas takes the view back off the tween
+    _stopPanTween() {
+        if (!this.panFrame) return;
+        cancelAnimationFrame(this.panFrame);
+        this.panFrame = null;
+    }
+
+    // Is the actual recentering
     recenter() {
         const { width, height } = this.viewport.getBoundingClientRect();
         if (!width || !height) return;
@@ -558,7 +656,7 @@ class DragCanvas {
         const atX = clientX === undefined ? rect.width / 2 : clientX - rect.left;
         const atY = clientY === undefined ? rect.height / 2 : clientY - rect.top;
 
-        // The content coordinate under that point, worked out before the zoom changes.
+        // The content coordinate under that point, worked out before the zoom changes
         const heldX = (atX - this.panX) / this.zoom;
         const heldY = (atY - this.panY) / this.zoom;
 
@@ -591,7 +689,6 @@ class DragCanvas {
 
 
     // Hex tiles
-    // This renders them (surprise!)
     _renderTiles(layerState) {
         const def = this.layer.tiles;
         if (!def) return;
@@ -601,7 +698,7 @@ class DragCanvas {
         const unlocked = layerState.tiles || {};
 
         for (const tile of tiles) {
-            // Built on demand, so the canvas doesn't need to be rebuilt.
+            // Built on demand, so the canvas doesn't need to be rebuilt
             const el = this.tileEls[tile.id] || this._buildTile(tile, def);
 
             const display = hidden ? "none" : "";
@@ -632,7 +729,7 @@ class DragCanvas {
             setText(el.querySelector(".hex-label"), isUnlocked && def.label ? def.label(layerState, tile) : "");
             this._renderTileTooltip(el, layerState, tile, cost, reachable && !isUnlocked, def);
 
-            // Whatever the content draws on the tile.
+            // Whatever the content draws on the tile
             if (def.content) {
                 const html = def.content(layerState, tile) || "";
                 if (el.__content !== html) {
@@ -752,11 +849,14 @@ class DragCanvas {
         this._renderNodes(layerState);
         this._renderTiles(layerState);
         this._renderOverlay(layerState);
-        if (this.layer.hud && this.layer.hud.update) this.layer.hud.update(this.hudEl, layerState, this.layer);
+        if (this.sceneEl && this.layer.scene.update) {
+            this.layer.scene.update(this.sceneEl, layerState, this.layer, this);
+        }
+        if (this.layer.hud && this.layer.hud.update) this.layer.hud.update(this.hudEl, layerState, this.layer, this);
     }
 }
 
-// A padlock, for a tile that hasn't been claimed.
+// A padlock, for a tile that hasn't been claimed
 const LOCK_ICON = `
     <svg class="hex-lock" viewBox="0 0 16 16" aria-hidden="true">
         <path d="M5 7.4V5a3 3 0 0 1 6 0v2.4"/>

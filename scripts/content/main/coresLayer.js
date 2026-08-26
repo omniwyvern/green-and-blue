@@ -11,18 +11,31 @@ import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
 import { claimedTiles, matureTiles } from "./worldMap.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
-import { biomassMultiplier, BIOMASS_RESOURCE } from "./pondSublayer.js";
+import { BIOMASS_RESOURCE } from "./pondSublayer.js";
 import { openBiome } from "./ecosystemSublayer.js";
-import { greenMultiplier, blueMultiplier, growthGain, earnGrowth, CORE_GROWTH_PER_GROWTH } from "./grassSublayer.js";
+import { growthGain, earnGrowth, CORE_GROWTH_PER_GROWTH } from "./grassSublayer.js";
 import { getResource, onSpend, registerCostGroup } from "../../core/resources.js";
 import { nodeBuyable } from "../../core/nodes.js";
+import { boostResource } from "../../core/boosts.js";
 
 // How much of the map has to be grown over before the world is ready to start again.
 const EVOLUTION_TILES = 7;
 
 // Green Core
-// Growth stages gives (late start by 1) fibonacci sequence: 1/s, 2/s, 3, 5, 8, 13, 21, 34, 55, 89, 144...
-const GREEN_START = D(1);
+// What a growth stage is worth on its own, indexed from stage 1.
+const STAGE_PRODUCTION = [1, 2, 4, 8, 16, 64, 250, 500, 1000, 2500, 5000, 10000].map(D);
+
+// The default cap is 7 I think. Cards can push past it, so past the end it
+// keeps climbing at the rate the last step sets rather than flattening out.
+const LAST_STAGE_STEP = STAGE_PRODUCTION[11].div(STAGE_PRODUCTION[10]);
+
+function stageBase(stage) {
+    const index = Math.max(1, Math.round(Number(stage))) - 1;
+    const last = STAGE_PRODUCTION.length - 1;
+    return index <= last ? STAGE_PRODUCTION[index]
+        : STAGE_PRODUCTION[last].mul(LAST_STAGE_STEP.pow(index - last));
+}
+
 const GROWTH_BASE = D(50);   // growth needed to grow from stage 0
 const GROWTH_SCALE = D(3); // multiplier for how much the next stage costs
 const STAGE_CAP = D(4);   // the initial growth stage cap
@@ -89,14 +102,14 @@ export function sacrificeStage() {
     // it to buy the stage straight back on the same frame, so the sacrifice costs nothing and
     // can be repeated at the same price until the bank runs dry.
     s.growth = D(0);
-    [s.greenProdPrev, s.greenProdCurr] = [s.greenProdCurr.sub(s.greenProdPrev), s.greenProdPrev];
     return true;
 }
 
 
-// Biomass multiplier applies to essence wherever it's produced, and card mult is summed up before being counted.
-const greenProduction = (s) => s.greenProdCurr.mul(s.baseProductionMult)
-    .mul(s.stageProdMult.mul(s.growthStage).add(1)).mul(biomassMultiplier()).mul(greenMultiplier())
+// boostResource() is for everything related to Green Essence: biomass, grass, the ocean.
+// The card bonuses here are the core's own, so they stay the core's own and are summed first.
+const greenProduction = (s) => stageBase(s.growthStage).mul(s.baseProductionMult)
+    .mul(s.stageProdMult.mul(s.growthStage).add(1)).mul(boostResource("greenEssence"))
     .mul(1 + cardBonus("greenProduction") + overgrowthBonus(s) + feedbackBonus(s) + valveBonus(s));
 
     
@@ -108,7 +121,7 @@ function clickValue(s) {
         ? value.mul(D(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))
             .add(D(s.consecFullActivations).mul(s.consecBonus))
         : value;
-    return full.mul(blueMultiplier());
+    return full.mul(boostResource("blueEssence"));
 }
 
 // Cards can increase charge cap so everything just uses this to see if charge is full.
@@ -145,8 +158,6 @@ registerLayer("cores", {
         growthStageCap: STAGE_CAP,
         
         baseProductionMult: D(1),
-        greenProdPrev: GREEN_START,   // For the green production math.
-        greenProdCurr: GREEN_START,
         stageProdMult: D(0),
 
         charge: 0,
@@ -180,7 +191,6 @@ registerLayer("cores", {
         while (s.growth.gte(growthNeeded(s))) {
             s.growth = s.growth.sub(growthNeeded(s));
             s.growthStage++;
-            [s.greenProdPrev, s.greenProdCurr] = [s.greenProdCurr, s.greenProdCurr.add(s.greenProdPrev)];
         }
 
         // Blue charge refills, and is modified by ripple charge.
@@ -333,8 +343,6 @@ registerLayer("cores", {
         },
 
 
-
-        // ---------------- Blue: branches right and down ----------------
         blueCore: {
             kind: "core",
             title: "Blue Core",
@@ -348,7 +356,10 @@ registerLayer("cores", {
             badge: (s) => {
                 if (!(s.consecSpeedBonus > 0 || Number(s.consecBonus) > 0)) return null;
                 const combo = Number(s.consecFullActivations) || 0;
-                return combo < 1 ? null : { text: `${combo}`, full: combo >= CONSEC_MAXED_AT };
+                if (combo < 1) return null;
+                
+                const part = isFullCharge(s) ? 1 - (Number(s.consecCounter) || 0) / window : 1;
+                return { text: `${combo}`, full: combo >= CONSEC_MAXED_AT, part };
             },
             tooltip: (s) => `+${formatNumber(D(blueBase(s)).mul(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))} BE at 100% charge\n\n`
                 + `+${formatNumber(s.chargeRate * 100)}% charge/s`,
@@ -620,7 +631,7 @@ registerLayer("cores", {
             color: "#22b47c",
             position: {x: 300, y: 450},
             description: "Grass begins to sprout on the Green Core, each growing the other.",
-            cost: () => ({ greenEssence: D()}),
+            cost: () => ({ greenEssence: D(1e9)}),
             onPurchase() {  },
         },
         smthn: {
@@ -683,7 +694,7 @@ registerLayer("cores", {
             aura: "green",
             position: { x: -500, y: 1100 },
             description: "give a good description here\n",
-            cost: () => ({ greenEssence: D(1e8) }),
+            cost: () => ({ greenEssence: D(1e20) }),
             onPurchase() {
                 getLayerState("forest").unlocked = true;
                 openBiome("biomeForest");
@@ -698,7 +709,7 @@ registerLayer("cores", {
             aura: "blue",
             position: { x: -300, y: 1100 },
             description: "give a good description here\n",
-            cost: () => ({ blueEssence: D(1.5e8) }),
+            cost: () => ({ blueEssence: D(1e10) }),
             onPurchase() {
                 getLayerState("aquatic").unlocked = true;
                 // Pond gets absorbed. This biome is the only one that starts with two (pond, ocean) on unlock
@@ -714,7 +725,7 @@ registerLayer("cores", {
             aura: "green",
             position: { x: -100, y: 1100 },
             description: "give a good description here\n",
-            cost: () => ({ greenEssence: D(2e8), blueEssence: D(2e8) }),
+            cost: () => ({ greenEssence: D(1e20), blueEssence: D(1e20) }),
             onPurchase() {
                 getLayerState("wetlands").unlocked = true;
                 openBiome("biomeWetlands");
@@ -729,7 +740,7 @@ registerLayer("cores", {
             aura: "blue",
             position: { x: 100, y: 1100 },
             description: "give a good description here\n",
-            cost: () => ({ blueEssence: D(3e8) }),
+            cost: () => ({ blueEssence: D(1e20) }),
             onPurchase() {
                 getLayerState("ice").unlocked = true;
                 openBiome("biomeIce");
@@ -744,7 +755,7 @@ registerLayer("cores", {
             aura: "blue",
             position: { x: 300, y: 1100 },
             description: "give a good description here \n",
-            cost: () => ({ greenEssence: D(4e8), blueEssence: D(4e8) }),
+            cost: () => ({ greenEssence: D(1e20), blueEssence: D(1e20) }),
             onPurchase() {
                 getLayerState("reef").unlocked = true;
                 openBiome("biomeReef");
@@ -759,7 +770,7 @@ registerLayer("cores", {
             aura: "green",
             position: { x: 500, y: 1100 },
             description: "give a good description here \n",
-            cost: () => ({ greenEssence: D(6e8) }),
+            cost: () => ({ greenEssence: D(1e20) }),
             onPurchase() {
                 getLayerState("fungi").unlocked = true;
                 openBiome("biomeFungi");

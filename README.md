@@ -66,6 +66,8 @@ css/                             one file per subject. Tons of files, but makes 
     drag-canvas.css              pannable viewport, dot grid, sub-windows
     nodes.css                    draggable canvas nodes, their states and tooltips
     node-effects.css             auras, and Life's split face
+    ocean.css                    the ocean map: regions, currents, schools, and its side window
+                                 (after the drag canvas files, since it restyles that viewport)
     overlays.css                 corner buttons, settings and guide windows
     
 scripts/
@@ -73,6 +75,8 @@ scripts/
     state.js                     save data (loading, saving, local storage), lazy per-layer init
     registry.js                  the stuff to register layers and sublayers
     resources.js                 base functions and formatting for resources. Can you afford it, spend if, the amount, etc.
+    boosts.js                    every multiplier that follows a resource wherever it's made.
+                                 Owners call registerBoost(), producers call boostResource(id)
     nodes.js                     draggable canvas rules: what are the nodes' parents, requirements, what's visible, what's buyable
     guides.js                    allows registering guides, the explanation popup for layers/sublayers
     loop.js                      primary game loop. simulation tick (always) + render tick (only visible and if dirty)
@@ -80,7 +84,8 @@ scripts/
   render/
     canvasRouter.js              static/drag canvas base (or a layer's active sub-layer), tracks what needs to be redrawn
     staticCanvas.js              upgrade-grid renderer (string-keyed instead of number id's for readability)
-    dragCanvas.js                reusable pannable canvas class + draggable canvas nodes
+    dragCanvas.js                reusable pannable canvas class + draggable canvas nodes,
+                                 plus the scene hook a layer draws its own moving content with
     sidebar.js                   category bar, layer tabs, and sub-layer flyout
     settings.js                  the settings window. Themes, save, load, delete, save files
     guide.js                     the guide window for layers/sublayers + the information button that re-opens it
@@ -97,6 +102,10 @@ scripts/
       precipitationSublayer.js    the cloud: charging it against its stability, and what letting it go is worth.
                                 starts as layer, absorbed into environment later
       pondSublayer.js             the pond, with upgrades / algae / fish as drawers over it. starts as layer, abosrbed into environment later
+      aquaticLayer.js             holds pond and ocean, and owns the ocean's save data
+      oceanSublayer.js            the ocean: regions, the currents between them, the schools riding
+                                them, the once-a-minute ocean tick, and the side window
+      oceanArt.js                 the drawing for the ocean - region outlines, each fish, boost icons
       environmentLayer.js         the ground itself, and the layer the three above move into
       terrainArt.js               the drawing for each kind of ground, shared by the map and the recipes
       evolutionLayer.js           the (first?) prestige. Reset what grew for evo points, keep (most?) non-biological upgrades
@@ -128,6 +137,25 @@ Static Canvas:      canvases that stay the same, with defined constant element p
 Sub-window:         
 Node:               clickable circles on draggable canvases, they have parents
 Tile:               clickable tiles, they can check adjacency and such
+Scene:              a layer's own drawing. On a static canvas it sits still, on a drag canvas it
+                    pans and zooms with everything else (the ocean's map is one)
+
+Region:             an ocean node. Fixed position, one current out, holds one school at a time.
+                    Which ones exist is read off the world map's ocean tiles every frame, so a
+                    region can close under a school - see oceanIsDry() and schoolState()
+Current:            the water leaving a region. There is always exactly one, and where it is
+                    allowed to point is written out per region, in REGIONS[id].flows. It is
+                    picked by "Redirect the current" laying those out on the map in gold
+School:             one species' fish. Rides the currents, produces on each ocean tick, and
+                    carries up to MAX_BUFFS boosts at once
+Aspect:             one of the four things a species is made of, and one skill card on its page.
+                    Kinds are "production", "boost", and "trait"; a trait needs its own headline().
+                    Levels are paid for in Evolution Points. A "boost" aspect names a resource and
+                    is registered globally, so it lifts that resource everywhere and not just here
+Ocean tick:         the once-a-minute activation of the whole ocean layer
+Global boost:       a multiplier on a resource wherever that resource is made. Registered once with
+                    registerBoost(name, fn) and read back with boostResource(id) - see core/boosts.js.
+                    A bonus belonging to one mechanic rather than to a resource does NOT go here
 
 Drawer:             openable tab on a static canvas
 Guide:              tutorial information given on opening a layer for the first time OR hitting the info button
@@ -135,11 +163,15 @@ Guide:              tutorial information given on opening a layer for the first 
 
 
 ## Known issues (bugs or unimplemented things)
-
+- Deep ocean tiles don't do anything right now, although they do count as oceans for the ocean layer.
+- Nothing calls drawInSchool() yet, so only cod are available.
+- No cards use the oceanOutput / oceanTickSpeed bonuses yet, but it's ready for it.
+- Resource names inside text should be colored by colorResources() but it's only implemented on ocean.
 - No visual indicator for the Tidal Cycle card.
-- The pond's capacity is fixed at 3 and there's no upgrade for it yet. Needs balancing.
+- The pond's capacity comes from the pondDeep node, cards, and pond tiles on the world map.
+  There's still no upgrade for it. Needs balancing.
 - A tooltip on a node near the canvas edge is clipped by the viewport.
-- No offline progress calculation on load
+- No offline progress calculation on load.
 - Achievements/milestones/challenges from the Modding-Tree structure aren't
   added yet. Reasonable to add as their own render/ file plus a field on layer
   definitions, following the same pattern as upgrades.

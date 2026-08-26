@@ -96,6 +96,37 @@ registerGuide("pond-life", {
     `,
 });
 
+registerGuide("ocean-intro", {
+    layer: "aquatic",
+    subLayer: "ocean",
+    title: "The Ocean",
+    body: `
+        <p>The open water spreads across the world. Regions of it are joined by currents, with every region having
+        one current flowing to another region, indicated with an arrow.</p>
+        <p>Once a minute, the whole ocean activates. On that tick, every school of fish produces resources from
+        where it stands, then rides its current to the next region and picks up whatever boost
+        was drifting there. A boost sits on a region until something swims through it, and lasts
+        the school a couple of ticks after that.</p>
+        <p>Only one school can be in a region at one time. If two would arrive in the same one, a warning sits
+        on it beforehand and only one of them makes the trip.</p>
+        <p>Clicking a region alternates between its own page and the page of the school standing
+        on it, so the same spot on the map gets you back and forth between the two. Redirect the
+        current lays every place that region is allowed to send its water out on the map in gold,
+        and clicking one of those paths sets it. Clicking the open water clears the selection and
+        shows what the next tick is worth altogether.</p>
+        <p>Regions are improved with Blue Essence. A school's own skills are grown with Evolution
+        Points instead, the same points the cards are drawn with, so putting levels into a fish
+        means not drawing. Where a skill boosts a resource it boosts every source of it you have,
+        not only the water.</p>
+        <p>Schools are not bought from in here. They arrive from elsewhere in the world, and swim
+        into whatever open region will take them.</p>
+        <p>This map is only here while the world has ocean on it. The first ocean opens the five
+        regions it starts with, and every ocean after that opens one more, as well as making
+        everything the schools produce worth a little more. Ponds are the other way to spend the
+        same water, and feed the pond's own capacity instead.</p>
+    `,
+});
+
 registerGuide("grass-intro", {
     layer: "grass",
     title: "Grass",
@@ -131,6 +162,7 @@ registerGuide("evolution-intro", {
         <p> and many are out of date. Some still work though.</p>
         <p> Evolution resets living things for evolution points, which you can spend on drawing cards. Honestly,
         this is mainly useful for resetting grass so that you can let it spread for growth again. </p>
+        <p> Also for some of a later thing's unlocks. But don't worry too much about that til' this is reworked. </p>
     `,
 });
 
@@ -140,7 +172,7 @@ registerGuide("evolution-cards", {
     title: "Cards",
     order: 1,
     body: `
-        <p> These cards modify various things. But lots are outdated and I have too many but I made </p>
-        <p> a ton of art for them so they're gonna stay here for now. </p>
+        <p> These cards modify various things. But I have too many and their cost scales bad </p>
+        <p> teehee </p>
     `,
 });

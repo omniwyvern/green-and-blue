@@ -2,8 +2,6 @@
 //
 // Self-contained, so to remove it later just delete this file, its import line
 // in main.js, and the #dev-button / #dev-overlay elements in index.html
-//
-// made it pretty since it's basically just the settings menu
 
 import { state, getLayerState, saveState } from "../core/state.js";
 import { layers, getVisibleSubLayers } from "../core/registry.js";
@@ -15,7 +13,7 @@ import { D } from "../utils/decimal.js";
 const GRANT = D("1.00e20");
 
 // The nodes that stand for a layer, or for a step on the way to one. Everything else in a tree
-// is an ordinary upgrade, and the button leaves those to be bought the normal way.
+// is an ordinary upgrade, and the button leaves those to be bought the normal way
 const LAYER_NODE_KINDS = new Set(["layer", "sublayer", "major"]);
 
 const overlay = document.getElementById("dev-overlay");
@@ -84,13 +82,12 @@ function makeButton(label, onClick) {
     return btn;
 }
 
-// Buying the nodes rather than just flipping the layers open, so everything a node does on
-// purchase happens too - the map only widens for the Environment once Land is actually bought.
+// Buying the nodes themselves instead of setting the layers to be unlocked, so onPurchase conditions trigger
 function unlockAllLayers() {
     let bought = 0;
     for (const layerId in layers) bought += buyLayerNodes(layers[layerId]);
 
-    // Anything with no node behind it, so the button still opens every layer either way.
+    // Anything with no node behind it, so the button still opens every layer either way
     let unlocked = 0;
     for (const layerId in layers) {
         const layerState = getLayerState(layerId);
@@ -114,7 +111,7 @@ function buyLayerNodes(layer) {
     }
 
     // Parents are in the list ahead of their children already. Makes some things work better.
-    // Like if you buy environment at the same time as land, the world map size doesn't increase.
+    // Like if you buy environment at the same time as land, the world map size doesn't increase
     let bought = 0;
     for (let sweeping = true; sweeping; ) {
         sweeping = false;
@@ -135,7 +132,7 @@ function buyLayerNodes(layer) {
     return bought;
 }
 
-// Depth first through the parents, so a node lands in the list behind everything in the tree before it.
+// Depth first through the parents, so a node lands in the list behind everything in the tree before it
 function addWithParents(layer, nodeId, ordered, walking) {
     const def = layer.nodes[nodeId];
     if (!def || walking.has(nodeId) || ordered.includes(nodeId)) return;
@@ -153,7 +150,7 @@ function buyNode(layer, nodeId, layerState) {
     if (def.onPurchase) def.onPurchase(layerState);
 }
 
-// Whichever layer, or sub-layer of one, is on screen right now.
+// Whichever layer, or sub-layer of one, is on screen right now
 function activeView() {
     const layer = layers[state.activeLayer];
     if (!layer) return null;
@@ -165,7 +162,7 @@ function activeView() {
         || null;
 }
 
-// The resources a view holds itself, rather than the ones it only borrows to display.
+// The resources a view holds itself, rather than the ones it only borrows to display
 function grantableResources(view) {
     const ids = Object.keys(view.resources || {});
     const owned = ids.filter(id => resourceHolderId(view, id) === view.stateKey);
@@ -186,7 +183,7 @@ function grantHere() {
 }
 
 
-// Empties every pool.
+// Empties every pool
 function zeroResources() {
     let emptied = 0;
     for (const layerId in state.layers) {

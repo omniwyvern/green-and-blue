@@ -40,7 +40,7 @@ export function availableGuides(layerId) {
         .filter(guide => !guide.when || guide.when(layerState, layerId));
 }
 
-// A list of guides, since multiple can come on one frame.
+// A list of guides, since multiple can come on one frame
 export function pendingGuides(layerId) {
     return availableGuides(layerId).filter(guide => !hasSeen("guides", guide.id));
 }

@@ -28,7 +28,7 @@ function getLayerContainer(layerId) {
     const header = document.createElement("div");
     header.className = "layer-header";
 
-    // One display per resource the layer declares, the render only rewrites it.
+    // One display per resource the layer declares, the render only rewrites it
     const resourceEls = {};
     const rateEls = {};
     const chipEls = {};
@@ -59,7 +59,7 @@ function getLayerContainer(layerId) {
 
     // This was used for a thing in the pond, but it's not really used anymore.
     // Keeping it for if I want something like it later.
-    // This just is for a display at the top that isn't numerical.
+    // This just is for a display at the top that isn't numerical
     const indicatorEls = {};
     for (const indicatorId in layer ? layer.indicators : {}) {
         const el = document.createElement("span");
@@ -96,19 +96,19 @@ function getSubLayerContainer(layerId, subLayer) {
     return container;
 }
 
-// The header of whichever layer is on screen.
+// The header of whichever layer is on screen
 export function activeHeaderElement() {
     const entry = layerContainers.get(state.activeLayer);
     return entry ? entry.header : null;
 }
 
 // Called whenever a layer's data changes (aka every sim tick).
-// Doesn't touch the DOM itself, just says that a redraw is owed.
+// Doesn't touch the DOM itself, just says that a redraw is owed
 export function markDirty(layerId) {
     dirtyLayers.add(layerId);
 }
 
-// For when layers are absorbed into another as a sublayer. (e.g. the pond layer for aquatic)
+// For when layers are absorbed into another as a sublayer (e.g. the pond layer for aquatic)
 export function absorbedInto(layer) {
     if (!layer || !layer.absorbedBy) return null;
     const host = layers[layer.absorbedBy];
@@ -116,7 +116,7 @@ export function absorbedInto(layer) {
     return host;
 }
 
-// Throws away a layer's canvas and everything cached for it.
+// Throws away a layer's canvas and everything cached for it
 export function releaseLayerCanvas(layerId) {
     const entry = layerContainers.get(layerId);
     if (!entry) return;
@@ -137,7 +137,7 @@ export function releaseLayerCanvas(layerId) {
     dirtyLayers.delete(layerId);
 }
 
-// Called when the player clicks a different layer tab.
+// Called when the player clicks a different layer tab
 export function switchToLayer(layerId) {
     const layer = layers[layerId];
     if (!layer) return;
@@ -159,7 +159,7 @@ export function switchToLayer(layerId) {
     renderActiveLayer(true); 
 }
 
-// Called every animation frame, skips all the DOM work unless the active layer is marked dirty.
+// Called every animation frame, skips all the DOM work unless the active layer is marked dirty
 export function renderActiveLayer(force = false) {
     const layerId = state.activeLayer;
     if (!force && !dirtyLayers.has(layerId)) return;
@@ -171,7 +171,7 @@ export function renderActiveLayer(force = false) {
     const layerState = getLayerState(layer.stateKey);
     const entry = getLayerContainer(layerId);
 
-    // One shared set of resources per layer, not per sub-layer.
+    // One shared set of resources per layer, not per sub-layer
     for (const resourceId in entry.resourceEls) {
         const def = layer.resources[resourceId];
         const chip = entry.chipEls[resourceId];
@@ -190,7 +190,7 @@ export function renderActiveLayer(force = false) {
         if (!rate.abs().lt(0.0005)) {
             rateText = `${rate.gt(0) ? "+" : "-"}${formatNumber(rate.abs())}/s`;
         } else {
-            // When the rate is really small compared to the pool, it ignores it and says this.
+            // When the rate is really small compared to the pool, it ignores it and says this
             rateText = amount.layer >= 1 ? "Too little production to count." : "0/s";
         }
         if (def.note) rateText += `\n${def.note(layerState)}`;
@@ -213,7 +213,7 @@ export function renderActiveLayer(force = false) {
     refreshCanvasControls();
 }
 
-// Canvas controls. 
+// Canvas controls
 const recenterButton = document.getElementById("recenter-button");
 const zoomControls = document.getElementById("zoom-controls");
 const zoomInButton = document.getElementById("zoom-in-button");
@@ -231,7 +231,7 @@ function activeDragCanvas() {
     return layer.canvasType === "drag" ? getDragCanvas(layer, getLayerContainer(layer.id).body) : null;
 }
 
-// Called at the end of every render and whenever the scroll wheel changes zoom.
+// Called at the end of every render and whenever the scroll wheel changes zoom
 export function refreshCanvasControls() {
     const canvas = activeDragCanvas();
     if (recenterButton) recenterButton.hidden = canvas === null;
@@ -274,7 +274,7 @@ function renderActiveSubLayer(layer, layerState) {
     }
 
     const activeSubLayer = layer.subLayers[activeKey];
-    if (!activeSubLayer) return; // Shouldn't happen, but don't crash the render loop over a bad save.
+    if (!activeSubLayer) return; // Shouldn't happen, but don't crash the render loop over a bad save
     const target = getSubLayerContainer(layer.id, activeSubLayer);
 
     if (activeSubLayer.canvasType === "static") {
@@ -284,7 +284,7 @@ function renderActiveSubLayer(layer, layerState) {
     }
 }
 
-// Called when the player clicks a sub-layer button in the sidebar flyout.
+// Called when the player clicks a sub-layer button in the sidebar flyout
 export function switchToSubLayer(layerId, subLayerKey) {
     const layer = layers[layerId];
     if (!layer || !layer.subLayers || !layer.subLayers[subLayerKey]) return;

@@ -67,6 +67,11 @@
     --corner-edge: calc(0.875 * var(--u));
     --corner-gap: calc(0.375 * var(--u));
     --corner-step: calc(var(--corner-edge) + var(--corner-size) + var(--corner-gap));
+
+    /* The zoom and recenter buttons in the other corner. Smaller than the round ones, since
+       they sit over a canvas and everything else down there has to fit around them. */
+    --canvas-corner-size: calc(2.0625 * var(--u));
+    --canvas-corner-step: calc(var(--corner-edge) + var(--canvas-corner-size) + var(--corner-gap));
 }
 
 * { box-sizing: border-box; }

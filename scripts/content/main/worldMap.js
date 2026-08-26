@@ -58,7 +58,7 @@ export const STAGE_NAMES = ["Seed", "Growing", "Mature"];
 
 const STAGE_SECONDS = [30, 20, 10]; // Time per stage, last one is waiting time for mature grass to spread
 const BLOCKED_WAIT_SECONDS = 10; // Mature grass waits on appearance of an unlocked tile so it doesn't spread instantly
-const NEIGHBOUR_BONUS = 0.07;   // 7% faster per adjacent grassy tile (5% felt too little, 10% felt too much)
+const NEIGHBOUR_BONUS = 0.08;   // 8% faster per adjacent grassy tile (5% felt too little, 10% felt too much)
 export const GROWTH_PER_LEVEL = 0.10;   // Per level of richer soil
 
 export const LAND_COST = () => ({ greenEssence: D(2e6), blueEssence: D(2e6) });
@@ -72,10 +72,17 @@ export const ADJACENT_SHARE = 0.1; // Bonus to adjacent green-related tiles
 
 // How much the next tile cost. It's stored here because rain is priced off of it.
 const TILE_BASE_COST = D(2e5);
-const TILE_COST_SCALE = D(3);   // Cost scaling based on number of owned tiles.
+const TILE_COST_SCALE = D(2.5);   // Cost scaling based on number of owned tiles.
 export const tileCost = (s) => ({
     greenEssence: TILE_BASE_COST.mul(TILE_COST_SCALE.pow(claimedTiles(s).length - 1)),
 });
+
+// What the tile before the most recent one cost - two steps back down the curve from what the
+// next tile is asking. Razing is priced off that, so it trails the world instead of keeping pace.
+export const previousTilePrice = (s) =>
+    TILE_BASE_COST.mul(TILE_COST_SCALE.pow(Math.max(0, claimedTiles(s).length - 3)));
+
+export const RAZE_SECONDS = 120;
 
 
 export const PRECIPITATION = {
@@ -199,9 +206,19 @@ export const TERRAIN = {
     "mycelial-network": { name: "Mycelial Network", stored: true, tier: 3 },
 };
 
-// !!!! THIS WILL CHANGE !!!!
-// !!!! these are temporary until I nail down the mechanics for them and give proper bonuses !!!!
-// What a tile of each kind is worth per second.
+// What a tile of each kind is worth per second on its own. This is only half of what water
+// does - the rest is in the layer it belongs to, and is what makes claiming one kind rather
+// than another a decision:
+//
+//   pond    raises the pond's capacity, which is what algae and fish grow into. Biomass goes
+//           roughly as the cube of capacity, so ponds are the long game
+//   ocean   the ocean sublayer only exists at all while one of these is on the board. The
+//           first opens its starting web of five regions and each one after that opens one
+//           more, and they lift everything the schools produce besides. Deep ocean counts
+//           here too, so deepening a tile never costs a region
+//
+// They pull against each other, since three ponds are eaten to make one ocean. See
+// pondTiles() and oceanTiles() below, and the layers that read them.
 export const TERRAIN_OUTPUT = {
     water:  { blueEssence: 20 },
     pond:   { blueEssence: 60 },
@@ -222,9 +239,17 @@ export const TERRAIN_OUTPUT = {
 //
 // `leaves` is the general case and wins wherever it's set. See fodderResult().
 
+// Every family of terrain waits on the core that opens it - no oceans before Ocean is grown, no
+// woodland before Forest. Spread into a recipe, it gives it both halves of that gate.
+const needsCore = (node, name) => ({
+    prereq: () => coreNodeBought(node),
+    hint: () => `${name} has to be unlocked first...`,
+});
+
 export const TRANSFORMS = [
     {   // tier 1 aquatic
         id: "pond",
+        ...needsCore("pond", "Pond"),
         inputs: ["water", "water"],
         output: "pond",
         consumes: true,
@@ -232,6 +257,7 @@ export const TRANSFORMS = [
     },
     {   // tier 2 aquatic
         id: "ocean",
+        ...needsCore("ocean", "Ocean"),
         inputs: ["pond", "pond", "pond"],
         output: "ocean",
         consumes: false,
@@ -240,6 +266,7 @@ export const TRANSFORMS = [
 
     {   // special aquatic
         id: "deep-ocean", // THE COST SEEMS HIGH BUT PONDS TURN INTO 3 OCEANS. so it's just 2 transform's worth of oceans
+        ...needsCore("ocean", "Ocean"),
         inputs: ["ocean", "ocean", "ocean", "ocean", "ocean", "ocean"],
         output: "deep-ocean",
         leaves: "ocean",
@@ -249,6 +276,7 @@ export const TRANSFORMS = [
 
     {   // tier 1 reef
         id: "reef",
+        ...needsCore("reef", "Reef"),
         inputs: ["pond", "pond"],
         output: "reef",
         leaves: "water",
@@ -256,6 +284,7 @@ export const TRANSFORMS = [
     },
     {   // tier 2 reef
         id: "coral-reef",
+        ...needsCore("reef", "Reef"),
         inputs: ["reef", "reef"],
         output: "coral-reef",
         leaves: "water",
@@ -263,6 +292,7 @@ export const TRANSFORMS = [
     },
     {   // special reef
         id: "great-reef",
+        ...needsCore("reef", "Reef"),
         inputs: ["coral-reef", "coral-reef", "coral-reef"],
         output: "great-reef",
         consumes: false,
@@ -272,6 +302,7 @@ export const TRANSFORMS = [
 
     {   // tier 1 forest
         id: "forest",
+        ...needsCore("forest", "Forest"),
         inputs: ["grass", "grass", "grass"],
         output: "forest",
         consumes: true,
@@ -279,6 +310,7 @@ export const TRANSFORMS = [
     },
     {   // tier 2 forest
         id: "dense-forest",
+        ...needsCore("forest", "Forest"),
         inputs: ["forest", "forest", "forest"],
         output: "dense-forest",
         consumes: true,
@@ -286,6 +318,7 @@ export const TRANSFORMS = [
     },
     {   // special forest
         id: "ancient-forest",
+        ...needsCore("forest", "Forest"),
         inputs: ["dense-forest", "dense-forest", "forest", "forest"],
         output: "ancient-forest",
         leaves: "forest",
@@ -295,6 +328,7 @@ export const TRANSFORMS = [
 
     {   // tier 1 ice
         id: "ice-field",
+        ...needsCore("iceField", "Ice Field"),
         inputs: ["snow", "snow"],
         output: "ice-field",
         consumes: true,
@@ -302,6 +336,7 @@ export const TRANSFORMS = [
     },
     {   // tier 2 ice
         id: "glacier",
+        ...needsCore("iceField", "Ice Field"),
         inputs: ["ice-field", "ice-field"],
         output: "glacier",
         consumes: true,
@@ -309,6 +344,7 @@ export const TRANSFORMS = [
     },
     {   // special ice
         id: "ice-cap",
+        ...needsCore("iceField", "Ice Field"),
         inputs: ["glacier", "glacier", "ice-field", "ice-field"],
         output: "ice-cap",
         leaves: "ice-field",
@@ -318,6 +354,7 @@ export const TRANSFORMS = [
 
     {   // tier 1 wetlands
         id: "marsh",
+        ...needsCore("marsh", "Marsh"),
         inputs: ["water", "grass"],
         output: "marsh",
         consumes: true,
@@ -325,6 +362,7 @@ export const TRANSFORMS = [
     },
     {   // tier 2 wetlands
         id: "swamp",
+        ...needsCore("marsh", "Marsh"),
         inputs: ["marsh", "marsh", "pond"],
         output: "swamp",
         consumes: true,
@@ -332,6 +370,7 @@ export const TRANSFORMS = [
     },
     {   // special wetlands
         id: "mangrove",
+        ...needsCore("marsh", "Marsh"),
         inputs: ["swamp", "swamp", "marsh", "forest"],
         output: "mangrove",
         leaves: "marsh",
@@ -341,6 +380,7 @@ export const TRANSFORMS = [
 
     {   // tier 1 fungus
         id: "mushroom-grove",
+        ...needsCore("mushroomGrove", "Mushroom Grove"),
         inputs: ["grass", "grass", "water"],
         output: "mushroom-grove",
         consumes: true,
@@ -348,6 +388,7 @@ export const TRANSFORMS = [
     },
     {   // tier 2 fungus
         id: "fungal-forest",
+        ...needsCore("mushroomGrove", "Mushroom Grove"),
         inputs: ["mushroom-grove", "mushroom-grove", "forest"],
         output: "fungal-forest",
         consumes: true,
@@ -355,6 +396,7 @@ export const TRANSFORMS = [
     },
     {   // special fungus
         id: "mycelial-network",
+        ...needsCore("mushroomGrove", "Mushroom Grove"),
         inputs: ["fungal-forest", "fungal-forest", "mushroom-grove", "mushroom-grove"],
         output: "mycelial-network",
         consumes: true,
@@ -397,6 +439,18 @@ export const buildupTotalOn = (s, id) =>
     Math.min(1, PRECIPITATION_KINDS.reduce((total, kind) => total + buildupOn(s, id, kind), 0));
 
 export const tileKind = (s, id) => terrainOn(s, id) || (grassOn(s, id) ? "grass" : "bare");
+
+// How much of each kind of water is claimed. The aquatic layers read these every tick, so they
+// walk the claimed tiles rather than building the whole tileCounts() table.
+//
+// A deep ocean is still ocean, so it counts as one. Otherwise deepening a tile would shut an
+// ocean region for you, which is a strange thing for an upgrade to do.
+const POND_KINDS = new Set(["pond"]);
+const OCEAN_KINDS = new Set(["ocean", "deep-ocean"]);
+const countOf = (kinds, s) => claimedTiles(s).reduce((n, id) => n + (kinds.has(tileKind(s, id)) ? 1 : 0), 0);
+
+export const pondTiles = (s = worldState()) => countOf(POND_KINDS, s);
+export const oceanTiles = (s = worldState()) => countOf(OCEAN_KINDS, s);
 export const canHoldGrass = (s, id) => isClaimed(s, id) && !terrainOn(s, id);
 export const growableTiles = (s) => claimedTiles(s).filter(id => canHoldGrass(s, id));
 
@@ -501,6 +555,7 @@ export const weatherBoostOn = (s, id) => Math.max(
     PRODUCTION_BOOST * buildupTotalOn(s, id));
 
 // For the monsoon card
+// !!!! CHANGE THE LOGIC FOR THIS, IT'S WEIRD RIGHT NOW !!!!
 function followTheLand(s) {
     const here = grassOn(s, s.weatherTile);
     if (here && here.stage < MATURE) return; 
@@ -639,9 +694,51 @@ export function knownKinds(s = worldState()) {
 // half set up survives closing the game
 export const transformFodder = (s) => (s.transformFodder || []).filter(id => isClaimed(s, id));
 
-// Only mature grass can be transformed.
+// Razing takes a tile back to bare ground over RAZE_SECONDS, with s.razing holding how long each
+// one has been at it. Elapsed rather than remaining, so a tile that's just started reads as 0.
+export const isRazing = (s, id) => (s.razing || {})[id] !== undefined;
+export const razeElapsed = (s, id) => (s.razing || {})[id] || 0;
+export const razeProgress = (s, id) => Math.min(1, razeElapsed(s, id) / RAZE_SECONDS);
+export const razeLeft = (s, id) => Math.max(0, RAZE_SECONDS - razeElapsed(s, id));
+
+// Bare ground has nothing left to take, and one already going doesn't start again.
+export const canRaze = (s, id) =>
+    isClaimed(s, id) && !isRazing(s, id) && tileKind(s, id) !== "bare";
+
+export function startRaze(s, id) {
+    if (!canRaze(s, id)) return false;
+    if (!s.razing) s.razing = {};
+    s.razing[id] = 0;
+    return true;
+}
+
+export function tickRaze(s, dt) {
+    if (!s.razing) return;
+    for (const id of Object.keys(s.razing)) {
+        // A tile that stopped being claimed isn't the world's to strip any more.
+        if (!isClaimed(s, id)) {
+            delete s.razing[id];
+            continue;
+        }
+        s.razing[id] += dt;
+        if (s.razing[id] < RAZE_SECONDS) continue;
+        delete s.razing[id];
+        strip(s, id);
+    }
+}
+
+// What's left when the two minutes are up. Standing weather is called off the same way a
+// transformation calls it off, so a downpour finishing can't turn the fresh ground straight over.
+function strip(s, id) {
+    if (s.terrain) delete s.terrain[id];
+    if (s.grass) delete s.grass[id];
+    if (s.weatherTile === id) stopPrecipitation(s);
+}
+
+// Only mature grass can be transformed, and not while it's being razed - the raze would only
+// strip whatever it turned into a moment later.
 export function canTransformTile(s, id) {
-    if (!isClaimed(s, id)) return false;
+    if (!isClaimed(s, id) || isRazing(s, id)) return false;
     const grass = grassOn(s, id);
     return !grass || grass.stage === MATURE;
 }
@@ -826,9 +923,16 @@ export function grassOutputs(s) {
 // Also because it costs blue to get it, so it kinda needs this
 export const SOAKED_BLUE = 32;
 
+// How wet a tile counts as when the grass on it pays out blue - what has soaked into it, or the
+// cloud standing over it right now, whichever is worth more. The cloud counting on its own is what
+// pays before the environment unlock, since nothing soaks in until that's bought.
+export const wetnessOn = (s, id) => Math.min(1, Math.max(
+    buildupTotalOn(s, id),
+    precipitatingOn(s, id) ? (s.weatherPower || 0) : 0));
+
 export function grassBonuses(s) {
     const green = grassOutputs(s);
-    return { green, blue: (id) => green(id) * SOAKED_BLUE * buildupTotalOn(s, id) };
+    return { green, blue: (id) => green(id) * SOAKED_BLUE * wetnessOn(s, id) };
 }
 
 // What one tile of grass adds to each multiplier, as the fraction on top of it. The same thing

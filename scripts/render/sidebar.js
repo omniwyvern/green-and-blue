@@ -49,9 +49,7 @@ function positionNavToggle() {
     appEl.style.setProperty("--nav-toggle-top", `${height}px`);
 }
 
-// Folding the navigation away gives the canvas the whole window, which on a phone is most of
-// what it needs. The widths go to zero in CSS, so anything that insets past the sidebar or the
-// flyout comes along without knowing this exists.
+// Folding the navigation away gives the canvas the whole window
 export function initNavToggle() {
     if (!navToggleEl) return;
     setNavHidden(!!state.settings.hideNav);
@@ -66,9 +64,6 @@ function setNavHidden(hidden) {
     navToggleEl.title = label;
     navToggleEl.setAttribute("aria-label", label);
 
-    // With no flyout on screen there's nothing for the header to clear, and its own padding
-    // does the job. On the way back the position is worked out again rather than trusted,
-    // since whatever was measured last was measured against a sidebar that wasn't there.
     if (hidden) appEl.classList.remove("flyout-over-header");
     else positionFlyout();
     saveState();
@@ -91,7 +86,7 @@ function buildCategoryBar() {
     }
 }
 
-// Tabs are grouped, with a little divider between them.
+// Tabs are grouped, with a little divider between them
 function buildLayerSidebar() {
     sidebarEl.innerHTML = "";
     for (const group of getOrderedGroups(state.activeCategory)) {
@@ -220,7 +215,7 @@ function buildFlyout() {
     for (const btn of flyoutEl.children) fitTabText(btn);
 }
 
-// Text size change when it can't fit in the tab/flyout tab.
+// Text size change when it can't fit in the tab/flyout tab
 const MIN_TAB_FONT = 9;
 
 function fitTabText(btn) {
@@ -232,16 +227,14 @@ function fitTabText(btn) {
         btn.style.fontSize = `${size}px`;
         if (btn.scrollWidth <= btn.clientWidth) return;
     }
-    // If it really really doesn't fit, wrap the text.
+    // If it really really doesn't fit, wrap the text
     btn.style.overflowWrap = "anywhere";
 }
 
-// Flyout hangs off of the layer tab's position.
+// Flyout hangs off of the layer tab's position
 function positionFlyout() {
     const firstTab = flyoutEl.firstElementChild;
     if (flyoutEl.style.display === "none" || !firstTab) return;
-    // Nothing to measure against while it's folded away; setNavHidden runs this again on the
-    // way back, once the sidebar has a position to hang off of.
     if (appEl.classList.contains("nav-hidden")) return;
 
     const activeTab = sidebarEl.querySelector(".layer-tab.active");
@@ -271,7 +264,7 @@ function refreshFlyoutMembership() {
     if (signatureOf(visibleSubLayers()) !== lastFlyoutSignature) buildFlyout();
 }
 
-// Called after building the flyout and every frame after.
+// Called after building the flyout and every frame after
 function highlightActiveSubLayer() {
     const activeKey = getLayerState(state.activeLayer).activeSubLayer;
     for (const btn of flyoutEl.children) {

@@ -16,14 +16,14 @@ let statusEl = null;
 let deleteButton = null;
 let deleteArmed = false; // Second click confirms; see armDelete below
 
-// Kept off-screen and opened by the Load from file button, since a bare file input can't be styled.
+// Kept off-screen and opened by the Load from file button, since a bare file input can't be styled
 const filePicker = document.createElement("input");
 filePicker.type = "file";
 filePicker.accept = ".txt,.json,text/plain,application/json";
 filePicker.hidden = true;
 filePicker.addEventListener("change", () => {
     const file = filePicker.files[0];
-    filePicker.value = ""; // So picking the same file twice in a row still fires.
+    filePicker.value = ""; // So picking the same file twice in a row still fires
     loadFromFile(file);
 });
 
@@ -90,7 +90,7 @@ function buildWindow() {
     const saveRow = panel.querySelector(".save-row");
     saveRow.appendChild(makeButton("Save", "settings-button-secondary", () => {
         saveState();
-        // Saving goes quiet after a half-loaded page, so say that rather than claim it worked.
+        // Saving goes quiet after a half-loaded page, so say that rather than claim it worked
         setStatus(isSavingBlocked()
             ? "Part of the game didn't load. Reload the page before saving."
             : "Saved.");
@@ -117,8 +117,7 @@ function buildWindow() {
     highlightTheme(panel);
 }
 
-// Writes the save out as a file, which is the whole point - another machine can load it back
-// without either one having to talk to the other.
+// Writes the save out as a file instead of just having a local save
 function saveToFile() {
     saveState();
     const now = new Date();
@@ -153,7 +152,7 @@ function makeButton(label, className, onClick) {
     return btn;
 }
 
-// Makes deleting the save a two-step thing, first click arms it and second deletes.
+// Makes deleting the save a two-step thing, first click arms it and second deletes
 function armDelete() {
     if (!deleteArmed) {
         deleteArmed = true;
@@ -183,7 +182,7 @@ function setStatus(text) {
 }
 
 // Everything color-related is a CSS variable keyed off this attribute, so switching
-// themes is one attribute write rather than a stylesheet swap.
+// themes is one attribute write rather than a stylesheet swap
 export function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
 }

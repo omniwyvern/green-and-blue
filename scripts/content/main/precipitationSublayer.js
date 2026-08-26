@@ -650,7 +650,8 @@ function summary(world, s, kind) {
     const cost = chargeCost(world).mul(capacity());
     const opening = `A cloud of this size costs ${formatNumber(cost)} Blue Essence to fill.`
 
-    if (!environmentBought()) return `${opening} Aim it at a grassy tile to speed its growth.`;
+    if (!environmentBought()) return `${opening} Aim it at a grassy tile to speed its growth,`
+        + ` and for a blue multiplier off that grass while it's falling.`;
 
     const wettest = wettestTile(world, kind);
     const held = PRECIPITATION[kind].makes === "ice" ? "buried" : "soaked";

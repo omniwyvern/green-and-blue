@@ -73,6 +73,25 @@
 .hex-unlocked.grass-stage-1 .hex-face { background: #3a4e3b; }
 .hex-unlocked.grass-stage-2 .hex-face { background: #334e2b; }
 
+/* A tile being razed fades across to bare ground over the two minutes it takes. The sheet is
+   painted last, so whatever is growing on the tile goes under it, and the lock is lifted above
+   the sheet so it stays fully visible the whole way down. */
+.hex-tile.is-razing .hex-face::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: #4d4c3b;
+    opacity: var(--raze, 0);
+    transition: opacity 0.3s linear;
+    pointer-events: none;
+}
+.hex-unlocked.is-razing .hex-lock {
+    display: block;
+    position: relative;
+    z-index: 1;
+    opacity: 1;
+}
+
 .hex-content {
     position: absolute;
     inset: 0;

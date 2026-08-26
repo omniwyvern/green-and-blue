@@ -4,7 +4,7 @@
 
 import { canAfford } from "./resources.js";
 
-// Some nodes are fed by two branches at once, so `parents` takes an array.
+// Some nodes are fed by two branches at once, so `parents` takes an array
 export function parentsOf(def) {
     if (def.parents) return def.parents;
     return def.parent ? [def.parent] : [];
@@ -15,13 +15,13 @@ export function nodeOwned(layer, nodeId, layerState) {
     return !!def && (def.kind === "core" || !!layerState.purchasedUpgrades[nodeId]);
 }
 
-// Reachable once all its prerequisites are met, unless content overrides with prereq().
+// Reachable once all its prerequisites are met, unless content overrides with prereq()
 export function prereqMet(layer, def, layerState) {
     if (def.prereq) return def.prereq(layerState);
     return parentsOf(def).every(parentId => nodeOwned(layer, parentId, layerState));
 }
 
-// Nodes show up once their parents are bought.
+// Nodes show up once their parents are bought
 export function nodeVisible(layer, nodeId, layerState) {
     const def = layer.nodes[nodeId];
     if (!def) return false;
@@ -32,7 +32,7 @@ export function nodeVisible(layer, nodeId, layerState) {
     return parents.some(parentId => nodeOwned(layer, parentId, layerState));
 }
 
-// Checks if the node is on screen, reachable, not already theirs, and affordable.
+// Checks if the node is on screen, reachable, not already bought, and affordable
 export function nodeBuyable(layer, nodeId, layerState) {
     const def = layer.nodes[nodeId];
     if (!def || !def.cost) return false;

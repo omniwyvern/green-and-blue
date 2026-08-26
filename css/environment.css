@@ -63,4 +63,7 @@
 .terrain-facts { display: flex; flex-direction: column; gap: 0.0625rem; }
 .terrain-count { font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 .terrain-rate { font-size: 0.6875rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+/* What the tile is worth in its own layer, which runs longer than the rate above it. */
+.terrain-effect { font-size: 0.6875rem; color: var(--life); max-width: 15rem; }
+.terrain-row { max-width: 22rem; }
 

@@ -23,11 +23,11 @@ export function formatNumber(value, places) {
 }
 
 // How many decimals the mantissa gets, based on how big the exponent is. Keeps the whole
-// thing about the same width all the way up: 9.99e19, then 9.9e100, then 9e1000.
+// thing about the same width all the way up: 9.99e19, then 9.9e100, then 9e1000
 const mantissaPlaces = (exponent) => exponent < 100 ? 2 : exponent < 1000 ? 1 : 0;
 
 // The mantissa is cut rather than rounded, so a round number reads as 9.99e19
-// instead of rolling up to 10e19. toExponential() rounds it to 10 and leaves it there.
+// instead of rolling up to 10e19. toExponential() rounds it to 10 and leaves it there
 function exponential(n, places) {
     let exponent = n.log10().floor().toNumber();
     let mantissa = n.div(D(10).pow(exponent)).toNumber();
@@ -43,9 +43,7 @@ function exponential(n, places) {
 
 // Takes the fraction, not the percent - 0.25 reads as 25%.
 //
-// Percentages run away from a number much sooner than the number does, so this gives up on
-// digits far earlier than formatNumber: four of them, then the same exponential everything else
-// falls back to. Rounded rather than floored on the way, so a hair under 100% is still 100%.
+// This gives cuts digits sooner than formatNumber. Rounded rather than floored on the way, so a hair under 100% is still 100%.
 const PERCENT_DIGITS = 4;
 const PERCENT_CAP = Math.pow(10, PERCENT_DIGITS);
 
@@ -56,7 +54,7 @@ export function formatPercent(fraction) {
 }
 
 // For rates and other values where a bare integer reads better.
-// This might be redundant, idk why I made this.
+// This might be redundant, idk
 export function formatWhole(value) {
     const n = D(value);
     return n.lt(1000) ? n.floor().toString() : formatNumber(n);

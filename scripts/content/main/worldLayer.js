@@ -8,8 +8,8 @@
 
 import { registerLayer } from "../../core/registry.js";
 import { state, getLayerState } from "../../core/state.js";
-import { spend } from "../../core/resources.js";
-import { formatPercent } from "../../utils/format.js";
+import { spend, canAfford } from "../../core/resources.js";
+import { formatNumber, formatPercent } from "../../utils/format.js";
 import { switchToLayer } from "../../render/canvasRouter.js";
 import {
     mapTiles, TILE_SIZE, STAGE_NAMES, MATURE, LAND_COST, TERRAIN, grassOn, tileCost, canPlant, plantGrass,
@@ -19,13 +19,20 @@ import {
     terrainOn, moistureOn, tileKind, soak, setTerrain, selectTile, clearTransform, dampGrowth,
     clickTransformTile, isTransformCandidate, isTransformFodder, transformInputs,
     matchedTransform, applyTransform, transformAvailable, transformHint, transformReady, fodderNote,
-    oneSoakedBlue, grassGreenOutput, ADJACENT_SHARE
+    oneSoakedBlue, grassGreenOutput, ADJACENT_SHARE,
+    previousTilePrice, chargeCost, RAZE_SECONDS, isRazing, razeProgress, razeLeft, canRaze,
+    startRaze, tickRaze
 } from "./worldMap.js";
 import { TERRAIN_ART, kindChip } from "./terrainArt.js";
 import { activeType } from "./grassSublayer.js";
-// The cloud is charged and let go on its own page. All the map keeps is the thing drifting over
-// it, which says how the cloud is doing and is the way back to that page.
-import { fillOf, readyIndex, canRelease } from "./precipitationSublayer.js";
+import { fillOf, readyIndex, canRelease, capacity } from "./precipitationSublayer.js";
+import { PER_POND_TILE } from "./pondSublayer.js";
+
+const CLOUDS_PER_RAZE = 3;
+const razeCost = (s) => ({
+    greenEssence: previousTilePrice(s),
+    blueEssence: chargeCost(s).mul(capacity()).mul(CLOUDS_PER_RAZE),
+});
 
 // What the tile adds on top, and the share of that one neighbour keeps.
 const bonusNote = (name, bonus) => `+${formatPercent(bonus)} ${name}`
@@ -127,6 +134,15 @@ const INTERACTIONS = [
             <path class="transform-swap" d="M24 11.5 L26.5 13.5 L28.5 11"/>
         </svg>` },
 
+    // Strips a tile back to bare ground, over two minutes and for a price.
+    { id: "raze", name: "Raze", available: () => environmentBought(), icon: `
+        <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path class="transform-hex" d="M16 3 L23 6.5 L23 14.5 L16 18 L9 14.5 L9 6.5 Z"/>
+            <path class="grow-arrow" d="M16 20 L16 26"/>
+            <path class="grow-arrow" d="M12.5 22.5 L16 26 L19.5 22.5"/>
+            <path class="grow-arrow" d="M6 29 L26 29"/>
+        </svg>` },
+
     // Dev cheat, just uses the tiles' own grass classes.
     { id: "grow", name: "Grow grass (dev)", available: () => devInteractions(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
@@ -210,6 +226,9 @@ registerLayer("world", {
 
         // The tiles picked around the selected one, waiting to be transformed with it.
         transformFodder: [],
+
+        // Tiles on their way back to bare ground, by how long each has been at it.
+        razing: {},
     },
 
     // Clock for the world. Here instead of land layer because drawing tiles here is what mostly (kinda) needs it.
@@ -217,6 +236,7 @@ registerLayer("world", {
         const s = getLayerState(layer.id);
         tickBuildup(s, dt);
         tickPrecipitation(s, dt);
+        tickRaze(s, dt);
         if (grassBought()) tickGrass(dt);
     },
 
@@ -255,6 +275,7 @@ registerLayer("world", {
                 s.selectedTile === tile.id ? "hex-selected" : "",
                 fodder ? "transform-fodder" : "",
                 transforming && !fodder && isTransformCandidate(s, tile.id) ? "transform-candidate" : "",
+                isRazing(s, tile.id) ? "is-razing" : "",
             ].filter(Boolean).join(" ") || null;
         },
 
@@ -266,6 +287,8 @@ registerLayer("world", {
                 "--moisture": moistureOn(s, tile.id).toFixed(2),
                 "--snowpack": snowOn(s, tile.id).toFixed(2),
                 "--pulse": transformActive(s) ? pulse() : "0",
+                // How far the ground has been taken back, which the tile fades across.
+                "--raze": razeProgress(s, tile.id).toFixed(3),
             };
         },
 
@@ -280,19 +303,18 @@ registerLayer("world", {
             const wet = moistureOn(s, tile.id);
             const buried = snowOn(s, tile.id);
             const damp = grass ? dampGrowth(s, tile.id) : 1;
-            // What this tile is worth everywhere, and the share of it its neighbours keep.
-            // A seed is worth nothing yet, and a line of x1.00 says nothing worth the room.
             const green = grassGreenOutput(s, tile.id);
             const soaked = oneSoakedBlue(s, tile.id);
             if (green > 0) parts.push(bonusNote("Green", green));
             if (soaked > 0) parts.push(bonusNote("Blue", soaked));
-            // What the weather has done to it goes on one line between them - three separate
-            // lines for soaked/buried/falling made the tooltip taller than the tile.
+            // The other half of what a pond is worth happens over on its own page.
+            if (kind === "pond") parts.push(`+${PER_POND_TILE} Pond capacity`);
             const state = [];
             if (wet > 0) state.push(`${Math.round(wet * 100)}% soaked`);
             if (buried > 0) state.push(`${Math.round(buried * 100)}% buried`);
             if (damp !== 1) state.push(`${damp > 1 ? "+" : ""}${Math.round((damp - 1) * 100)}% growth`);
             if (precipitatingOn(s, tile.id)) state.push(fallingKind(s) === "snow" ? "snowing" : "raining");
+            if (isRazing(s, tile.id)) state.push(`being razed, ${Math.ceil(razeLeft(s, tile.id))}s left`);
             if (state.length > 0) parts.push(state.join(", "));
 
             return parts.join("\n");
@@ -312,18 +334,18 @@ registerLayer("world", {
             else selectTile(s, tile.id);
         },
 
-        // Buying a tile and selecting a tile are different, so unlocking one deselects whatever was selected before.
+        // Buying a tile and selecting a tile are different, so unlocking one deselects whatever was selected before
         onUnlock(s) {
             clearTransform(s);
         },
     },
 
-    // Clicking on a non-tile part of the map deselects as well.
+    // Clicking on a non-tile part of the map deselects as well
     onCanvasClick(s) {
         clearTransform(s);
     },
 
-    // Drawer in the top right to select interactions with the world, selected option beside it.
+    // Drawer in the top right to select interactions with the world, selected option beside it
     hud: {
         build(el, s, layer) {
             el.innerHTML = `
@@ -333,7 +355,7 @@ registerLayer("world", {
                 </button>
                 <div class="world-hud-row">
                     <div class="hud-tool"></div>
-                    <div class="hud-drawer" title="Interactions">
+                    <div class="hud-drawer open" title="Interactions">
                         <div class="hud-drawer-slide">
                             <div class="hud-drawer-panel"></div>
                             <button class="hud-drawer-handle" aria-label="Interactions">
@@ -353,7 +375,7 @@ registerLayer("world", {
 
             const panel = el.querySelector(".hud-drawer-panel");
             for (const interaction of INTERACTIONS) {
-                // Drawer is one icon wide, so it's just icons with the name in the hover tooltip.
+                // Drawer is one icon wide, so it's just icons with the name in the hover tooltip
                 const btn = document.createElement("button");
                 btn.className = "hud-choice";
                 btn.dataset.interaction = interaction.id; // update() shows/hides the dev ones by this
@@ -385,6 +407,12 @@ registerLayer("world", {
                     <div class="transform-note"></div>
                     <button class="transform-button">Transform</button>
                 </div>
+                <div class="tool-raze transform-window">
+                    <div class="transform-heading">Raze</div>
+                    <div class="raze-cost"></div>
+                    <div class="transform-note raze-note"></div>
+                    <button class="transform-button raze-button">Raze</button>
+                </div>
             `;
             // Dev cheat, instantly grows a tile
             tool.querySelector(".grow-button").addEventListener("click", () => {
@@ -392,8 +420,8 @@ registerLayer("world", {
                 if (s.selectedTile) growFully(s, s.selectedTile);
             });
 
-            // Dev cheat, fills the ground up instantly - with whichever kind is loaded, so it
-            // cheats past the same wait the player would otherwise be sitting through.
+            // Dev cheat, fills the ground up instantly with whichever kind is loaded, so it
+            // cheats past the same wait the player would otherwise be sitting through
             tool.querySelector(".soak-button").addEventListener("click", () => {
                 const s = getLayerState(layer.stateKey);
                 if (s.selectedTile) soak(s, s.selectedTile, 1, precipitationKind(s));
@@ -408,6 +436,13 @@ registerLayer("world", {
             el.querySelector(".transform-button").addEventListener("click", () => {
                 applyTransform(getLayerState(layer.stateKey));
             });
+
+            // Starts a tile on its way back to bare ground, paid for up front.
+            el.querySelector(".raze-button").addEventListener("click", () => {
+                const s = getLayerState(layer.stateKey);
+                if (!s.selectedTile || !canRaze(s, s.selectedTile)) return;
+                if (spend(layer, razeCost(s))) startRaze(s, s.selectedTile);
+            });
         },
 
         update(el, s, layer) {
@@ -420,7 +455,7 @@ registerLayer("world", {
             }
             drawer.style.setProperty("--choice-count", Math.max(1, choices.length));
 
-            // Drawer is hidden until there's something in it.
+            // Drawer is hidden until there's something in it
             setDisplay(drawer, choices.length > 0);
 
             if (!choices.some(i => i.id === s.selectedInteraction)) {
@@ -433,13 +468,17 @@ registerLayer("world", {
             const showSoak = s.selectedInteraction === "soak";
             const showGround = s.selectedInteraction === "ground";
             const showTransform = s.selectedInteraction === "transform";
-            setDisplay(el.querySelector(".hud-tool"), showGrow || showSoak || showGround || showTransform);
+            const showRaze = s.selectedInteraction === "raze";
+            setDisplay(el.querySelector(".hud-tool"),
+                showGrow || showSoak || showGround || showTransform || showRaze);
             setDisplay(el.querySelector(".tool-grow"), showGrow);
             setDisplay(el.querySelector(".tool-soak"), showSoak);
             setDisplay(el.querySelector(".tool-ground"), showGround);
             setDisplay(el.querySelector(".tool-transform"), showTransform);
+            setDisplay(el.querySelector(".tool-raze"), showRaze);
             if (showTransform) updateTransformWindow(el, s);
             else if ((s.transformFodder || []).length) s.transformFodder = [];
+            if (showRaze) updateRazeWindow(el, s, layer);
 
             if (showSoak) {
                 const soakButton = el.querySelector(".soak-button");
@@ -477,7 +516,7 @@ registerLayer("world", {
 
 const byId = (id) => INTERACTIONS.find(i => i.id === id);
 
-// Not an interaction, so it stays put whichever one is picked.
+// Not an interaction, so it stays put whichever one is picked
 function updateWeatherJump(el, s) {
     const jump = el.querySelector(".weather-jump");
     setDisplay(jump, rainBought());
@@ -521,9 +560,9 @@ const pulse = () =>
 function updateTransformWindow(el, s) {
     const kinds = transformInputs(s);
     const recipe = matchedTransform(s);
-    // A matched recipe you haven't unlocked yet reads differently from one you have.
+    // A matched recipe you haven't unlocked yet reads differently from one you have
     const locked = !!recipe && !transformAvailable(recipe, s);
-    // Not the same thing as locked, and shown differently.
+    // Not the same thing as locked, and shown differently
     const ready = transformReady(s);
     const signature = `${kinds.join("|")}::${recipe ? recipe.id : ""}::${locked}::${ready}`;
 
@@ -570,6 +609,32 @@ const LOCK_GLYPH = `
         <rect x="3.4" y="7.4" width="9.2" height="6.4" rx="1.3"/>
     </svg>`;
 
+// The window on the right while raze is selected. One tile, one price, one confirmation.
+function updateRazeWindow(el, s, layer) {
+    const cost = razeCost(s);
+    setText(el.querySelector(".raze-cost"),
+        `${formatNumber(cost.greenEssence)} Green + ${formatNumber(cost.blueEssence)} Blue`);
+
+    const id = s.selectedTile;
+    const affordable = canAfford(layer, cost);
+    const ready = !!id && canRaze(s, id) && affordable;
+
+    const button = el.querySelector(".raze-button");
+    button.classList.toggle("inactive", !ready);
+    button.title = ready ? "Take this tile back to bare ground" : "";
+
+    setText(el.querySelector(".raze-note"), razeNote(s, id, affordable));
+}
+
+function razeNote(s, id, affordable) {
+    if (!id) return "Select a tile to raze.";
+    if (isRazing(s, id)) return `Being razed - ${Math.ceil(razeLeft(s, id))}s of ${RAZE_SECONDS}s left.`;
+    if (tileKind(s, id) === "bare") return "That tile is already bare ground.";
+    if (!affordable) return "Not enough to pay for it yet.";
+    return `${TERRAIN[tileKind(s, id)].name} goes back to bare ground`
+        + ` over ${RAZE_SECONDS / 60} minutes.`;
+}
+
 function noteFor(kinds, recipe, locked, ready, s) {
     if (kinds.length === 0) return "Select a tile to change.";
     if (!ready) return "Grass has to be fully grown before it can be transformed.";
@@ -577,10 +642,6 @@ function noteFor(kinds, recipe, locked, ready, s) {
         ? "Pick from the flashing tiles around it."
         : "Nothing comes of this combination.";
     if (locked) return `These do make something. ${transformHint(recipe, s)}`;
-    // What happens to the fodder is the part worth spelling out - it's the difference between
-    // spending the tiles and keeping them, and between spending them and only spending them
-    // part of the way back down. The wording comes from the rules rather than from here, so
-    // this and the reference page can't tell the player two different things.
     return `${recipe.text} ${fodderNote(recipe)}`;
 }
 
