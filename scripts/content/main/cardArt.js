@@ -49,14 +49,33 @@ const cloud = (x, y, scale = 1) => `
 const drops = (y, xs, lean = 2) => xs.map(x =>
     `<path class="art-line art-accent art-rain" d="M${x} ${y} L${x - lean} ${y + 9}"/>`).join("");
 
-const droplet = (x, y, scale = 1) =>
-    `<path class="art-fill art-accent art-rain" transform="translate(${x} ${y}) scale(${scale})" d="M0 -9 C5 -2 7 2 7 4 A7 7 0 1 1 -7 4 C-7 2 -5 -2 0 -9 Z"/>`;
+const droplet = (x, y, scale = 1, cls = "art-fill art-accent art-rain") =>
+    `<path class="${cls}" transform="translate(${x} ${y}) scale(${scale})" d="M0 -9 C5 -2 7 2 7 4 A7 7 0 1 1 -7 4 C-7 2 -5 -2 0 -9 Z"/>`;
 
 // One wave line, "amp" is for how rough it is.
 const wave = (y, amp = 5, cls = "art-line art-water") =>
     `<path class="${cls}" d="M12 ${y} q9 ${-amp} 18 0 t18 0 t18 0 t16 0"/>`;
 
 const waves = (ys, amp = 5) => ys.map(y => wave(y, amp)).join("");
+
+// Choppy open-sea crests - sharp peaks like a rough swell, not the pond's soft roll.
+// Drawn in the darker deep-blue so the open sea reads apart from the pond's calm water.
+const crests = (y, amp = 6, cls = "art-line art-deep") => {
+    let d = `M10 ${y}`;
+    let up = true;
+    for (let x = 18; x <= 90; x += 10) {
+        d += ` L${x} ${up ? y - amp : y}`;
+        up = !up;
+    }
+    return `<path class="${cls}" d="${d}"/>`;
+};
+
+// Open sea backdrop: rows of choppy dark crests. Every ocean card sits on this same
+// base so the set reads as one wide-open place, apart from the pond's calm, weedy water.
+const openSea = () => `
+    ${crests(36, 7)}
+    ${crests(52, 8)}
+`;
 
 const fish = (x, y, scale = 1) => `
     <g class="art-fill art-accent art-fish" transform="translate(${x} ${y}) scale(${scale})">
@@ -275,6 +294,30 @@ export const CARD_ART = {
         ${waves([38, 48], 4)}
         <path class="art-ground" d="M12 56 H88"/>
     `),
+
+    // Open Waters. Each card sits on the openSea base (choppy dark crests)
+    // so the whole set reads as the open sea, separate from the pond's calm weedy water.
+    richWaters: frame(`${openSea()}${fish(32, 30, 1.1)}${sparkle(66, 14, 1.3)}`),
+    deepHarvest: frame(`${openSea()}${arrowDown(50, 12, 8)}${fish(50, 34, 1.1)}${sparkle(24, 30, 1.1)}`),
+    swiftTide: frame(`${openSea()}${clock(70, 16, 9)}${fish(34, 34, 1.0)}`),
+    turnOfTheTide: frame(`${openSea()}${cycleArrow(70, 30, 13)}${fish(28, 34, 1.0)}`),
+    bountifulDrift: frame(`${openSea()}${sparkle(30, 18, 1.2)}${sparkle(52, 30, 1.5)}${sparkle(72, 18, 0.9)}`),
+    learnedShoals: frame(`
+        ${openSea()}
+        ${fish(28, 36, 0.7)}${fish(42, 30, 0.85)}${fish(56, 24, 1.0)}
+        ${sparkle(56, 10, 1.3)}
+    `),
+    bloodInTheWater: frame(`${openSea()}${fish(34, 34, 1.2)}${droplet(66, 12, 1.2, "art-fill art-blood")}${droplet(78, 24, 0.9, "art-fill art-blood")}`),
+    undertow: frame(`
+        ${crests(12, 5)}
+        <path class="art-ground" d="M12 40 H88"/>
+        ${fish(50, 50, 1.2)}${arrowDown(50, 14, 10)}
+    `),
+    slackWater: frame(`
+        ${crests(38, 4)}
+        ${crests(54, 5)}
+        ${sparkle(28, 16, 1.1)}${sparkle(50, 28, 1.5)}${sparkle(70, 24, 1.0)}
+    `),
 };
 
 // Banners
@@ -314,5 +357,13 @@ export const BANNER_ART = {
     cores: badge(`
         <circle class="art-line" cx="25" cy="32" r="14"/>
         <circle class="art-line art-accent" cx="39" cy="32" r="14"/>
+    `),
+
+    // Open Waters banner
+    ocean: badge(`
+        <path class="art-line art-water" d="M8 20 q7 -5 14 0 t14 0 t14 0 t6 0"/>
+        <path class="art-line" d="M8 44 q7 -4 14 0 t14 0 t14 0 t6 0"/>
+        <path class="art-fill art-accent" d="M20 34 L32 27 L32 41 Z"/>
+        <path class="art-fill art-accent" d="M27 34 C32 25 46 26 50 34.5 C46 42 32 43 27 34 Z"/>
     `),
 };

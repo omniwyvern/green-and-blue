@@ -11,6 +11,7 @@ import { addResource, canAfford, spend } from "../../core/resources.js";
 import { boostResource } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber, formatWhole } from "../../utils/format.js";
+import { setText } from "../../utils/dom.js";
 import { matureTiles, grassTiles, ORIGIN_TILE } from "./worldMap.js";
 
 import {
@@ -48,10 +49,10 @@ const costOf = (banner, draws) =>
 const drawCost = (s) => ({ evolutionPoints: costOf(s.banner, bannerDraws(s)) });
 
 // The ground an evolution takes back: grass, whatever the weather left lying around, and the
-// ponds that fills. Everything built up past those is the world's to keep.
+// ponds that fills. Everything built up past those is the world's to keep
 const RESET_TERRAIN = new Set(["water", "snow", "pond"]);
 
-// The actual reset. Rests growing things, and map size.
+// The actual reset. Rests growing things, and map size
 function resetLivingThings() {
     // Pond
     const pond = getLayerState("pond");
@@ -78,7 +79,7 @@ function resetLivingThings() {
     world.weatherPower = 0;
     world.weatherSoak = 0;
 
-    // The cloud itself, which is charge that was paid for and doesn't survive the reset either.
+    // The cloud itself, which is charge that was paid for and doesn't survive the reset either
     const cloud = getLayerState("precipitation");
     cloud.charge = 0;
     cloud.stability = 1;
@@ -95,19 +96,17 @@ registerLayer("evolution", {
     order: 0,
     startUnlocked: false, // the Evolution node on the Cores tree unlocks it
 
-    resources: {
-        evolutionPoints: { name: "Evolution", color: "#b06ad0" },
-    },
+    resources: ["evolutionPoints"],
 
     initialState: {
         cards: {},                              // { id: { level, copies } }
         equipped: new Array(SLOTS).fill(null),
-        draw: null,                             // Three card ids waiting to be chosen between.
-        draws: 0,                               // Lifetime draws, across every banner.
-        unlockedCards: [],                      // Locked cards that something has opened up.
-        banner: null,                           // Which pool you're drawing from, null = picking one.
-        bannerDraws: {},                        // Draws per banner, which is what prices the next one.
-        loadoutLocked: false,                   // Equipped cards do nothing until locked in, and stay locked in for the evolution.
+        draw: null,                             // Three card ids waiting to be chosen between
+        draws: 0,                               // Lifetime draws, across every banner
+        unlockedCards: [],                      // Locked cards that something has opened up
+        banner: null,                           // Which pool you're drawing from, null = picking one
+        bannerDraws: {},                        // Draws per banner, which is what prices the next one
+        loadoutLocked: false,                   // Equipped cards do nothing until locked in, and stay locked in for the evolution
     },
 
     subLayers: {
@@ -146,7 +145,7 @@ registerLayer("evolution", {
                                 setText(el.querySelector(".evolve-gain"), "Are you sure? You will gain 0 evolution points.");
                                 return;
                             }
-                        addResource(layer, "evolutionPoints", gain);
+                        addResource("evolutionPoints", gain);
                         resetLivingThings();
                         releaseLoadout();
                         armEvo = false;
@@ -210,7 +209,7 @@ registerLayer("evolution", {
 
                 update(el, s, layer) {
                     // The open banners are in here too, so a layer unlocked while this page is
-                    // up brings its banner in rather than waiting for the next change.
+                    // up brings its banner in rather than waiting for the next change
                     const signature = JSON.stringify([s.cards, s.equipped, s.draw, s.banner,
                                                       s.bannerDraws, s.unlockedCards, s.loadoutLocked,
                                                       unlockedBannerIds()]);
@@ -225,29 +224,28 @@ registerLayer("evolution", {
                     }
 
                     // Sizing the words to the card on the first render after the tab is opened.
-                    // The flavor text kept making the card art run off the card.
+                    // The flavor text kept making the card art run off the card
                     if (el.__needsFit) el.__needsFit = !fitCardText(el);
 
                     const button = el.querySelector(".draw-button");
-                    if (button) button.classList.toggle("unaffordable", !canAfford(layer, drawCost(s)));
+                    if (button) button.classList.toggle("unaffordable", !canAfford(drawCost(s)));
                 },
             },
         },
     },
 });
 
-// Cards page components
 
 // Defining the face of a card
 function cardFace(id, entry, extra = "") {
-    // Empty for an id not in the pool, e.g. a removed or changed card.
+    // Empty for an id not in the pool, e.g. a removed or changed card
     if (!knownCard(id)) return "";
 
     const card = CARDS[id];
     const rarity = rarityOf(id);
     const level = entry ? entry.level : 1;
     // data-fit names what's in the body, so it can remember the answer for a card it
-    // has already sized rather than measuring it again every rebuild.
+    // has already sized rather than measuring it again every rebuild
     return `
         <div class="card-face rarity-${card.rarity} ${extra}"
              style="--card-color: ${card.color}; --rarity-color: ${rarity.color}">
@@ -259,7 +257,7 @@ function cardFace(id, entry, extra = "") {
             </div>
             <div class="card-foot">
                 <span class="card-rarity">${rarity.name}</span>
-                ${entry ? `<span class="card-copies" title="Copies toward the next level">${entry.copies}/${COPIES_TO_COMBINE}</span>` : ""}
+                ${entry && !CARDS[id].unique ? `<span class="card-copies" title="Copies toward the next level">${entry.copies}/${COPIES_TO_COMBINE}</span>` : ""}
             </div>
         </div>
     `;
@@ -267,19 +265,19 @@ function cardFace(id, entry, extra = "") {
 
 
 // When the text gets too big to fit on the card properly, it resizes it. Text size is in stages
-// rather than independent so it makes the sizing look consistent.
+// rather than independent so it makes the sizing look consistent
 const FIT_STEPS = [1, 0.92, 0.85, 0.78, 0.72];
 
-// What size a given card was last time.
+// What size a given card was last time
 const fitCache = new Map();
 
-// Returns false if nothing could be measured.
+// Returns false if nothing could be measured
 function fitCardText(root) {
     const bodies = root.querySelectorAll(".card-body");
     let measured = false;
 
     for (const body of bodies) {
-        // Height of zero means the tab isn't showing.
+        // Height of zero means the tab isn't showing
         if (body.clientHeight === 0) continue;
         measured = true;
 
@@ -290,7 +288,7 @@ function fitCardText(root) {
             continue;
         }
 
-        // Goes down through the sizes until the content of the card fits.
+        // Goes down through the sizes until the content of the card fits
         let scale = FIT_STEPS[FIT_STEPS.length - 1];
         for (const step of FIT_STEPS) {
             body.style.setProperty("--card-text-scale", step);
@@ -304,7 +302,7 @@ function fitCardText(root) {
 }
 
 // What each mod is called on a card. Key with no entry falls back to its name.
-// Prefix of "-" when combined cards are better the smaller it gets instead of bigger.
+// Prefix of "-" when combined cards are better the smaller it gets instead of bigger
 const MOD_NAMES = {
     // Cores
     coreGrowth: "Green Core growth speed",
@@ -345,6 +343,12 @@ const MOD_NAMES = {
     rainCost: "-Blue Essence to fill the cloud",
     moistureRate: "how much weather leaves in the ground",
     rainSoak: "rain on ground with nothing growing on it",
+
+    // Open Waters
+    oceanOutput: "ocean output",
+    oceanTickSpeed: "ocean tick speed",
+    boostSpawn: "drifting boost spawn rate",
+    learnedShoals: "-fish aspect cost",
 };
 
 function effectText(id, level) {
@@ -357,7 +361,7 @@ function effectText(id, level) {
     return [...keys].map(key => {
         const value = (card.mods?.[key] || 0) * (1 + ((level-1)/3)) + (flat[key] || 0);
         const name = MOD_NAMES[key] || key;
-        // The leading "-" belongs to the name instead of the number, "-5% cost" reads better than "+5% -cost".
+        // The leading "-" belongs to the name instead of the number, "-5% cost" reads better than "+5% -cost"
         return name.startsWith("-")
             ? `-${Math.round(value * 100)}% ${name.slice(1)}`
             : `+${Math.round(value * 100)}% ${name}`;
@@ -370,7 +374,7 @@ function buildStage(el, s, layer) {
     const host = el.querySelector(".cards-draw");
     host.innerHTML = "";
 
-    // A banner is only open while its layer is, so a closed one drops you back to the choice.
+    // A banner is only open while its layer is, so a closed one drops you back to the choice
     if (s.banner && !bannerUnlocked(s.banner)) s.banner = null;
 
     if (!s.banner && !s.draw) return buildBannerChoice(host, s);
@@ -405,7 +409,7 @@ function backBar(s) {
     return bar;
 }
 
-// The banner choices. This makes them look good.
+// The banner choices. This makes them look good
 function buildBannerChoice(host, s) {
     const wrap = document.createElement("div");
     wrap.className = "banner-choice";
@@ -415,7 +419,7 @@ function buildBannerChoice(host, s) {
     grid.className = "banner-grid";
 
     // A banner whose layer isn't open is left out entirely - naming it would give away
-    // something that hasn't been found yet.
+    // something that hasn't been found yet
     for (const id of BANNER_IDS) {
         if (!bannerUnlocked(id)) continue;
         const banner = BANNERS[id];
@@ -438,7 +442,7 @@ function buildBannerChoice(host, s) {
     host.appendChild(wrap);
 }
 
-// The banner you're on, across the top of the stage.
+// The banner you're on, across the top of the stage
 function bannerHero(s) {
     const banner = BANNERS[s.banner];
     const hero = document.createElement("div");
@@ -476,7 +480,7 @@ function buildDraw(host, el, s, layer) {
                 collectCard(id, s);
                 s.draw = null;
                 // The draw goes into a free slot if there is one, and if the loadout is still
-                // open - a card drawn mid-evolution waits for the next one.
+                // open - a card drawn mid-evolution waits for the next one
                 const free = firstFreeSlot(s);
                 if (free !== -1 && !loadoutLocked(s)) equipCard(id, free, s);
             });
@@ -497,7 +501,7 @@ function buildDraw(host, el, s, layer) {
     btn.addEventListener("click", () => {
         const rolled = rollDraw(s.banner);
         if (rolled.length === 0) return;
-        if (!spend(layer, drawCost(s))) return;
+        if (!spend(drawCost(s))) return;
 
         s.draws = (s.draws || 0) + 1;
         if (!s.bannerDraws) s.bannerDraws = {};
@@ -526,7 +530,7 @@ function buildSlots(el, s) {
 }
 
 // The one commitment on this page. Until it is made the equipped cards are worth nothing, and
-// once it is made they are the run's cards until the next evolution.
+// once it is made they are the run's cards until the next evolution
 function buildLockIn(el, s) {
     const host = el.querySelector(".cards-lockin");
     host.innerHTML = "";
@@ -558,7 +562,7 @@ function buildLockIn(el, s) {
 
 const levelOf = (id, s) => (cardEntry(id, s) || { level: 1 }).level;
 
-// The collection, split by banner and each is sorted by descending rarity.
+// The collection, split by banner and each is sorted by descending rarity
 function buildCollection(el, s) {
     const host = el.querySelector(".cards-collection");
     host.innerHTML = "";
@@ -574,7 +578,7 @@ function buildCollection(el, s) {
         const inSection = owned.filter(id => (BANNERS[CARDS[id].banner] ? CARDS[id].banner : null) === bannerId);
         if (inSection.length === 0) continue;
 
-        // Rarest first, then the higher level, then by name.
+        // Rarest first, then the higher level, then by name
         inSection.sort((a, b) =>
             rarityOf(a).weight - rarityOf(b).weight
             || levelOf(b, s) - levelOf(a, s)
@@ -603,14 +607,14 @@ function collectionCard(id, s) {
     btn.innerHTML = cardFace(id, cardEntry(id, s));
     btn.addEventListener("click", () => {
         if (equipped || locked) return;
-        // Into the first free slot, or over the first slot if they're all taken.
+        // Into the first free slot, or over the first slot if they're all taken
         const free = firstFreeSlot(s);
         equipCard(id, free === -1 ? 0 : free, s);
     });
     return btn;
 }
 
-// Combos. A two-card combo that's folded into a three-card combo is greyed out.
+// Combos. A two-card combo that's folded into a three-card combo is greyed out
 function buildCombos(el, s) {
     const host = el.querySelector(".cards-combos");
     const status = comboStatus(s);
@@ -632,7 +636,3 @@ const majorCombo = (combo) => combo.cards.length >= SLOTS;
 // Same as cards, if a specific effect is listed then it goes off that
 const comboEffect = (combo) => combo.effect || Object.entries(combo.mods || {})
     .map(([key, value]) => `+${Math.round(value * 100)}% ${MOD_NAMES[key] || key}`).join(", ");
-
-function setText(el, text) {
-    if (el.textContent !== text) el.textContent = text;
-}

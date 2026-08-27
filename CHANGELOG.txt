@@ -1,0 +1,42 @@
+Optimization, Resource Rendering, & Ocean Cards: 8/27/26
+	- Added the Open Waters banner and 9 ocean cards
+	- Added combos: Running Tides, Seasonal Runs, and the cross-layer Brackish Reach
+	- Resource names and the amount of resource color themselves anywhere they appear
+	- Removed repeated code and put it into a general file
+	- Upgrade descriptions now quietly say what one more level adds after what you already have
+
+Ocean Layer, General Balancing, & Save Changes: 8/25/26
+	- Added the ocean sub-layer
+	- Prices for multiple upgrades changed (mostly grass sub-layer)
+	- Added the "Raze" interaction to remove unwanted tiles
+	- Evolution resets pond, water, and snow tiles as well as grass
+	- Conglomerated multipliers into one function
+	- Readme changed to be more github-friendly
+	- Saves migrate better, and backups are done
+	- If migration/loading fails, it tells the user and asks to revert to backup
+	- Lock so that multiple tabs of this don't save over each other
+
+Card, Precipitation, & Grass Changes: 8/24/26
+	- Updating cards to new grass and precipitation mechanics
+	- Pond's biomass equation is more intuitive now
+	- Precipitation blue boost increased, cloud fill cost decreased
+	- Grass and precipitation costs changed to match current production
+	- Comment style being changed so I don't have to think about how I'm commenting
+
+Grass Changes: 8/23/26
+	- Reworked grass to be multipliers instead of flat production
+	- Precipitation reworked to match it better
+
+Pond, Grass, & Rain Changes: 8/22/26
+	- Changed wording on some pond upgrades to be clearer
+	- A few cores layer number fixes and the Tides upgrade
+	- Cost changes to multiple layers, and grass speed increased
+	- Rain reworked to be the charge + stability system
+	- Pond upgrades changed
+
+Initial Commit: 8/21/26
+	- Combined, this was multiple github commits
+	- Starting content up to grass/rain was implemented.
+	- Includes cores, pond, life, world, and grass/rain
+	- Further commits were just alterations to post-pond content
+	- Visual fixes for light mode and some node appearances

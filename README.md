@@ -67,7 +67,7 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
     scripts/  
         core/  
             state.js                     save data (loading, saving, local storage), lazy per-layer init  
-            registry.js                  the stuff to register layers and sublayers  
+            registry.js                  the stuff to register resources, layers and sublayers  
             resources.js                 base functions and formatting for resources. Can you afford it, spend if, the amount, etc.  
             boosts.js                    global multiplier application and addition, owners use registerBoost(), producers use boostResource(id)  
             nodes.js                     draggable canvas rules: what are the nodes' parents, requirements, what's visible, what's buyable  
@@ -81,12 +81,16 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
             sidebar.js                   category bar, layer tabs, and sub-layer flyout  
             settings.js                  the settings window. Themes, save, load, delete, save files  
             guide.js                     the guide window for layers/sublayers + the information button that re-opens it  
+            richText.js                  write-guarded markup setter + resource names colorized wherever prose mentions them  
             dev.js                       dev-only cheat window, gives functions for easier testing. There's a toggle in here to disable it  
         
         content/                        one folder per category, one file per layer (and sometimes sublayer because restructuring earlier)  
+            resourceDefs.js             registerResources() - every resource in the game, whatever category shows it:  
+                                        its name, color, and which layer holds the pool. main.js imports it first  
             main/  
                 index.js                    imports the category, then every layer in it  
                 category.js                 registerCategory()  
+                biomass.js                  what biomass is worth everywhere, and the global boost it registers  
                 coresLayer.js               green + blue draggable canvas layer  
                 worldMap.js                 the map's shape and what grows on it, shared by the two below  
                 worldLayer.js               the world that's growing, a hex map once Land is bought  
@@ -104,10 +108,13 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
                 guides.js                   the text of every explanation popup (imported last)  
                 (and some unimplemented files as well)  
         
-        utils/
+        utils/  
             break_eternity.min.js         big-number library (UMD, sets globalThis.Decimal), written by Patashu under MIT license  
             decimal.js                    re-exports Decimal as a module, plus the D() shorthand  
-            format.js                     number formatting, works with Decimal   
+            format.js                     number formatting, works with Decimal  
+            dom.js                        write-guards for text/display/width/CSS vars, so unchanged values don't redo style work  
+            hex.js                        hex-grid math (neighbours, pixel positions), shared by the map and ecosystem tree  
+            tabGuard.js                   Web Locks guard so two tabs of the game don't save over each other; second one goes read-only   
 
 
 ## Terminology for coding things
@@ -129,6 +136,10 @@ Tile:               clickable tiles, they can check adjacency and such
 Scene:              a layer's drawing. On a static canvas it's still, drag canvas it pans and zooms  
 
 Global boost:       a multiplier on a resource wherever it's made  
+Resource:           defined once in content/resourceDefs.js, shared across categories. A layer's `resources` is only the list of
+                    which ones its header shows, either ["id", ...] or { id: { hidden, note } }  
+Holder:             the one layer whose save slot keeps a resource's pool. Every layer showing it
+                    reads and spends that same pool, so there is never a second copy  
 
 Drawer:             openable tab on a static canvas  
 Guide:              tutorial information given on opening a layer for the first time OR hitting the info button  
@@ -157,8 +168,6 @@ If that's too much, just a description of what happened on what layer would be g
 ## Known issues (bugs or unimplemented things)
     - Deep ocean tiles don't do anything right now, although they do count as oceans for the ocean layer.
     - Nothing calls drawInSchool() yet, so only cod are available.
-    - No cards use the oceanOutput / oceanTickSpeed bonuses yet, but it's ready for it.
-    - Resource names inside text should be colored by colorResources() but it's only implemented on ocean.
     - No visual indicator for the Tidal Cycle card.
     - The pond's capacity comes from the pondDeep node, cards, and pond tiles on the world map.
       There's still no upgrade for it. Needs balancing.

@@ -180,18 +180,18 @@ export function renderActiveLayer(force = false) {
         if (chip.style.display !== display) chip.style.display = display;
         if (!shown) continue;
 
-        const amount = getResource(layer, resourceId);
+        const amount = getResource(resourceId);
         const text = formatNumber(amount);
         const el = entry.resourceEls[resourceId];
         if (el.textContent !== text) el.textContent = text;
 
-        const rate = productionRate(layer, resourceId);
+        const rate = productionRate(resourceId);
         let rateText;
         if (!rate.abs().lt(0.0005)) {
             rateText = `${rate.gt(0) ? "+" : "-"}${formatNumber(rate.abs())}/s`;
         } else {
             // When the rate is really small compared to the pool, it ignores it and says this
-            rateText = amount.layer >= 1 ? "Too little production to count." : "0/s";
+            rateText = amount.gte(1) ? "Too little production to count." : "0/s";
         }
         if (def.note) rateText += `\n${def.note(layerState)}`;
         const rateEl = entry.rateEls[resourceId];

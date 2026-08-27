@@ -1,12 +1,76 @@
 // registry.js
 //
-// Registers categories and layers. New content is a file in scripts/content/ that calls these,
-// imported from its category's index.
+// Registers resources, categories and layers. New content is a file in scripts/content/ that
+// calls these, imported from its category's index.
 
-export const categories = {}; // { categoryId: { id, name, order, layerIds: [], groups: {} } }
-export const layers = {};     // { layerId: layerDefinition }
+export const categories = {};    // { categoryId: { id, name, order, layerIds: [], groups: {} } }
+export const layers = {};        // { layerId: layerDefinition }
+export const resourceDefs = {};  // { resourceId: { id, name, short, color, holder, note } }
 
 const DEFAULT_GROUP = "default";
+
+// holder is the stateKey of the one layer whose save keeps the pool
+export function registerResources(defs) {
+    for (const id in defs) {
+        if (resourceDefs[id]) throw new Error(`Resource "${id}" is defined more than once.`);
+        const { name, short = null, color = null, holder = null, note = null } = defs[id];
+        if (!name) throw new Error(`Resource "${id}" needs a name.`);
+        if (!holder) throw new Error(`Resource "${id}" needs a holder - the layer whose save keeps the pool.`);
+        resourceDefs[id] = { id, name, short: short || name, color, holder, note };
+
+        const held = holders.get(holder);
+        if (held) held.push(id);
+        else holders.set(holder, [id]);
+    }
+}
+
+export function resourceDef(id) {
+    const def = resourceDefs[id];
+    if (!def) throw new Error(`Unknown resource "${id}". Resources are defined in content/resourceDefs.js.`);
+    return def;
+}
+
+// Reverse of the defs, built while they register. Makes it not walk every def each render
+const holders = new Map();
+const NO_HOLDINGS = [];
+
+// The ids whose pool lives in that layer's save slot
+export function heldResourceIds(stateKey) {
+    const held = holders.get(stateKey);
+    return held ? held.slice() : NO_HOLDINGS;
+}
+
+// Run once the content is in. A holder that isn't a layer gets a save slot no layer claims, and
+// loading drops those, so the pool would empty itself every reload
+export function assertResourceHolders() {
+    for (const id in resourceDefs) {
+        const holder = resourceDefs[id].holder;
+        if (!layers[holder]) {
+            throw new Error(`Resource "${id}" is held by "${holder}", which is not a registered layer.`);
+        }
+    }
+}
+
+const ALLOWED_OVERRIDES = ["hidden", "note"];
+
+function resolveResources(label, declared) {
+    if (!declared) return {};
+    const ids = Array.isArray(declared) ? declared : Object.keys(declared);
+
+    const built = {};
+    for (const id of ids) {
+        const override = Array.isArray(declared) ? {} : (declared[id] || {});
+        for (const key in override) {
+            if (!ALLOWED_OVERRIDES.includes(key)) {
+                throw new Error(`${label} overrides "${key}" on resource "${id}". A layer may only`
+                    + ` override ${ALLOWED_OVERRIDES.join(" and ")} - the rest belongs to the`
+                    + ` resource itself, in content/resourceDefs.js.`);
+            }
+        }
+        built[id] = { ...resourceDef(id), ...override };
+    }
+    return built;
+}
 
 /**
  * @param {string} id
@@ -25,7 +89,7 @@ export function registerCategory(id, { name, order = 0, groups = null }) {
         built[groupId] = {
             id: groupId,
             name: group.name || null,
-            // Falls back to declaration order.
+            // Falls back to declaration order
             order: group.order === undefined ? index : group.order,
             layerIds: [],
         };
@@ -114,7 +178,7 @@ function buildUpgradeGroups(label, upgrades, drawers) {
 export function registerLayer(id, def) {
     const { categoryId, group = null, name, color = "#4a90d9", canvasType = null, order = 0,
         upgrades = {}, drawers = null, subWindows = {}, nodes = {}, subLayers: rawSubLayers = null,
-        resources = {}, indicators = {}, initialState = {}, defaultView = null, defaultZoom = null,
+        resources: rawResources = null, indicators = {}, initialState = {}, defaultView = null, defaultZoom = null,
         scene = null, note = null, canvasClass = null,
         tiles = null, overlay = null, viewportClass = null, onCanvasClick = null, hud = null,
         onTick = null, attention = null, startUnlocked = true, absorbedBy = null } = def;
@@ -122,6 +186,8 @@ export function registerLayer(id, def) {
     if (!categories[categoryId]) {
         throw new Error(`Layer "${id}" references unknown category "${categoryId}". Register the category first.`);
     }
+
+    const resources = resolveResources(`Layer "${id}"`, rawResources);
 
     // Named rather than defaulted when it's wrong, so typos don't mess things up as bad
     const groupId = group || Object.keys(categories[categoryId].groups)[0];
@@ -171,7 +237,9 @@ export function registerLayer(id, def) {
                 key,
                 id: `${id}:${key}`,
                 stateKey,
-                resources: subDef.resources || resources,
+                resources: subDef.resources
+                    ? resolveResources(`Sub-layer "${id}:${key}"`, subDef.resources)
+                    : resources,
                 name: subDef.name,
                 color: subDef.color || color,
                 canvasType: subDef.canvasType,

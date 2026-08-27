@@ -1,41 +1,40 @@
 // resources.js
 //
+// Reading, spending and rate-tracking the pools. What a resource is, and which layer holds it,
+// is declared in content/resourceDefs.js.
+//
 // Costs are maps of {resourceId: amount} rather than a single number, so an upgrade can
 // charge for more than one resource at once - which is what the "green and blue"
 // upgrades need. A single-resource cost is just a one-entry map. Amounts are Decimals.
 
 import { state, getLayerState } from "./state.js";
+import { resourceDef, resourceDefs } from "./registry.js";
 import { D } from "../utils/decimal.js";
 import { formatNumber } from "../utils/format.js";
 
-// Resources can be shared between layers, but they all have one layer they belong to
-export function resourceHolderId(layer, resourceId) {
-    const def = layer.resources ? layer.resources[resourceId] : null;
-    return def && def.from ? def.from : layer.stateKey;
-}
+// However many layers show a resource, its pool is stored on exactly one
+export const resourceHolderId = (resourceId) => resourceDef(resourceId).holder;
 
-export function resourceHolder(layer, resourceId) {
-    return getLayerState(resourceHolderId(layer, resourceId));
-}
+export const resourceHolder = (resourceId) => getLayerState(resourceHolderId(resourceId));
 
-export function getResource(layer, resourceId) {
-    return D(resourceHolder(layer, resourceId).resources[resourceId] || 0);
+export function getResource(resourceId) {
+    return D(resourceHolder(resourceId).resources[resourceId] || 0);
 }
 
 
-export function addResource(layer, resourceId, amount) {
-    const holder = resourceHolder(layer, resourceId);
+export function addResource(resourceId, amount) {
+    const holder = resourceHolder(resourceId);
     holder.resources[resourceId] = D(holder.resources[resourceId] || 0).add(amount);
 }
 
-export function setResource(layer, resourceId, value) {
-    const holder = resourceHolder(layer, resourceId);
+export function setResource(resourceId, value) {
+    const holder = resourceHolder(resourceId);
     holder.resources[resourceId] = D(value);
 }
 
-export function canAfford(layer, cost) {
+export function canAfford(cost) {
     for (const resourceId in cost) {
-        if (getResource(layer, resourceId).lt(cost[resourceId])) return false;
+        if (getResource(resourceId).lt(cost[resourceId])) return false;
     }
     return true;
 }
@@ -44,10 +43,10 @@ const spendListeners = [];
 export const onSpend = (listener) => spendListeners.push(listener);
 
 // Makes sure that you don't have a partial spend, it's all or nothing
-export function spend(layer, cost) {
-    if (!canAfford(layer, cost)) return false;
+export function spend(cost) {
+    if (!canAfford(cost)) return false;
     for (const resourceId in cost) {
-        const holderId = resourceHolderId(layer, resourceId);
+        const holderId = resourceHolderId(resourceId);
         const holder = getLayerState(holderId);
         holder.resources[resourceId] = D(holder.resources[resourceId]).sub(cost[resourceId]);
         noteSpend(holderId, resourceId, cost[resourceId]);
@@ -96,8 +95,8 @@ export function sampleProduction(dt) {
     }
 }
 
-export function productionRate(layer, resourceId) {
-    return rates[`${resourceHolderId(layer, resourceId)}:${resourceId}`] || D(0);
+export function productionRate(resourceId) {
+    return rates[`${resourceHolderId(resourceId)}:${resourceId}`] || D(0);
 }
 
 // Big boosts make the production rate look reaaally off, so this makes them the actual rate
@@ -114,17 +113,18 @@ const costGroups = [];
  * @param {object} def
  * @param {string[]} def.ids    
  *                              
- * @param {string} def.name     
- * @param {string} [def.color]  
+ * @param {string} def.name
+ * @param {string} [def.short]
+ * @param {string} [def.color]
  */
 
-export function registerCostGroup({ ids, name, color = null }) {
+export function registerCostGroup({ ids, name, short = null, color = null }) {
     if (!ids || ids.length < 2) throw new Error(`Cost group "${name}" needs at least two resource ids.`);
-    costGroups.push({ ids, name, color });
+    costGroups.push({ ids, name, short: short || name, color });
 }
 
 // A cost split into the pieces it should be read as
-export function costParts(cost, resourceDefs = {}) {
+export function costParts(cost) {
     const unclaimed = { ...cost };
     const parts = [];
 
@@ -133,13 +133,14 @@ export function costParts(cost, resourceDefs = {}) {
 
         const group = groupFilledBy(id, unclaimed);
         if (group) {
-            parts.push({ ids: [...group.ids], label: group.name, color: group.color, amount: formatNumber(unclaimed[id]) });
+            parts.push({ ids: [...group.ids], label: group.name, short: group.short, color: group.color, amount: formatNumber(unclaimed[id]) });
             for (const memberId of group.ids) delete unclaimed[memberId];
             continue;
         }
 
         const def = resourceDefs[id];
-        parts.push({ ids: [id], label: def ? def.name : id, color: (def && def.color) || null, amount: formatNumber(unclaimed[id]) });
+        parts.push({ ids: [id], label: def ? def.name : id, short: def ? def.short : id,
+            color: (def && def.color) || null, amount: formatNumber(unclaimed[id]) });
         delete unclaimed[id];
     }
 
@@ -152,8 +153,8 @@ function groupFilledBy(id, unclaimed) {
         memberId => memberId in unclaimed && D(unclaimed[memberId]).eq(unclaimed[id]))) || null;
 }
 
-export function formatCost(cost, resourceDefs = {}) {
-    return costParts(cost, resourceDefs).map(part => `${part.amount} ${part.label}`).join(" + ");
+export function formatCost(cost) {
+    return costParts(cost).map(part => `${part.amount} ${part.label}`).join(" + ");
 }
 
 // How many times a repeatable upgrade has been bought

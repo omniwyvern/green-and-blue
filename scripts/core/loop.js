@@ -1,17 +1,19 @@
 // loop.js 
 // 
-// Two loops: simulation for every unlocked layer, and rendering on requestAnimationFrame
-// for whichever is on screen. DOM writes are the main thing that cost time.
+// Two clocks: the simulation tick advancing every unlocked layer, and requestAnimationFrame
+// drawing whichever one is on screen. The chrome around the canvas (sidebar, guides) reads game
+// data, which only moves on ticks - so it follows the simulation clock instead of re-checking
+// unchanged unlocks at frame rate.
 
 import { state, saveState, getLayerState } from "./state.js";
 import { layers } from "./registry.js";
 import { sampleProduction } from "./resources.js";
 import { renderActiveLayer, markDirty } from "../render/canvasRouter.js";
-import { renderSidebar } from "../render/sidebar.js";
+import { renderSidebar, syncNavToggleTarget } from "../render/sidebar.js";
 import { checkGuides } from "../render/guide.js";
 
 const SIM_TICK_MS = 50;      // 20 ticks/sec
-const AUTOSAVE_MS = 10000;
+const AUTOSAVE_MS = 5 * 60 * 1000; // Settings can switch this off; closing the tab still saves
 
 let lastTickTime = Date.now();
 let lastAutosave = Date.now();
@@ -28,29 +30,45 @@ function simulationTick() {
         // Being locked stops a layer, being off-screen doesn't
         if (!getLayerState(layer.id).unlocked) continue;
 
+        try {   // if it fails to tick a layer, it won't skip things after it
         layer.onTick(dt, layer);
         markDirty(layer.id);
+       } catch (err) {
+        console.log(`Error ${err} when ticking ${layer.id}`)
+       }
     }
 
-    markDirty(state.activeLayer);
-    sampleProduction(dt);
+    try { // if it fails to tick the active layer, it won't skip things after it
+        markDirty(state.activeLayer);
+        sampleProduction(dt);
+    } catch (err) {
+        console.log(`Error ${err} when ticking ${state.activeLayer}`);
+    }
 
-    if (now - lastAutosave > AUTOSAVE_MS) {
+    try {   // Between ticks nothing new reaches the sidebar or guides
+        renderSidebar();
+        checkGuides();
+    } catch (err) {
+        console.log(`Error ${err} when updating the sidebar or guides`);
+    }
+
+    if (state.settings.autosave && now - lastAutosave > AUTOSAVE_MS) {
         saveState();
         lastAutosave = now;
     }
 }
 
-// One thrown error used to take the whole animation frame chain with it, which froze the
-// game for good with no way back. Now a bad frame is reported once and the loop carries on
+// One thrown error used to take the whole animation frame chain with it, now
+// it's reported and the tick carries on
 let renderFailures = 0;
 const MAX_REPORTED_FAILURES = 5;
 
 function renderFrame() {
     try {
         renderActiveLayer();
-        renderSidebar();
-        checkGuides();
+
+        // Re-points the nav toggle at the active header. 
+        syncNavToggleTarget();
     } catch (err) {
         if (renderFailures++ < MAX_REPORTED_FAILURES) {
             console.error("A layer failed to render. The loop is still running.", err);

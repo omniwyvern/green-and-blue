@@ -4,13 +4,12 @@
 // in main.js, and the #dev-button / #dev-overlay elements in index.html
 
 import { state, getLayerState, saveState } from "../core/state.js";
-import { layers, getVisibleSubLayers } from "../core/registry.js";
+import { layers, resourceDefs, getVisibleSubLayers } from "../core/registry.js";
 import { addResource, resourceHolderId, resyncProduction } from "../core/resources.js";
 import { parentsOf, prereqMet } from "../core/nodes.js";
 import { refreshCoordReadouts } from "./dragCanvas.js";
 import { D } from "../utils/decimal.js";
-
-const GRANT = D("1.00e20");
+import { formatNumber } from "../utils/format.js";
 
 // The nodes that stand for a layer, or for a step on the way to one. Everything else in a tree
 // is an ordinary upgrade, and the button leaves those to be bought the normal way
@@ -20,6 +19,7 @@ const overlay = document.getElementById("dev-overlay");
 const openButton = document.getElementById("dev-button");
 
 let statusEl = null;
+let resourceFields = []; // One per pool, filled in by buildResourceFields
 let coordsButton = null;
 let interactionsButton = null;
 let fastGrassButton = null;
@@ -35,7 +35,9 @@ export function initDev() {
 
 function setOpen(open) {
     overlay.hidden = !open;
-    if (open) setStatus("");
+    if (!open) return;
+    setStatus("");
+    readResourceFields(); // So the boxes always show what the game currently holds
 }
 
 function buildWindow() {
@@ -51,6 +53,13 @@ function buildWindow() {
             <div class="settings-row dev-row"></div>
         </div>
         <div class="settings-section">
+            <div class="settings-label">Set resources</div>
+            <div class="dev-resource-list"></div>
+            <div class="settings-row resource-row"></div>
+            <div class="settings-note"\n>Type the amount you want to end up with, not the amount to
+                add. Scientific notation works: 1e20, 2.5e120. Blank leaves one alone.</div>
+        </div>
+        <div class="settings-section">
             <div class="settings-label">View</div>
             <div class="settings-row view-row"></div>
         </div>
@@ -60,8 +69,11 @@ function buildWindow() {
 
     const row = panel.querySelector(".dev-row");
     row.appendChild(makeButton("Unlock all layers", unlockAllLayers));
-    row.appendChild(makeButton("Grant this layer's resources", grantHere));
     row.appendChild(makeButton("Zero all resources", zeroResources));
+
+    buildResourceFields(panel.querySelector(".dev-resource-list"));
+    const resourceRow = panel.querySelector(".resource-row");
+    resourceRow.appendChild(makeButton("Apply amounts", applyResourceAmounts));
 
     const viewRow = panel.querySelector(".view-row");
     coordsButton = makeButton("Canvas coordinates", toggleCoords);
@@ -165,7 +177,7 @@ function activeView() {
 // The resources a view holds itself, rather than the ones it only borrows to display
 function grantableResources(view) {
     const ids = Object.keys(view.resources || {});
-    const owned = ids.filter(id => resourceHolderId(view, id) === view.stateKey);
+    const owned = ids.filter(id => resourceHolderId(id) === view.stateKey);
     return owned.length ? owned : ids;
 }
 
@@ -176,12 +188,89 @@ function grantHere() {
     const ids = grantableResources(view);
     if (!ids.length) return setStatus(`${view.name} has no resources.`);
 
-    for (const id of ids) addResource(view, id, GRANT);
+    for (const id of ids) addResource(id, GRANT);
     resyncProduction();
+    readResourceFields(); // The boxes below are showing these same pools
     const names = ids.map(id => view.resources[id].name).join(", ");
     setStatus(`Granted ${GRANT.toString()} ${names} on ${view.name}.`);
 }
 
+
+// One box per pool, not per layer showing it
+const resourcePools = () => Object.values(resourceDefs)
+    .map(def => ({ holderId: def.holder, resourceId: def.id, def }));
+
+function buildResourceFields(container) {
+    resourceFields = [];
+
+    for (const pool of resourcePools()) {
+        const row = document.createElement("label");
+        row.className = "dev-resource";
+
+        const name = document.createElement("span");
+        name.className = "dev-resource-name";
+        name.textContent = pool.def.name || pool.resourceId;
+        if (pool.def.color) name.style.color = pool.def.color;
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "dev-resource-input";
+        input.spellcheck = false;
+        input.autocomplete = "off";
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") applyResourceAmounts(); });
+
+        row.append(name, input);
+        container.appendChild(row);
+        resourceFields.push({ ...pool, input });
+    }
+}
+
+const currentAmount = ({ holderId, resourceId }) => D(getLayerState(holderId).resources[resourceId] || 0);
+
+// Decimal takes anything and quietly calls it a number, a typo wipes the pool instead of rejecting
+// so this makes it check if it's a number first
+const NUMERIC = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+
+function readResourceFields() {
+    for (const field of resourceFields) field.input.value = formatNumber(currentAmount(field));
+}
+
+// Sets each pool to what's in its box. Every box is checked before anything is written, so a typo
+// in one doesn't leave the rest half-applied
+function applyResourceAmounts() {
+    const bad = [];
+    const changes = [];
+
+    for (const field of resourceFields) {
+        const text = field.input.value.trim();
+        if (text === "") continue;
+
+        if (!NUMERIC.test(text)) {
+            bad.push(field.def.name || field.resourceId);
+            continue;
+        }
+
+        const value = D(text);
+        if (value.isNan() || !value.isFinite()) {
+            bad.push(field.def.name || field.resourceId);
+            continue;
+        }
+        if (value.eq(currentAmount(field))) continue;
+        changes.push({ field, value });
+    }
+
+    if (bad.length) return setStatus(`Not a number: ${bad.join(", ")}. Nothing changed.`);
+    if (!changes.length) return setStatus("Every box already matches what the game holds.");
+
+    for (const { field, value } of changes) {
+        getLayerState(field.holderId).resources[field.resourceId] = value;
+    }
+    resyncProduction();
+    readResourceFields();
+
+    const summary = changes.map(c => `${c.field.def.name || c.field.resourceId} to ${formatNumber(c.value)}`).join(", ");
+    setStatus(saveState() ? `Set ${summary}. Saved.` : `Set ${summary}. Not saved - saving is off.`);
+}
 
 // Empties every pool
 function zeroResources() {
@@ -195,6 +284,7 @@ function zeroResources() {
         }
     }
     resyncProduction();
+    readResourceFields();
     setStatus(emptied ? `Emptied ${emptied} pool${emptied === 1 ? "" : "s"}.` : "Everything is already empty.");
 }
 

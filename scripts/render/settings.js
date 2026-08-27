@@ -2,7 +2,10 @@
 //
 // The settings window. Little gear icon on the bottom left opens it. Pretty self-explanatory.
 
-import { state, saveState, loadState, deleteSave, hasSave, isSavingBlocked, serializeState, encodeSave, importSave } from "../core/state.js";
+import { state, saveState, loadState, deleteSave, hasSave, isSavingBlocked, getSaveProblem,
+    hasBackup, restoreBackup, exportSave, importSave } from "../core/state.js";
+
+const AUTOSAVE_MINUTES = 5; // Matches AUTOSAVE_MS in loop.js
 
 const THEMES = [
     { id: "dark", name: "Dark" },
@@ -13,6 +16,10 @@ const overlay = document.getElementById("settings-overlay");
 const openButton = document.getElementById("settings-button");
 
 let statusEl = null;
+let warningEl = null;
+let autosaveButton = null;
+let restoreButton = null;
+let restoreArmed = false;
 let deleteButton = null;
 let deleteArmed = false; // Second click confirms; see armDelete below
 
@@ -35,6 +42,13 @@ export function initSettings() {
 
     openButton.addEventListener("click", () => setOpen(true));
 
+    // A save that couldn't be read is worth saying out loud. It used to only reach the console,
+    // which meant the first a player knew of it was their progress being gone
+    if (getSaveProblem()) {
+        openButton.classList.add("has-problem");
+        setOpen(true);
+    }
+
     // Clicking the backdrop (but not the panel itself) or escape closes it.
     overlay.addEventListener("click", (e) => { if (e.target === overlay) setOpen(false); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
@@ -42,8 +56,26 @@ export function initSettings() {
 
 function setOpen(open) {
     overlay.hidden = !open;
-    if (!open) disarmDelete();
-    else setStatus("");
+    if (!open) return disarmAll();
+
+    setStatus("");
+    refreshWarning();
+}
+
+// For whatever switches saving off after this window was already built, since the banner is
+// only rebuilt when the window opens
+export function notifySaveProblem() {
+    if (openButton && getSaveProblem()) openButton.classList.add("has-problem");
+    refreshWarning();
+}
+
+// Saving being off is the kind of thing a player needs told rather than left in the console
+function refreshWarning() {
+    if (!warningEl) return;
+    const problem = getSaveProblem();
+    warningEl.textContent = problem;
+    warningEl.hidden = !problem;
+    if (restoreButton) restoreButton.hidden = !hasBackup();
 }
 
 function buildWindow() {
@@ -55,9 +87,16 @@ function buildWindow() {
             <h2>Settings</h2>
             <button class="settings-close" aria-label="Close">&times;</button>
         </div>
+        <div class="settings-warning" hidden></div>
         <div class="settings-section">
             <div class="settings-label">Theme</div>
             <div class="settings-row theme-row"></div>
+        </div>
+        <div class="settings-section">
+            <div class="settings-label">Autosave</div>
+            <div class="settings-row autosave-row"></div>
+            <div class="settings-note">Saves every ${AUTOSAVE_MINUTES} minutes while you play. Closing
+                the tab saves either way, so turning this off only stops the timer.</div>
         </div>
         <div class="settings-section">
             <div class="settings-label">Save</div>
@@ -87,13 +126,16 @@ function buildWindow() {
         themeRow.appendChild(btn);
     }
 
+    const autosaveRow = panel.querySelector(".autosave-row");
+    autosaveButton = makeButton("Autosave", "settings-button-secondary", toggleAutosave);
+    autosaveRow.appendChild(autosaveButton);
+    refreshAutosaveButton();
+
     const saveRow = panel.querySelector(".save-row");
     saveRow.appendChild(makeButton("Save", "settings-button-secondary", () => {
-        saveState();
         // Saving goes quiet after a half-loaded page, so say that rather than claim it worked
-        setStatus(isSavingBlocked()
-            ? "Part of the game didn't load. Reload the page before saving."
-            : "Saved.");
+        setStatus(saveState() ? "Saved." : getSaveProblem() || "Couldn't save.");
+        refreshWarning();
     }));
     saveRow.appendChild(makeButton("Load", "settings-button-secondary", () => {
         if (!hasSave()) return setStatus("No save to load.");
@@ -101,6 +143,10 @@ function buildWindow() {
 
         window.location.reload();
     }));
+
+    restoreButton = makeButton("Restore backup", "settings-button-secondary", armRestore);
+    restoreButton.title = "Puts back the save as it was when this tab was opened";
+    saveRow.appendChild(restoreButton);
 
     deleteButton = makeButton("Delete save", "settings-button-danger", armDelete);
     saveRow.appendChild(deleteButton);
@@ -112,18 +158,20 @@ function buildWindow() {
     fileRow.appendChild(filePicker);
 
     statusEl = panel.querySelector(".settings-status");
+    warningEl = panel.querySelector(".settings-warning");
 
     overlay.appendChild(panel);
     highlightTheme(panel);
+    refreshWarning();
 }
 
 // Writes the save out as a file instead of just having a local save
 function saveToFile() {
-    saveState();
+    const contents = exportSave();
     const now = new Date();
     const stamp = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
         .map((part, i) => i ? String(part).padStart(2, "0") : part).join("-");
-    const blob = new Blob([encodeSave(serializeState())], { type: "text/plain" });
+    const blob = new Blob([contents], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -152,6 +200,42 @@ function makeButton(label, className, onClick) {
     return btn;
 }
 
+function toggleAutosave() {
+    state.settings.autosave = !state.settings.autosave;
+    refreshAutosaveButton();
+    saveState(); // The setting itself is worth writing right away, whichever way it just went
+    setStatus(state.settings.autosave
+        ? `Autosave on, every ${AUTOSAVE_MINUTES} minutes.`
+        : "Autosave off. Use Save, or close the tab, to write your progress.");
+}
+
+function refreshAutosaveButton() {
+    if (!autosaveButton) return;
+    const on = !!state.settings.autosave;
+    autosaveButton.textContent = `Autosave: ${on ? "on" : "off"}`;
+    autosaveButton.classList.toggle("active", on);
+}
+
+// Rolling back throws away the session, so it asks twice the same way deleting does
+function armRestore() {
+    if (!restoreArmed) {
+        restoreArmed = true;
+        restoreButton.textContent = "Really restore? This session is lost";
+        restoreButton.classList.add("active");
+        setStatus("Click again to go back to the save this tab started with.");
+        return;
+    }
+    if (!restoreBackup()) return setStatus("There's no backup to restore.");
+    window.location.reload();
+}
+
+function disarmRestore() {
+    if (!restoreButton) return;
+    restoreArmed = false;
+    restoreButton.textContent = "Restore backup";
+    restoreButton.classList.remove("active");
+}
+
 // Makes deleting the save a two-step thing, first click arms it and second deletes
 function armDelete() {
     if (!deleteArmed) {
@@ -169,6 +253,11 @@ function disarmDelete() {
     deleteArmed = false;
     deleteButton.textContent = "Delete save";
     deleteButton.classList.remove("armed");
+}
+
+function disarmAll() {
+    disarmDelete();
+    disarmRestore();
 }
 
 function highlightTheme(panel) {

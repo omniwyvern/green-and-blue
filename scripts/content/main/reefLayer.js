@@ -4,10 +4,7 @@
 
 import { registerLayer } from "../../core/registry.js";
 
-const REEF_RESOURCES = {
-    greenEssence: { name: "Green Essence", color: "#3aa876", from: "cores" },
-    blueEssence: { name: "Blue Essence", color: "#4a90d9", from: "cores" },
-};
+const REEF_RESOURCES = ["greenEssence", "blueEssence"];
 
 registerLayer("reef", {
     categoryId: "main",

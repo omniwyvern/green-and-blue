@@ -10,7 +10,7 @@ import { availableGuides, pendingGuides } from "../core/guides.js";
 const overlay = document.getElementById("guide-overlay");
 const openButton = document.getElementById("guide-button");
 
-// Shown when the info button is pressed on a layer that has no guide.
+// Shown when the info button is pressed on a layer that has no guide
 const NOTHING_HERE = {
     id: null,
     title: "Nothing to explain",
@@ -39,8 +39,11 @@ export function checkGuides() {
     if (pending.length > 0) open(pending);
 }
 
+// Every .modal-overlay exists from page load on, so only they're collected once
+const modalOverlays = [...document.querySelectorAll(".modal-overlay")];
+
 function anyModalOpen() {
-    return document.querySelector(".modal-overlay:not([hidden])") !== null;
+    return modalOverlays.some(el => !el.hidden);
 }
 
 function openForActiveLayer() {
@@ -63,7 +66,7 @@ function show() {
     els.body.innerHTML = guide.body;
     els.body.scrollTop = 0;
 
-    // Being put on screen is what counts as having been given it.
+    // Being put on screen is what counts as having been given it
     if (guide.id) claimUnseen("guides", guide.id);
 
     const more = index < queue.length - 1;

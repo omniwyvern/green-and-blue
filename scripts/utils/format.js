@@ -5,9 +5,8 @@
 import { D } from "./decimal.js";
 
 
-export function formatNumber(value, places) {
+export function formatNumber(value, places = 2) {
     const n = D(value);
-    places = 2;
 
     if (n.isNan()) return "NaN"; // break_eternity spells it isNan, instead of isNaN for some reason. but I'm not gonna mess with it
     if (!n.isFinite()) return "Infinity";
@@ -43,7 +42,7 @@ function exponential(n, places) {
 
 // Takes the fraction, not the percent - 0.25 reads as 25%.
 //
-// This gives cuts digits sooner than formatNumber. Rounded rather than floored on the way, so a hair under 100% is still 100%.
+// This gives cuts digits sooner than formatNumber. Rounded rather than floored on the way, so a hair under 100% is still 100%
 const PERCENT_DIGITS = 4;
 const PERCENT_CAP = Math.pow(10, PERCENT_DIGITS);
 

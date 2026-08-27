@@ -15,20 +15,21 @@ import { addResource } from "../../core/resources.js";
 import { boostResource } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber, formatPercent } from "../../utils/format.js";
+import { setText } from "../../utils/dom.js";
 import {
     TERRAIN, TERRAIN_OUTPUT, ACTIVATIONS_BY_TIER, DRYING_SECONDS, activationsForKind,
-    worldState, tileCounts, knownKinds, terrainProduction, claimedTiles, moistureOn,
+    worldState, tileCounts, terrainProduction, claimedTiles, moistureOn,
     knownTransforms, transformAvailable, transformHint, fodderSpends, fodderSummary, hasSeenKind,
     contributeMapRadius,
 } from "./worldMap.js";
 import { kindChip } from "./terrainArt.js";
-import { BIOMASS_RESOURCE, PER_POND_TILE } from "./pondSublayer.js";
+import { PER_POND_TILE } from "./pondSublayer.js";
 import { PER_OCEAN_TILE, REGIONS_AT_FIRST_OCEAN } from "./oceanSublayer.js";
 import { ECOSYSTEM_VIEW } from "./ecosystemSublayer.js";
-import { GRASS_VIEW, GRASS_RESOURCES, GROWTH_RESOURCE } from "./grassSublayer.js";
+import { GRASS_VIEW, GRASS_RESOURCES } from "./grassSublayer.js";
 import { PRECIPITATION_VIEW, PRECIPITATION_RESOURCES } from "./precipitationSublayer.js";
 
-// How long a full cloud's worth takes to drain back off the ground when left alone.
+// How long a full cloud's worth takes to drain back off the ground when left alone
 const DRYING_MINUTES = DRYING_SECONDS / 60;
 
 // The world opens out by a ring once the environment is here.
@@ -49,19 +50,13 @@ registerLayer("environment", {
     order: 0,
     startUnlocked: false,
 
-    resources: {
-        greenEssence: { name: "Green Essence", color: "#3aa876", from: "cores" },
-        blueEssence: { name: "Blue Essence", color: "#4a90d9", from: "cores" },
-        biomass: { ...BIOMASS_RESOURCE, from: "pond" },
-        growth: { ...GROWTH_RESOURCE, from: "grass" },
-        evolutionPoints: { name: "Evolution Points", color: "#b06ad0", from:"evolution"},
-    },
+    resources: ["greenEssence", "blueEssence", "biomass", "growth", "evolutionPoints"],
 
     onTick(dt, layer) {
         const output = terrainProduction(worldState());
         for (const resourceId of ["greenEssence", "blueEssence"]) {
             if (!(output[resourceId] > 0)) continue;
-            addResource(layer, resourceId, D(output[resourceId]).mul(boostResource(resourceId)).mul(dt));
+            addResource(resourceId, D(output[resourceId]).mul(boostResource(resourceId)).mul(dt));
         }
     },
 
@@ -81,11 +76,9 @@ registerLayer("environment", {
                             <div class="environment-summary"></div>
                             <div class="cards-heading">Transformations</div>
                             <div class="recipe-list"></div>
-                            <div class="terrain-list"></div>
                         </div>
                     `;
                     el.__recipes = null;
-                    el.__census = null;
                 },
 
                 update(el) {
@@ -94,7 +87,7 @@ registerLayer("environment", {
 
                     setText(el.querySelector(".environment-summary"), summary(world, counts));
 
-                    // Known/unlocked transforms are only updated on purchases, so this isn't rebuilt every tick.
+                    // Known/unlocked transforms are only updated on purchases, so this isn't rebuilt every tick
                     const known = knownTransforms(world);
                     const recipeSignature = known
                         .map(r => `${r.id}:${transformAvailable(r, world)}:${hasSeenKind(world, r.output)}`)
@@ -105,15 +98,6 @@ registerLayer("environment", {
                             ? known.map(r => recipeMarkup(r, world)).join("")
                             : `<div class="cards-empty">Nothing is known yet.</div>`;
                     }
-
-                    // The ground that the world can currently reach, and what each kind is worth.
-                    const kinds = knownKinds(world);
-                    const censusSignature = kinds.map(kind => `${kind}:${counts[kind]}`).join(",");
-                    if (el.__census === censusSignature) return;
-                    el.__census = censusSignature;
-
-                    el.querySelector(".terrain-list").innerHTML =
-                        kinds.map(kind => terrainMarkup(kind, counts[kind])).join("");
                 },
             },
         },
@@ -180,8 +164,26 @@ function recipeMarkup(recipe, world) {
                 <div class="transform-outputs">${result}</div>
             </div>
             <div class="recipe-text">${text}</div>
+            ${found ? givesMarkup(recipe.output) : ""}
         </div>
     `;
+}
+
+// What the ground it makes is worth, kept back until one has been made - the same way the recipe
+// holds back what it turns into
+function givesMarkup(kind) {
+    const output = TERRAIN_OUTPUT[kind];
+    const lines = [];
+    if (output) {
+        lines.push(Object.keys(output)
+            .map(id => `${formatNumber(D(output[id]))} ${RESOURCE_NAMES[id]}/s`).join(", "));
+    }
+    if (TERRAIN_EFFECT[kind]) lines.push(TERRAIN_EFFECT[kind]);
+    if (lines.length === 0) return "";
+
+    return `<div class="recipe-gives">`
+        + lines.map(line => `<div>${line}</div>`).join("")
+        + `</div>`;
 }
 
 const unseenChip = (name = "???", extra = "") => `
@@ -196,37 +198,14 @@ const LOCK_GLYPH = `
         <rect x="3.4" y="7.4" width="9.2" height="6.4" rx="1.3"/>
     </svg>`;
 
-// What a tile is worth beyond what it makes on the map itself. This is the half that happens in
-// whichever layer the ground belongs to, which is the part a census of the map can't show.
+// What a tile is worth beyond what it makes on the map itself
 const TERRAIN_EFFECT = {
     grass: "Multiplies Green Essence, and Blue while there's weather on it",
-    pond: `+${PER_POND_TILE} capacity on the Pond`,
-    ocean: `Opens ocean regions - ${REGIONS_AT_FIRST_OCEAN} for the first, one more for each after`
+    pond: `+${PER_POND_TILE} capacity in the Pond`,
+    ocean: `Opens ocean regions - ${REGIONS_AT_FIRST_OCEAN} for the first, plus one more for every second one`
         + `, and +${formatPercent(PER_OCEAN_TILE)} to every school`,
+    "deep-ocean": `Counts as an open ocean, nothing else for now`
+
 };
-// A deep ocean still counts as ocean everywhere else, so it reads the same here.
-TERRAIN_EFFECT["deep-ocean"] = TERRAIN_EFFECT.ocean;
 
-function terrainMarkup(kind, count) {
-    const output = TERRAIN_OUTPUT[kind];
-    const rate = output
-        ? Object.keys(output).map(id => `${formatNumber(D(output[id]))} ${RESOURCE_NAMES[id]}/s`).join(", ")
-        : "—";
-    const effect = TERRAIN_EFFECT[kind];
-
-    return `
-        <div class="terrain-row${count > 0 ? " has-some" : ""}">
-            ${kindChip(kind)}
-            <div class="terrain-facts">
-                <div class="terrain-count">${count} tile${count === 1 ? "" : "s"}</div>
-                <div class="terrain-rate">${rate}</div>
-                ${effect ? `<div class="terrain-effect">${effect}</div>` : ""}
-            </div>
-        </div>
-    `;
-}
 const RESOURCE_NAMES = { greenEssence: "Green", blueEssence: "Blue" };
-
-function setText(el, text) {
-    if (el.textContent !== text) el.textContent = text;
-}

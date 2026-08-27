@@ -59,19 +59,13 @@
 .node-detail:empty { display: none; }
 
 .node-badge {
-    /* How full the pill reads, for badges that run out - 1 is the whole pill, which is what
-       every badge without one gets, so they look exactly as they did. */
-    --badge-part: 1;
-
     position: absolute;
     top: 10%;
     left: 50%;
     transform: translateX(-50%);
     padding: 0 7px;
     border-radius: 999px;
-    background: linear-gradient(to right,
-        color-mix(in srgb, var(--node-color, var(--accent)) 30%, #000000) calc(var(--badge-part) * 100%),
-        color-mix(in srgb, var(--node-color, var(--accent)) 6%, #000000) calc(var(--badge-part) * 100%));
+    background: color-mix(in srgb, var(--node-color, var(--accent)) 30%, #000000);
     border: 1px solid color-mix(in srgb, var(--node-color, var(--accent)) 70%, #ffffff);
     color: #ffffff;
     font-size: 12px;
@@ -96,11 +90,34 @@
     }
 }
 
+/* A bonus that is running out, drawn on the node itself rather than on a pill barely big
+   enough to hold a digit. The node's own colour, undiluted by the panel underneath it, so a
+   live combo reads as the core simply being bluer - and it drains off the top, so the core
+   empties like a vessel instead of counting down at you. */
+.node-combo {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: 50%;
+    pointer-events: none;
+    background: linear-gradient(to bottom,
+        transparent calc((1 - var(--node-combo, 0)) * 100%),
+        var(--node-color, var(--accent)) calc((1 - var(--node-combo, 0)) * 100% + 3px));
+}
+/* Above the wash, or a full meter would swallow the readout. */
+.node-face > .node-title,
+.node-face > .node-value,
+.node-face > .node-detail { position: relative; z-index: 1; }
+
 .node-core .node-face {
     background: color-mix(in srgb, var(--node-color, var(--accent)) 70%, var(--panel));
     touch-action: manipulation; /* !!! TESTING IF THIS WORKS !!! */
 }
 .node-core .node-title { font-size: 14px; }
+/* A core's face is bright already, and brighter still under a combo wash, so the dim readout
+   under the title needs something to sit against. */
+.node-core .node-value,
+.node-core .node-detail { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
 .node-core:hover .node-face { background: color-mix(in srgb, var(--node-color, var(--accent)) 60%, var(--panel)); }
 
 .node > .node-ring,

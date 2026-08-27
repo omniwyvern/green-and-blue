@@ -49,6 +49,9 @@
 .upgrade-description { font-size: 0.8125rem; color: var(--text-dim); margin-bottom: 0.5rem; }
 .upgrade-cost { font-size: 0.75rem; color: var(--text-dim); }
 
+/* What one more level buys, riding after an upgrade's total a shade quieter than it */
+.upgrade-step { color: color-mix(in srgb, var(--text-dim) 70%, transparent); }
+
 .upgrade-drawer {
     --drawer-height: 13.125rem;
     position: absolute;

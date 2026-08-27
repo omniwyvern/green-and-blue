@@ -10,6 +10,8 @@ import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
 import { spend, getLevel } from "../../core/resources.js";
 import { D } from "../../utils/decimal.js";
+import { setText, setWidth } from "../../utils/dom.js";
+import { setRichText } from "../../render/richText.js";
 import { formatNumber } from "../../utils/format.js";
 import { cardBonus, cardActive } from "./cards.js";
 import {
@@ -36,8 +38,8 @@ const STABILITY_DECAY = 0.05;
 const DECAY_RAMP = 3;
 const STABILITY_RECOVERY = 0.06;
 const RECOVERY_PER_LEVEL = 0.2;
-const PRESSURE = 0.12;              // Lost per second per fill past what it can hold.
-const TOLERANCE = 0.5;              // How full it can sit without any loss.
+const PRESSURE = 0.12;              // Lost per second per fill past what it can hold
+const TOLERANCE = 0.5;              // How full it can sit without any loss
 const TOLERANCE_PER_LEVEL = 0.06;
 
 const BURST_SHARE = 0.45;
@@ -56,18 +58,17 @@ const GRACE_SECONDS = 0.75;
 const POWER_PER_LEVEL = 0.25;       // Per level of an intensity's own upgrade
 const RUNOFF_PER_LEVEL = 0.08;      // Water the light intensities stop leaving behind
 const MIN_RUNOFF = 0.4;
-const DELUGE_PER_LEVEL = 0.15;      // Extra water a downpour adds.
+const DELUGE_PER_LEVEL = 0.15;      // Extra water a downpour adds
 
 const DRIFTING_CHARGE = 0.4;        // What a cloud that wasn't built is worth (the rain dance card)
 
-const IDLE_AFTER_MS = 250;          // How long without a frame before the tick takes the cloud over.
+const IDLE_AFTER_MS = 250;          // How long without a frame before the tick takes the cloud over
 
 // How much of its duration a release keeps, by the Stability it was let go at.
 const DURATION_FLOOR = 1 / 3;       // What's left of it with no stability
 const durationFactor = (stability) => DURATION_FLOOR + (1 - DURATION_FLOOR) * stability;
 
-// "soak" is what one full-charge release at full Stability leaves in a GRASS tile, as a share of
-// the way to flooding it. Ground that takes more or less than grass moves off of that in eventFor.
+// "soak" is what one full-charge release at full stability leaves 
 export const INTENSITIES = [
     {
         id: "light", at: 0.25, power: 0.6, soak: 0.1, seconds: 0.8, upgrade: "fineMist",
@@ -189,6 +190,7 @@ export function releaseCloud(layer) {
 }
 
 // If stability hits zero, the cloud falls for part of what it held so it's not a complete waste
+// If rain is already falling and it bursts, I think it just doesn't do anything?
 function burst(s) {
     const world = worldState();
     const index = readyIndex(s);
@@ -208,9 +210,9 @@ let band = BAND_HALF;
 let bandVelocity = 0;
 let holding = false;
 let sinceHeld = GRACE_SECONDS;
-let starved = false;        // Charging stalled because there was no Blue Essence for it.
+let starved = false;        // Charging stalled because there was no Blue Essence for it
 let burstAt = 0;
-let live = null;            // The scene currently on screen, if any.
+let live = null;            // The scene currently on screen, if any
 let frameHandle = 0;
 let lastFrameAt = 0;
 let lastLiveStep = 0;
@@ -245,16 +247,14 @@ function stepCloud(dt, layer) {
     if (s.stability <= 0) burst(s);
 }
 
-// Charge is billed against a receipt rather than per drop gathered. A burst empties the cloud
-// but leaves the receipt behind, so climbing back to where it collapsed isn't paid for twice -
-// what gets billed is the water that actually leaves the cloud, which is what the label quotes.
+// Charge is billed against a receipt rather than per drop gathered
 function gatherCharge(s, dt, layer) {
     const room = capacity() - chargeHeld(s);
     if (room <= 0) return;
 
     const gained = Math.min(room, chargeRate(fillOf(s)) * capacity() * dt);
     const billable = Math.max(0, chargeHeld(s) + gained - paidFor(s));
-    if (billable > 0 && !spend(layer, { blueEssence: chargeCost(worldState()).mul(billable) })) {
+    if (billable > 0 && !spend({ blueEssence: chargeCost(worldState()).mul(billable) })) {
         starved = true;
         return;
     }
@@ -263,7 +263,7 @@ function gatherCharge(s, dt, layer) {
     s.paidCharge = Math.max(paidFor(s), s.charge);
 }
 
-// The bar runs off the render loop so it moves at the screen's rate.
+// The bar runs off the render loop so it moves at the screen's rate
 function startFrames() {
     if (frameHandle) return;
     lastFrameAt = 0;
@@ -291,10 +291,7 @@ window.addEventListener("pointercancel", () => { holding = false; });
 window.addEventListener("blur", () => { holding = false; });
 
 
-export const PRECIPITATION_RESOURCES = {
-    greenEssence: { name: "Green Essence", color: "#3aa876", from: "cores" },
-    blueEssence: { name: "Blue Essence", color: "#4a90d9", from: "cores" },
-};
+export const PRECIPITATION_RESOURCES = ["greenEssence", "blueEssence"];
 
 export const PRECIPITATION_VIEW = {
     name: "Precipitation",
@@ -397,7 +394,7 @@ export const PRECIPITATION_VIEW = {
 
             const world = worldState();
 
-            // Snow only matters once the ground can hold it.
+            // Snow only matters once the ground can hold it
             const choosable = environmentBought();
             if (!choosable && precipitationKind(world) !== "rain") setPrecipitationKind(world, "rain");
             const switcher = el.querySelector(".weather-switch");
@@ -407,7 +404,7 @@ export const PRECIPITATION_VIEW = {
             paintCloud(el);
             updateStage(el, s, kind);
 
-            // Changing kind mid-fall would rewrite what's already coming down, so it waits.
+            // Changing kind mid-fall would rewrite what's already coming down, so it waits
             const falling = isPrecipitating(world);
             const switchSignature = `${kind}:${falling}:${choosable}`;
             if (el.__switch !== switchSignature) {
@@ -424,7 +421,7 @@ export const PRECIPITATION_VIEW = {
 
             updateIntensities(el, s, world, kind);
             updateRelease(el, s, world, kind);
-            setText(el.querySelector(".weather-summary"), summary(world, s, kind));
+            setRichText(el.querySelector(".weather-summary"), summary(world, s, kind));
         },
     },
 
@@ -510,9 +507,9 @@ registerLayer("precipitation", {
 
     initialState: {
         charge: 0,
-        paidCharge: 0,  // What the cloud has been billed for, so a burst isn't paid for twice.
+        paidCharge: 0,  // What the cloud has been billed for, so a burst isn't paid for twice
         stability: 1,
-        intensity: 1,   // The middle one, which is the kind the cloud is named after.
+        intensity: 1,   // The middle one, which is the kind the cloud is named after
     },
 
     onTick(dt, layer) {
@@ -547,7 +544,7 @@ function paintCloud(el) {
     meters[1].dataset.state = stability < 0.25 ? "low" : stability < 0.55 ? "watch" : "fine";
 
     el.querySelector(".weather-page").classList.toggle("just-burst", performance.now() - burstAt < 700);
-    setText(el.querySelector(".charge-hint"), hint(fill));
+    setRichText(el.querySelector(".charge-hint"), hint(fill));
 }
 
 function hint(fill) {
@@ -706,19 +703,9 @@ function cloudArt(kind, index) {
 
 const percent = (value) => `${(value * 100).toFixed(value < 0.1 ? 1 : 0)}%`;
 
-// What's piling up on the tile, so a Flurry doesn't promise water.
+// What's piling up on the tile, so a Flurry doesn't promise water
 const buildupNoun = (kind) => PRECIPITATION[kind].makes === "ice" ? "snow" : "water";
-
-function setText(el, text) {
-    const value = String(text);
-    if (el.textContent !== value) el.textContent = value;
-}
 
 function setVar(el, name, value) {
     if (el.style.getPropertyValue(name) !== value) el.style.setProperty(name, value);
-}
-
-function setWidth(el, fraction) {
-    const width = `${(Math.max(0, Math.min(1, fraction)) * 100).toFixed(1)}%`;
-    if (el.style.width !== width) el.style.width = width;
 }

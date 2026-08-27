@@ -11,10 +11,9 @@ import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
 import { claimedTiles, matureTiles } from "./worldMap.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
-import { BIOMASS_RESOURCE } from "./pondSublayer.js";
 import { openBiome } from "./ecosystemSublayer.js";
 import { growthGain, earnGrowth, CORE_GROWTH_PER_GROWTH } from "./grassSublayer.js";
-import { getResource, onSpend, registerCostGroup } from "../../core/resources.js";
+import { getResource, addResource, onSpend, registerCostGroup } from "../../core/resources.js";
 import { nodeBuyable } from "../../core/nodes.js";
 import { boostResource } from "../../core/boosts.js";
 
@@ -25,7 +24,7 @@ const EVOLUTION_TILES = 7;
 // What a growth stage is worth on its own, indexed from stage 1.
 const STAGE_PRODUCTION = [1, 2, 4, 8, 16, 64, 250, 500, 1000, 2500, 5000, 10000].map(D);
 
-// The default cap is 7 I think. Cards can push past it, so past the end it
+// The default cap is 4 I think. Cards can push past it, so past the end it
 // keeps climbing at the rate the last step sets rather than flattening out.
 const LAST_STAGE_STEP = STAGE_PRODUCTION[11].div(STAGE_PRODUCTION[10]);
 
@@ -61,6 +60,19 @@ const overgrowthBonus = (s) => Math.min(OVERGROWTH_CAP, cardBonus("overgrowth") 
 onSpend((resourceId) => {
     if (resourceId === "greenEssence") getLayerState("cores").idleSeconds = 0;
 });
+
+// Whether the combo is worth showing at all - nothing unlocks it until one of these is bought.
+const comboMatters = (s) => s.consecSpeedBonus > 0 || Number(s.consecBonus) > 0;
+
+// How much of the combo window is left, for the wash of colour on the Blue Core. The counter
+// only advances while the meter is sitting full, so that is the only time this drains - with
+// the meter part-charged the chain is banked and the core just stays bright.
+const comboLeft = (s) => {
+    if (!comboMatters(s) || (Number(s.consecFullActivations) || 0) < 1) return 0;
+    if (!isFullCharge(s)) return 1;
+    const seconds = Number(s.consecWindow) || CONSEC_WINDOW_SECONDS;
+    return Math.max(0, 1 - (Number(s.consecCounter) || 0) / seconds);
+};
 
 // Feedback loop card. Blue core consecutive full-charge clicks increase green prod.
 const feedbackBonus = (s) => cardBonus("feedbackLoop") * (Number(s.consecFullActivations) || 0); 
@@ -98,16 +110,10 @@ export function sacrificeStage() {
 
     earnGrowth(stageCost(s.growthStage - 1).div(CORE_GROWTH_PER_GROWTH));
     s.growthStage--;
-    // Progress toward the next stage goes with the stage. Left banked, the tick below spends
-    // it to buy the stage straight back on the same frame, so the sacrifice costs nothing and
-    // can be repeated at the same price until the bank runs dry.
     s.growth = D(0);
     return true;
 }
 
-
-// boostResource() is for everything related to Green Essence: biomass, grass, the ocean.
-// The card bonuses here are the core's own, so they stay the core's own and are summed first.
 const greenProduction = (s) => stageBase(s.growthStage).mul(s.baseProductionMult)
     .mul(s.stageProdMult.mul(s.growthStage).add(1)).mul(boostResource("greenEssence"))
     .mul(1 + cardBonus("greenProduction") + overgrowthBonus(s) + feedbackBonus(s) + valveBonus(s));
@@ -124,15 +130,16 @@ function clickValue(s) {
     return full.mul(boostResource("blueEssence"));
 }
 
-// Cards can increase charge cap so everything just uses this to see if charge is full.
+// Cards can increase charge cap so everything just uses this to see if charge is full
 const isFullCharge = (s) => s.charge >= chargeCap() - 1e-9;
 
 const owned = (s, id) => !!s.purchasedUpgrades[id];
 
-// Some upgrades gost both essences, so this shortens the text when they're the same amount.
+// Some upgrades gost both essences, so this shortens the text when they're the same amount
 registerCostGroup({
     ids: ["greenEssence", "blueEssence"],
     name: "G&B Essence",
+    short: "G&B",
     color: "#429ca7",
 });
 
@@ -145,14 +152,14 @@ registerLayer("cores", {
     order: 0,
 
     resources: {
-        greenEssence: { name: "Green Essence", color: "#3aa876" },
-        blueEssence: { name: "Blue Essence", color: "#4a90d9" },
-        biomass: { ...BIOMASS_RESOURCE, from: "pond", hidden: (s) => !owned(s, "life") }, // Hidden until you have some.
-        evolutionPoints: {name: "Evolution Points", from: "evolution", color: "#b06ad0", hidden: (s) => !owned(s, "evolution")}
+        greenEssence: {},
+        blueEssence: {},
+        biomass: { hidden: (s) => !owned(s, "life") }, // Hidden until you have some
+        evolutionPoints: { hidden: (s) => !owned(s, "evolution") },
     },
 
     initialState: {
-        growth: D(0),                 // Progress toward the next growth stage.
+        growth: D(0),                 // Progress toward the next growth stage
         growthStage: 1,
         growthRateMult: D(1),
         growthStageCap: STAGE_CAP,
@@ -168,20 +175,22 @@ registerLayer("cores", {
         fullChargeBonus: FULL_BONUS, 
         startingFullCharge: 0,
 
-        consecFullActivations: D(0),   // How many consecutive times the meter was spent completely full.
+        consecFullActivations: D(0),   // How many consecutive times the meter was spent completely full
         consecCounter: D(0),
         consecBonus: D(0),
         consecSpeedBonus: 0,
         consecWindow: CONSEC_WINDOW_SECONDS,
 
-        idleSeconds: 0,   // Time since Green was last spent, for the overgrowth card.
-        valveBonus: 0,    // Green multiplier banked by a full meter, for the pressure valve card.
+        idleSeconds: 0,   // Time since Green was last spent, for the overgrowth card
+        valveBonus: 0,    // Green multiplier banked by a full meter, for the pressure valve card
     },
 
     onTick(dt, layer) {
         const s = getLayerState(layer.id);
 
-        s.resources.greenEssence = s.resources.greenEssence.add(greenProduction(s).mul(dt));
+        // Through the shared pool rather than a direct write, so rate tracking and anything
+        // hooked onto resources later sees production like every other producer
+        addResource("greenEssence", greenProduction(s).mul(dt));
 
         s.idleSeconds = (s.idleSeconds || 0) + dt;
 
@@ -194,7 +203,7 @@ registerLayer("cores", {
         }
 
         // Blue charge refills, and is modified by ripple charge.
-        // Not consistent with the same logic as growth rate because I'm stupid (but don't want to break it).
+        // Not consistent with the same logic as growth rate because I'm stupid (but don't want to break it)
         s.chargeRate = (1 / s.chargeTime)
             * (1 + Math.min(CONSEC_SPEED_CAP, s.consecSpeedBonus * Number(s.consecFullActivations)))
             * (1 + cardBonus("chargeRate"));
@@ -207,7 +216,7 @@ registerLayer("cores", {
             s.charge = overflow > 0 ? cap + (s.charge - cap) * overflow : cap;
 
             // Pressure valve card banks a what a full meter is still charging.
-            // Skipped under Controlled Overflow, which reads the charge instead of banking it.
+            // Skipped under Controlled Overflow, which reads the charge instead of banking it
             if (cardBonus("pressureValve") > 0 && !cardActive("controlledOverflow")) {
                 s.valveBonus = Math.min(PRESSURE_CAP,
                     (s.valveBonus || 0) + cardBonus("pressureValve") * chargeRate * dt);
@@ -222,12 +231,12 @@ registerLayer("cores", {
        return s.charge
     },
 
-    // If a major node is visible, prerequisites are met, and you can afford it, the cores tab flashes.
+    // If a major node is visible, prerequisites are met, and you can afford it, the cores tab flashes
     attention: (s, layer) => Object.keys(layer.nodes)
         .filter(id => layer.nodes[id].kind === "major" && nodeBuyable(layer, id, s)),
 
     // Positions are based on (0, 0) where that's the middle of the canvas.
-    // Starting view is a little bit lower to account for the world node text box.
+    // Starting view is a little bit lower to account for the world node text box
     nodes: {
         // GREEN
         greenCore: {
@@ -244,7 +253,7 @@ registerLayer("cores", {
                 + `${formatNumber((growthNeeded(s).sub(s.growth)).div(s.growthRateMult.mul(1 + cardBonus("coreGrowth"))))}s until next stage` 
             : `${formatNumber(greenProduction(s))} GE/s at stage ${s.growthStage}\n\n`
                 + `Cannot grow more [CAPPED] `
-            // Changed display to core growth for clarity, because grass layer has "growth" now.
+            // Changed display to core growth for clarity, because grass layer has "growth" now
         },
         greenGrow: {
             kind: "unlock",
@@ -318,7 +327,7 @@ registerLayer("cores", {
         },
 
         // Revealed only once the Pond is running - these are the start of the branch that
-        // grows toward Life, and showing them early would give away that there's more.
+        // grows toward Life, and showing them early would give away that there's more
         greenBloom: {
             kind: "unlock",
             parent: "greenCanopy",
@@ -352,14 +361,14 @@ registerLayer("cores", {
             meter: (s) => Math.min(1, s.charge / chargeCap()),
             value: (s) => `${Math.floor(s.charge * 100)}%`,
             detail: (s) => `+${formatNumber(clickValue(s))} BE`,
-            // Combo counter, it isn't shown until you have an unlock that needs it.
+            // How long the combo has left, as the core's own colour draining off the top
+            combo: comboLeft,
+            // Combo counter, it isn't shown until you have an unlock that needs it
             badge: (s) => {
-                if (!(s.consecSpeedBonus > 0 || Number(s.consecBonus) > 0)) return null;
+                if (!comboMatters(s)) return null;
                 const combo = Number(s.consecFullActivations) || 0;
                 if (combo < 1) return null;
-                
-                const part = isFullCharge(s) ? 1 - (Number(s.consecCounter) || 0) / window : 1;
-                return { text: `${combo}`, full: combo >= CONSEC_MAXED_AT, part };
+                return { text: `${combo}`, full: combo >= CONSEC_MAXED_AT };
             },
             tooltip: (s) => `+${formatNumber(D(blueBase(s)).mul(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))} BE at 100% charge\n\n`
                 + `+${formatNumber(s.chargeRate * 100)}% charge/s`,
@@ -367,7 +376,7 @@ registerLayer("cores", {
                 //.mul(D(s.fullChargeBonus).mul(1 + cardBonus("fullChargeBonus")))
 
             onClick(s) {
-                s.resources.blueEssence = s.resources.blueEssence.add(clickValue(s));
+                addResource("blueEssence", clickValue(s));
                 const full = isFullCharge(s);
                 if (!full) {  // If charge isn't full, reset consecutive clicks + their timer, and charge
                     s.consecFullActivations = 0;
@@ -560,13 +569,12 @@ registerLayer("cores", {
             description: "The pond produces more the closer its algae and fish are in number,"
                 + " up to two and a half times as much when they're even.",
             hidden: (s) => !owned(s, "life"),
-            // Gated behind Life, so it's paid for in what a living pond makes.
+            // Gated behind Life, so it's paid for in what a living pond makes
             cost: () => ({ greenEssence: D(3e5), blueEssence: D(3e5), biomass: D(1500) }),
         },
 
 
 
-        //  GREEN AND BLUE 
         //  Center of the tree. Entries go in order of unlock
         world: {
             kind: "major",
@@ -593,9 +601,7 @@ registerLayer("cores", {
             position: { x: 0, y: 375 },
             description: "Green and blue together. What new wonders can come of this?\n",
             cost: () => ({ greenEssence: D(10000), blueEssence: D(10000) }),
-            onPurchase(s) {
-                s.growthStageCap = D(s.growthStageCap.add(1));
-            },
+            onPurchase(s) { },
         },
 
         land: {
@@ -666,8 +672,10 @@ registerLayer("cores", {
             prereq: (s) => owned(s, "life") && owned(s, "rain") && matureTiles(getLayerState("world")).length >= EVOLUTION_TILES,
             hint: () => "Cover the world in green, and soak it with blue...",
             cost: () => ({ greenEssence: D(1e7), blueEssence: D(1e7) }),
-            onPurchase() { getLayerState("evolution").unlocked = true; },
-        },
+            onPurchase(s) {
+                getLayerState("evolution").unlocked = true;
+                s.growthStageCap = D(s.growthStageCap.add(1)); }
+            },
 
         environment: {
             kind: "layer",
@@ -677,28 +685,12 @@ registerLayer("cores", {
             aura: "life",
             position: { x: 0, y: 750},
             description: "Green and blue stop taking turns on the land. Rain soaks into it, and what's"
-                + " grown on it can be traded up for something larger.\n",
+                + " grown on it can be traded up for something larger.\n"
+                + "\nIncreases the Green Core's stage cap by 1.",
             prereq: (s) => owned(s, "evolution"),  // Make it need like X number of cards or smthn
             hint: () => `The world must hold on to the rewards of multiple evolutions...`,
             cost: () => ({ greenEssence: D(1e8), blueEssence: D(1e8), evolutionPoints: D(25) }), // Also make this cost evolution points later
-            onPurchase() { getLayerState("environment").unlocked = true},
-        },
-
-        // !!! TEMPORARY NODES !!!
-        // don't worry about these right now, they're for testing the terrains' layers/sublayers
-        forest: {
-            kind: "layer",
-            parent: "environment",
-            title: "Forest",
-            color: "#3d9455",
-            aura: "green",
-            position: { x: -500, y: 1100 },
-            description: "give a good description here\n",
-            cost: () => ({ greenEssence: D(1e20) }),
-            onPurchase() {
-                getLayerState("forest").unlocked = true;
-                openBiome("biomeForest");
-            },
+            onPurchase() { getLayerState("environment").unlocked = true },
         },
 
         ocean: {
@@ -714,6 +706,24 @@ registerLayer("cores", {
                 getLayerState("aquatic").unlocked = true;
                 // Pond gets absorbed. This biome is the only one that starts with two (pond, ocean) on unlock
                 openBiome("biomeAquatic", "pond", "ocean");
+            },
+        },
+
+
+        // !!! TEMPORARY NODES !!!
+        // don't worry about these right now, they're for testing the terrains' layers/sublayers
+        forest: {
+            kind: "layer",
+            parent: "environment",
+            title: "Forest",
+            color: "#3d9455",
+            aura: "green",
+            position: { x: -500, y: 1100 },
+            description: "give a good description here\n",
+            cost: () => ({ greenEssence: D(1e20) }),
+            onPurchase() {
+                getLayerState("forest").unlocked = true;
+                openBiome("biomeForest");
             },
         },
 

@@ -27,9 +27,20 @@ export function registerGuide(id, { layer, subLayer = null, title, body, order =
     guides[id] = { id, layer, subLayer, title, body, order, when };
 }
 
-const forLayer = (layerId) => Object.values(guides)
-    .filter(guide => guide.layer === layerId)
-    .sort((a, b) => a.order - b.order);
+// Sorted per layer once rather than filtered and sorted on every check. Registration
+// finishes during startup, before anything can ask, so the memo can't miss a guide
+const sortedByLayer = new Map();
+
+const forLayer = (layerId) => {
+    let sorted = sortedByLayer.get(layerId);
+    if (!sorted) {
+        sorted = Object.values(guides)
+            .filter(guide => guide.layer === layerId)
+            .sort((a, b) => a.order - b.order);
+        sortedByLayer.set(layerId, sorted);
+    }
+    return sorted;
+};
 
 export function availableGuides(layerId) {
     if (!layers[layerId]) return [];

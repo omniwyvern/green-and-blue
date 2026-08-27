@@ -14,9 +14,11 @@
 import { registerLayer } from "../../core/registry.js";
 import { getLayerState } from "../../core/state.js";
 import { addResource, getLevel } from "../../core/resources.js";
-import { registerBoost, boostResource } from "../../core/boosts.js";
+import { boostResource } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
+import { setText, setWidth } from "../../utils/dom.js";
+import { upgradeDescription } from "../../render/richText.js";
 import { cardBonus, cardActive, unlockCard } from "./cards.js";
 import { shoreGrassTiles, pondTiles } from "./worldMap.js";
 
@@ -30,6 +32,9 @@ const BASE_PRODUCTION = D(5);  // Blue Essence/sec in perfectly calm water
 const TURBULENCE_BONUS = 7;    // Fully turbulent water produces (1 + this) times as much
 
 const coreNode = (id) => !!getLayerState("cores").purchasedUpgrades[id];
+
+// The (+x%) tail quoting what one more level buys, dropped once the upgrade sits at its cap
+const nextStep = (s, id, max, gain) => getLevel(s, id) >= max ? null : gain;
 
 const DISTURBED_AT = 33;
 const TURBULENT_AT = 66;
@@ -102,7 +107,7 @@ const shoreExchange = () => cardBonus("shoreExchange") * shoreGrassTiles();
 const stirPerClick = (s) => (STIR_PER_CLICK + STIR_PER_LEVEL * getLevel(s, "strongerCurrents"))
     * (1 + cardBonus("stirPower"));
 
-// How rough the water is allowed to get.
+// How rough the water is allowed to get
 const turbulenceCeiling = () => TURBULENCE_MAX * (1 + cardBonus("turbulenceMax"));
 const turbulenceFraction = (s) =>
     Math.max(0, Math.min(1 + cardBonus("turbulenceMax"), s.turbulence / TURBULENCE_MAX));
@@ -189,11 +194,10 @@ function registerStir(s) {
     if (!tidalActive()) s.turbulence = Math.min(turbulenceCeiling(), s.turbulence + stirPerClick(s));
 }
 
-// Maelstrom card stuff.
 function payMaelstrom(s, layer) {
     const seconds = cardBonus("maelstrom");
     if (seconds <= 0 || turbulenceFraction(s) < ROUGH_ABOVE) return;
-    addResource(layer, "blueEssence", pondBlue(s).mul(seconds));
+    addResource("blueEssence", pondBlue(s).mul(seconds));
 }
 
 // Clicking the burst button activates it, clicking again stops it
@@ -211,7 +215,7 @@ function useBurst(s, key) {
     s[burst.running] = BURST_SECONDS;
     s[burst.ready] = BURST_SECONDS + burstCooldown(s, key);
 }
-// Turbulence as the fish see it.
+// Turbulence as the fish see it
 const fishPeak = (s) => Math.max(0.3, 1 - 0.1 * getLevel(s, "hardyStock"));
 
 // Bursts make growth ignore turbulence
@@ -243,7 +247,7 @@ function biomassEvening(s, evenness) {
     return Math.min(1, margin / shortfall);
 }
 
-// Produces the most biomass when algae and fish are equal, and falls away fast otherwise. 
+// Produces the most biomass when algae and fish are equal, and falls away fast otherwise.
 function biomassProduction(s) {
     const algae = algaeForBiomass(s);
     const fish = fishForBiomass(s);
@@ -263,39 +267,13 @@ function biomassProduction(s) {
 }
 
 
-// Biomass bonuses (what it affects, how much bonus)
-const MULT_PER_DECADE = 0.5;
-const MULT_ACCEL = 1.5;      // >1, so later decades are worth more than earlier ones
-const SOFTCAP_BONUS = 6;      // Where the curve bends (around 5e9 biomass)
-const SOFTCAP_SCALE = 6;      // How much excess is worth one "unit" past the bend
-const SOFTCAP_POWER = 0.35;   // How hard it's damped past bend
-
-export function biomassMultiplier() {
-    const biomass = D(getLayerState("pond").resources.biomass || 0);
-    if (biomass.lte(1)) return D(1);
-
-    const raw = biomass.log10().pow(MULT_ACCEL).mul(MULT_PER_DECADE);
-    if (raw.lte(SOFTCAP_BONUS)) return D(1).add(raw);
-
-    const excess = raw.sub(SOFTCAP_BONUS);
-    const damped = excess.div(SOFTCAP_SCALE).add(1).pow(SOFTCAP_POWER).sub(1).mul(SOFTCAP_SCALE);
-    return D(1).add(SOFTCAP_BONUS).add(damped);
-}
-
-// What the multiplier is worth right now, for the readout on the Biomass chip.
-export const biomassNote = () => `x${formatNumber(biomassMultiplier())} to all essence production`;
-
-// Essence only - biomass boosting itself would run away with the whole game.
-const ESSENCES = new Set(["greenEssence", "blueEssence"]);
-registerBoost("Biomass", (resourceId) => ESSENCES.has(resourceId) ? biomassMultiplier() : 1);
-
-// How even the pond's populations are.
+// How even the pond's populations are
 const evenness = (s) => {
     const living = s.algae + s.fish;
     return living <= 0 ? 0 : 2 * Math.min(s.algae, s.fish) / living;
 };
 
-// Mostly wide margins card stuff.
+// Mostly wide margins card stuff
 const balanceTolerance = (s) => Math.min(0.5, 0.05 * getLevel(s, "wideMargins"));
 const balanceFactor = (s) => Math.min(1, evenness(s) / (1 - balanceTolerance(s)));
 const balanceMultiplier = (s) => 1 + (coreNode("pondSymbiosis") ? 1.5 : 0) * balanceFactor(s);
@@ -321,9 +299,6 @@ const settleRate = () => SETTLE_PER_SECOND
 // Capacity is recomputed from the nodes every tick rather than added to on purchase
 // Mainly because some cards influence it on a per-tick basis
 function capacityFor(s) {
-    // Pond tiles feed the capacity rather than paying out on their own, so a map full of
-    // ponds is the slow, compounding option next to turning the same water into ocean -
-    // algae and fish both grow into capacity, and biomass comes out of the pair of them.
     const base = (BASE_CAPACITY + (coreNode("pondDeep") ? 1 : 0) + PER_POND_TILE * pondTiles())
         * (1 + cardBonus("pondCapacity")
             + (rainwaterActive() ? cardBonus("rainwater") : 0)
@@ -341,7 +316,7 @@ function production(s) {
         .mul(1 + cardBonus("pondOutput") + bandBoost(s));
 }
 
-// Algae bloom card stuff.
+// Algae bloom card stuff
 const algaeFull = (s) => s.capacity > 0 && s.algae >= s.capacity - 0.001;
 const bloomBonus = (s) => algaeFull(s) ? cardBonus("algaeFullGreen") : 0;
 
@@ -369,8 +344,8 @@ const lifeBought = () => !!getLayerState("cores").purchasedUpgrades.life;
 function tickPond(s, dt, layer) {
     tickBursts(s, dt);
 
-    addResource(layer, "greenEssence", pondGreen(s).mul(dt));
-    addResource(layer, "biomass", biomassProduction(s).mul(dt));
+    addResource("greenEssence", pondGreen(s).mul(dt));
+    addResource("biomass", biomassProduction(s).mul(dt));
 
     let algaeGain = algaeGrowth(s) * dt;
     let fishGain = fishGrowth(s) * dt;
@@ -389,9 +364,6 @@ function tickPond(s, dt, layer) {
     // Total space taken is capped at capacity, since they push against each other they kinda cancel out a bit
     const push = fishGain - algaeGain;
     if (push > 0) {
-        // Fish won't crowd out the mat they're feeding on, so only the algae over what the
-        // school needs standing is up for grabs. Without that they convert the last of their
-        // own food into more mouths and the whole pond starves itself out in a few seconds.
         const spare = Math.max(0, s.algae - foodWanted(s));
         const taken = Math.min(push * FISH_CROWDING, spare);
         s.algae -= taken;
@@ -419,14 +391,7 @@ function tickPond(s, dt, layer) {
 }
 
 
-// The pond's resources. This way so that it can be absorbed into the environment layers
-export const BIOMASS_RESOURCE = { name: "Biomass", color: "#005f5a", note: biomassNote };
-
-export const POND_RESOURCES = {
-    greenEssence: { name: "Green Essence", color: "#3aa876", from: "cores" },
-    blueEssence: { name: "Blue Essence", color: "#4a90d9", from: "cores" },
-    biomass: BIOMASS_RESOURCE,
-};
+export const POND_RESOURCES = ["greenEssence", "blueEssence", "biomass"];
 
 const showingPond = (layer) => layer.stateKey === "pond"
     || (!!layer.subLayers && getLayerState(layer.stateKey).activeSubLayer === "pond");
@@ -520,7 +485,7 @@ export const POND_VIEW = {
             el.querySelector(".pond-meter-fill").style.width = `${(fraction * 100).toFixed(1)}%`;
 
             const blueLine = `${formatNumber(pondBlue(s))} Blue Essence/s, `;
-            // pondGreen, not greenProduction - the meter has to read what is actually paid out
+            // pondGreen, not greenProduction, the meter has to read what is actually paid out
             const essenceLine = `${formatNumber(pondGreen(s))} Green Essence/s,  ` + blueLine;
             const second = el.querySelector(".pond-rate-second");
             if (lifeBought()) {
@@ -544,31 +509,41 @@ export const POND_VIEW = {
             upgrades: {
                 strongerCurrents: {
                     title: "Stronger Currents",
-                    description: (s) => `Each click stirs the water up ${Math.round(100 * Math.max(0.4, 0.4 * getLevel(s, "strongerCurrents")))} more.`,
+                    description: (s) => upgradeDescription(
+                        `Each click stirs the water up ${Math.round(100 * Math.max(0.4, 0.4 * getLevel(s, "strongerCurrents")))}% more.`,
+                        nextStep(s, "strongerCurrents", 5, "+40%")),
                     max: 5,
                     cost: (s, level) => ({ blueEssence: D(300).mul(D(2).pow(level)) }),
                 },
                 richerWaters: {
                     title: "Richer Waters",
-                    description: (s) => `The pond passively produces ${Math.round(100 * Math.max(0.25, 0.25 * getLevel(s, "richerWaters")))}% more, at any turbulence.`,
+                    description: (s) => upgradeDescription(
+                        `The pond passively produces ${Math.round(100 * Math.max(0.25, 0.25 * getLevel(s, "richerWaters")))}% more, at any turbulence.`,
+                        nextStep(s, "richerWaters", 25, "+25%")),
                     max: 25,
                     cost: (s, level) => ({ blueEssence: D(400).mul(D(1.21).pow(level)) }),
                 },
                 stormChannels: {
                     title: "Storm Channels",
-                    description: (s) => `Rough water boosts Blue Essence production by ${Math.round(100 * Math.max(0.25, 0.25 * getLevel(s, "stormChannels")))}%.`,
+                    description: (s) => upgradeDescription(
+                        `Rough water boosts Blue Essence production by ${Math.round(100 * Math.max(0.25, 0.25 * getLevel(s, "stormChannels")))}%.`,
+                        nextStep(s, "stormChannels", 10, "+25%")),
                     max: 10,
                     cost: (s, level) => ({ blueEssence: D(1400).mul(D(1.45).pow(level)) }),
                 },
                 sensitiveCurrents: {
                     title: "Sensitive Currents",
-                    description: (s) => `The water gives its best at lower turbulence. Blue Essence gives peak production at ${Math.round(100 * Math.max(0.1, 0.1 * getLevel(s, "sensitiveCurrents")))}% less turbulence.`,
+                    description: (s) => upgradeDescription(
+                        `The water gives its best at lower turbulence. Blue Essence gives peak production at ${Math.round(100 * Math.max(0.1, 0.1 * getLevel(s, "sensitiveCurrents")))}% less turbulence.`,
+                        nextStep(s, "sensitiveCurrents", 5, "+10%")),
                     max: 5,
                     cost: (s, level) => ({ blueEssence: D(1800).mul(D(1.55).pow(level)) }),
                 },
                 wideMargins: {
                     title: "Wide Margins",
-                    description: (s) => `Widens what counts as balanced by ${Math.round(100 * Math.max(0.05, 0.05 * getLevel(s, "wideMargins")))}% for Blue Essence production, and half as much for Biomass production.`,
+                    description: (s) => upgradeDescription(
+                        `Widens what counts as balanced by ${Math.round(100 * Math.max(0.05, 0.05 * getLevel(s, "wideMargins")))}% for Blue Essence production, and half as much for Biomass production.`,
+                        nextStep(s, "wideMargins", 8, "+5%")),
                     hidden: () => !coreNode("pondSymbiosis"),
                     max: 8,
                     cost: (s, level) => ({
@@ -586,31 +561,41 @@ export const POND_VIEW = {
             upgrades: {
                 fertileWater: {
                     title: "Fertile Water",
-                    description: (s) => `Algae grows ${Math.round(100 * Math.max(ALGAE_PER_LEVEL, ALGAE_PER_LEVEL * getLevel(s, "fertileWater")))}% faster.`,
+                    description: (s) => upgradeDescription(
+                        `Algae grows ${Math.round(100 * Math.max(ALGAE_PER_LEVEL, ALGAE_PER_LEVEL * getLevel(s, "fertileWater")))}% faster.`,
+                        nextStep(s, "fertileWater", 10, "+25%")),
                     max: 10,
                     cost: (s, level) => ({ biomass: D(60).mul(D(1.3).pow(level)) }),
                 },
                 denseMats: {
                     title: "Dense Mats",
-                    description: (s) => `Algae produces ${Math.round(100 * Math.max(GREEN_PER_LEVEL, GREEN_PER_LEVEL * getLevel(s, "denseMats")))}% more Green Essence.`,
+                    description: (s) => upgradeDescription(
+                        `Algae produces ${Math.round(100 * Math.max(GREEN_PER_LEVEL, GREEN_PER_LEVEL * getLevel(s, "denseMats")))}% more Green Essence.`,
+                        nextStep(s, "denseMats", 25, "+50%")),
                     max: 25,
                     cost: (s, level) => ({ biomass: D(45).mul(D(1.14).pow(level)) }),
                 },
                 nutrientDense: {
                     title: "Nutrient Dense",
-                    description: (s) => `Algae counts for ${Math.round(100 * Math.max(0.15, 0.15 * getLevel(s, "nutrientDense")))}% more than it is for biomass production, without taking up any more room.`,
+                    description: (s) => upgradeDescription(
+                        `Algae counts for ${Math.round(100 * Math.max(0.15, 0.15 * getLevel(s, "nutrientDense")))}% more than it is for biomass production, without taking up any more room.`,
+                        nextStep(s, "nutrientDense", 15, "+15%")),
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },
                 oxygenation: {
                     title: "Oxygenation",
-                    description: (s) => `Algae additionally produces Blue Essence equal to ${Math.round(100 * Math.max(0.05, oxygenShare(s)))}% of the Green Essence.`,
+                    description: (s) => upgradeDescription(
+                        `Algae additionally produces Blue Essence equal to ${Math.round(100 * Math.max(0.05, oxygenShare(s)))}% of the Green Essence.`,
+                        nextStep(s, "oxygenation", 5, "+5%")),
                     max: 5,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.26).pow(level)) }),
                 },
                 dormantSpores: {
                     title: "Dormant Spores",
-                    description: (s) => `Wake the spores from the pond bed by hand, greatly increasing growth for ${BURST_SECONDS} seconds or until stopped on a ${burstCooldown(s, "spores")} second cooldown.`,
+                    description: (s) => upgradeDescription(
+                        `Wake the spores from the pond bed by hand, greatly increasing growth for ${BURST_SECONDS} seconds or until stopped on a ${burstCooldown(s, "spores")} second cooldown.`,
+                        nextStep(s, "dormantSpores", 6, "-3 seconds")),
                     max: 6,
                     cost: (s, level) => ({ biomass: D(260).mul(D(1.55).pow(level)) }),
                 },
@@ -631,31 +616,41 @@ export const POND_VIEW = {
             upgrades: {
                 spawningGrounds: {
                     title: "Spawning Grounds",
-                    description: (s) => `Fish breed ${100 * Math.max(0.25, 0.25 * getLevel(s, "spawningGrounds"))}% faster in rough water. Still nothing at all in water that's perfectly still.`,
+                    description: (s) => upgradeDescription(
+                        `Still nothing at all in water that's perfectly still. Fish breed ${100 * Math.max(0.25, 0.25 * getLevel(s, "spawningGrounds"))}% faster in rough water.`,
+                        nextStep(s, "spawningGrounds", 10, "+25%")),
                     max: 10,
                     cost: (s, level) => ({ biomass: D(70).mul(D(1.3).pow(level)) }),
                 },
                 biggerSchools: {
                     title: "Bigger Schools",
-                    description: (s) => `Each fish boosts the pond's Blue Essence production by ${Math.round(100 * Math.max(0.15, 0.15 * getLevel(s, "biggerSchools")))}%.`,
+                    description: (s) => upgradeDescription(
+                        `Each fish boosts the pond's Blue Essence production by ${Math.round(100 * Math.max(0.15, 0.15 * getLevel(s, "biggerSchools")))}%.`,
+                        nextStep(s, "biggerSchools", 25, "+15%")),
                     max: 25,
                     cost: (s, level) => ({ biomass: D(48).mul(D(1.14).pow(level)) }),
                 },
                 richRoe: {
                     title: "Rich Roe",
-                    description: (s) => `Fish count for ${Math.round(100 * Math.max(0.15, 0.15 * getLevel(s, "richRoe")))}% more than they are for biomass production, without taking up any more room.`,
+                    description: (s) => upgradeDescription(
+                        `Fish count for ${Math.round(100 * Math.max(0.15, 0.15 * getLevel(s, "richRoe")))}% more than they are for biomass production, without taking up any more room.`,
+                        nextStep(s, "richRoe", 15, "+15%")),
                     max: 15,
                     cost: (s, level) => ({ biomass: D(130).mul(D(1.2).pow(level)) }),
                 },
                 hardyStock: {
                     title: "Hardy Stock",
-                    description: (s) => `Fish breed at their best in ${Math.round(100 * Math.max(0.1, 0.1 * getLevel(s, "hardyStock")))}% calmer water than they used to need. Still nothing in water that's perfectly still.`,
+                    description: (s) => upgradeDescription(
+                        `Still nothing in water that's perfectly still. Fish breed at their best in ${Math.round(100 * Math.max(0.1, 0.1 * getLevel(s, "hardyStock")))}% calmer water than they used to need.`,
+                        nextStep(s, "hardyStock", 3, "+10%")),
                     max: 3,
                     cost: (s, level) => ({ biomass: D(160).mul(D(1.4).pow(level)) }),
                 },
                 feedingFrenzy: {
                     title: "Feeding Frenzy",
-                    description: (s) => `Send the school wild by hand, greatly increasing their growth for ${BURST_SECONDS} seconds or until stopped on a ${burstCooldown(s, "frenzy")} second cooldown. The school breeds at its best even in still water.`,
+                    description: (s) => upgradeDescription(
+                        `The school breeds at its best even in still water. Send the school wild by hand, greatly increasing their growth for ${BURST_SECONDS} seconds or until stopped on a ${burstCooldown(s, "frenzy")} second cooldown.`,
+                        nextStep(s, "feedingFrenzy", 6, "-3 seconds")),
                     max: 6,
                     cost: (s, level) => ({ biomass: D(260).mul(D(1.55).pow(level)) }),
                 },
@@ -687,7 +682,7 @@ registerLayer("pond", {
 
     onTick(dt, layer) {
         const s = getLayerState(layer.id);
-        addResource(layer, "blueEssence", pondBlue(s).mul(dt));
+        addResource("blueEssence", pondBlue(s).mul(dt));
 
         s.tideSeconds = ((s.tideSeconds || 0) + dt) % TIDE_SECONDS;
 
@@ -754,7 +749,7 @@ const FISH_ICON = `
         <circle cx="12.1" cy="7" r="0.85" class="life-icon-eye"/>
     </svg>`;
 
-// Balance indicator, the percentage bar for fish/algae.
+// Balance indicator, the percentage bar for fish/algae
 const timerMarkup = (key, label) => `
     <button class="balance-timer" type="button" data-key="${key}" style="display: none">
         <div class="timer-fill"></div>
@@ -835,11 +830,6 @@ function updateBalance(host, s) {
     host.title = `${s.algae.toFixed(2)} algae and ${s.fish.toFixed(2)} fish, in a pond that holds ${Math.floor(s.capacity)}`;
 }
 
-function setWidth(el, fraction) {
-    const width = `${(Math.max(0, Math.min(1, fraction)) * 100).toFixed(1)}%`;
-    if (el.style.width !== width) el.style.width = width;
-}
-
 // Algae frond animation stuff. Segments help them be properly wavy
 const FROND_SEGMENTS = 4;
 const FROND_WAVES = 4.2;    // Radians of sine along one frond
@@ -881,7 +871,7 @@ function updateInhabitants(el, s) {
     const changed = syncCount(algaeHost, counts.algae, buildAlgae)
         | syncCount(fishHost, counts.fish, buildFish);
 
-    // Re-collected only when something was added or removed.
+    // Re-collected only when something was added or removed
     if (changed || !sceneLife.has(el)) {
         sceneLife.set(el, {
             algae: motionAnimations(algaeHost),
@@ -1099,8 +1089,4 @@ function buildFish(index) {
     for (const animation of motion) animation.id = MOTION;
 
     return el;
-}
-
-function setText(el, text) {
-    if (el.textContent !== text) el.textContent = text;
 }

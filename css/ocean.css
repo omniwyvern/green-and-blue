@@ -42,7 +42,7 @@
 
 /* The marker lives in one shared <defs>, so it can't be picked out per line by a class.
    Painting it with the stroke of whatever line is using it gets the arrow following the
-   line into whatever colour it is drawn in. */
+   line into whatever color it is drawn in. */
 .current-arrow { fill: context-stroke; }
 
 /* A fat invisible line over the drawn one, since a dashed 6px stroke is nothing to aim at.
@@ -423,14 +423,6 @@
 }
 .ocean-page-note { font-size: 0.75rem; color: var(--text-dim); line-height: 1.45; }
 
-/* A resource named inside a line of ordinary text. Blended towards the text colour rather
-   than used raw - Biomass' own colour is nearly black, which is fine on a chip in the
-   header but not for a word this small. */
-.res {
-    color: color-mix(in srgb, var(--resource-color) 80%, var(--text));
-    font-weight: 600;
-}
-
 /* One boxed group of things that belong together, so a page reads as a few blocks rather
    than a stack of loose lines. */
 .ocean-card {
@@ -670,7 +662,7 @@
     display: flex;
     flex-direction: column;
     border-radius: 0.5rem;
-    /* --panel-light like every box on the region page, with the aspect's own colour washed
+    /* --panel-light like every box on the region page, with the aspect's own color washed
        over it so the body belongs to the header rather than sitting under it. */
     background: color-mix(in srgb, var(--skill-color, var(--accent)) 8%, var(--panel-light));
     border: 1px solid color-mix(in srgb, var(--skill-color, var(--border)) 80%, transparent);

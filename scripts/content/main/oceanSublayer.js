@@ -11,11 +11,14 @@
 
 
 import { getLayerState } from "../../core/state.js";
-import { addResource, canAfford, spend, costParts } from "../../core/resources.js";
+import { addResource, canAfford, spend } from "../../core/resources.js";
+import { resourceDef } from "../../core/registry.js";
 import { registerBoost, boostResource } from "../../core/boosts.js";
 import { D } from "../../utils/decimal.js";
 import { formatNumber } from "../../utils/format.js";
-import { cardBonus } from "./cards.js";
+import { setText, setDisplay } from "../../utils/dom.js";
+import { colorResources, costHtml, setRichText, upgradeDescription } from "../../render/richText.js";
+import { cardBonus, cardActive } from "./cards.js";
 import { oceanTiles } from "./worldMap.js";
 import { regionPath, fishArt, boostIcon, WARNING_ICON, CURRENT_DEFS } from "./oceanArt.js";
 
@@ -36,7 +39,6 @@ const REGION_SCALE = 1.7;
 const FISH_COST = D(3);
 const FISH_SCALE = 1.7;
  
-export const REGIONS_AT_FIRST_OCEAN = 5;
 export const PER_OCEAN_TILE = 0.08;    // What each of those tiles is worth to everything in the water
  
 const REGIONS = {
@@ -87,6 +89,8 @@ const REGIONS = {
 
 const REGION_IDS = Object.keys(REGIONS);
 
+export const REGIONS_AT_FIRST_OCEAN = 5;
+
 // There are no region tiles until you have your first ocean. After that, +1 tile per 2 oceans
 const regionsFromTiles = () => {
     const tiles = oceanTiles();
@@ -133,30 +137,42 @@ function defaultFlow(s, id) {
     return REGIONS[id].flows.find(target => regionOpen(s, target)) || id;
 }
 
+// Names what the level being bought adds, for the (+x) closing an upgrade's readout out.
+// No level left to buy means no tail, and the line sits quiet on its total instead
+const stepNote = (level, max, gain) => level >= max ? null : gain;
+
 // !!!! CHANGE THESE NAMES !!!!
 const REGION_UPGRADES = {
     deepen: {
         title: "Deepen",
         max: 10,
-        description: (level) => `Everything a school produces here is boosted by ${Math.round(25 * level)}%.`,
+        description: (level) => upgradeDescription(
+            `Everything a school produces here is boosted by ${Math.round(25 * level)}%.`,
+            stepNote(level, 10, "+25%")),
         effect: (level) => 1 + 0.25 * level,
     },
     bed: {
         title: "Nutrient Bed",
         max: 8,
-        description: (level) => `Biomass produced here is boosted by a further ${Math.round(40 * level)}%.`,
+        description: (level) => upgradeDescription(
+            `Biomass produced here is boosted by a further ${Math.round(40 * level)}%.`,
+            stepNote(level, 8, "+40%")),
         effect: (level) => 1 + 0.40 * level,
     },
     longer: {
         title: "Yippee! Long boosts!",
         max: 2,
-        description: (level) => `Boosts picked up here last ${level} more ocean tick${level === 1 ? "" : "s"}.`,
+        description: (level) => upgradeDescription(
+            `Boosts picked up here last ${level} more ocean tick${level === 1 ? "" : "s"}.`,
+            stepNote(level, 2, "+1 tick")),
         effect: (level) => level,
     },
     boostier: {
         title: "Yippee! Boostier boosts!",
         max: 5,
-        description: (level) => `Drifting boosts are ${1 + BOOST_WEIGHT * level} times as likely to appear here.`,
+        description: (level) => upgradeDescription(
+            `Drifting boosts are ${1 + BOOST_WEIGHT * level} times as likely to appear here.`,
+            stepNote(level, 5, "+2 times")),
         effect: (level) => 1 + BOOST_WEIGHT * level,
     },
 };
@@ -322,8 +338,10 @@ function schoolState(s, id) {
     return school;
 }
 
-// Cod appears as soon as the ocean is unlocked
-const schoolUnlocked = (s, id) => id === "cod" || !!(s.oceanSchools || {})[id];
+// Cod turns up as soon as there's water for it - every other species is drawn in by
+// drawInSchool(). No open regions means the ocean is dry, and nothing swims in a dry ocean.
+const schoolUnlocked = (s, id) => !oceanIsDry(s)
+    && (id === "cod" || !!(s.oceanSchools || {})[id]);
 
 export const unlockedSchools = (s) => oceanIsDry(s) ? []
     : SPECIES_IDS.filter(id => schoolUnlocked(s, id)).map(id => schoolState(s, id));
@@ -361,11 +379,12 @@ export const roomForAnotherSchool = (s) =>
 
 
 
-const tickSeconds = () => TICK_SECONDS / (1 + cardBonus("oceanTickSpeed"));
+const tickSeconds = () =>
+    (TICK_SECONDS / (1 + cardBonus("oceanTickSpeed"))) * (cardActive("slackWater") ? 2 : 1);
 
 // What one level of a region upgrade costs next, and the same for a fish aspect
 const regionUpgradeCost = (level) => ({ blueEssence: REGION_COST.mul(D(REGION_SCALE).pow(level)) });
-const aspectUpgradeCost = (level) => ({ evolutionPoints: FISH_COST.mul(D(FISH_SCALE).pow(level - 1)).ceil() });
+const aspectUpgradeCost = (level) => ({ evolutionPoints: FISH_COST.mul(D(FISH_SCALE).pow(level - 1)).div(1 + cardBonus("learnedShoals")).ceil() });
 
 // Boosts stack additively within a kind, the way card bonuses do
 function boostBonus(school, key) {
@@ -456,15 +475,13 @@ export function tickProduction(s) {
 
 
 
-
-
 // Schools can't share a region, so everything in the tick's movement is worked out before
 // things happen. Multiple passes so that one fish can still do something if multiple are blocked
 export function planMovement(s) {
     const schools = unlockedSchools(s);
     const at = new Map(schools.map(school => [school.id, school.at]));
     const left = new Map(schools.map(school =>
-        [school.id, activeBoosts(school).some(id => BOOSTS[id].extraStep) ? 2 : 1]));
+        [school.id, cardActive("undertow") || activeBoosts(school).some(id => BOOSTS[id].extraStep) ? 2 : 1]));
     const paths = new Map(schools.map(school => [school.id, []]));
     const standing = new Map(schools.map(school => [school.at, school.id]));
 
@@ -550,6 +567,13 @@ function takeBoost(s, school, regionId) {
 
     school.buffs[region.boost] = Math.max(held, BOOSTS[region.boost].ticks + regionLevel(s, regionId, "longer"));
     region.boost = null;
+
+    // Blood in the Water. Part of what they caught gets paid out straight away
+    const payoff = cardBonus("pickupPayout");
+    if (payoff > 0) {
+        const gains = schoolProduction(s, school);
+        for (const resourceId in gains) addResource(resourceId, gains[resourceId].mul(payoff));
+    }
 }
 
 // Fewer new boosts turn up while the map is still covered in them
@@ -557,8 +581,9 @@ function spawnBoosts(s) {
     const inPlay = openRegionIds(s);
     const open = inPlay.filter(id => !regionState(s, id).boost);
     const left = inPlay.length - open.length;
-    let wanted = Math.min(open.length,
-        Math.ceil(inPlay.length / BOOST_SPAWN_SHARE) - Math.floor(left / BOOST_PER_LEFT));
+    // Slack Water forgets the rationing and hands a boost to every region left empty
+    let wanted = cardActive("slackWater") ? open.length : Math.min(open.length,
+        Math.ceil(inPlay.length / (BOOST_SPAWN_SHARE / (1 + cardBonus("boostSpawn")))) - Math.floor(left / BOOST_PER_LEFT));
 
     while (wanted-- > 0) {
         const weights = open.map(id => REGION_UPGRADES.boostier.effect(regionLevel(s, id, "boostier")));
@@ -572,11 +597,11 @@ function spawnBoosts(s) {
     }
 }
 
-function oceanTick(s, layer) {
+function oceanTick(s) {
     s.oceanTicks = (s.oceanTicks || 0) + 1;
 
     const gains = tickProduction(s);
-    for (const resourceId in gains) addResource(layer, resourceId, gains[resourceId]);
+    for (const resourceId in gains) addResource(resourceId, gains[resourceId]);
 
     for (const school of unlockedSchools(s)) {
         for (const id of activeBoosts(school)) {
@@ -604,7 +629,7 @@ export function tickOcean(dt, layer) {
     let ticks = 0;
     while (s.oceanClock >= length && ticks++ < MAX_CATCHUP_TICKS) {
         s.oceanClock -= length;
-        oceanTick(s, layer);
+        oceanTick(s);
     }
     if (ticks >= MAX_CATCHUP_TICKS) s.oceanClock = 0;
 }
@@ -927,42 +952,6 @@ function renderBuffRow(host, school, slots = 0) {
 }
 
 
-const OUTSIDE_RESOURCES = { Evolution: "#b06ad0" };
-
-// Short forms for the places a full name won't fit, like the header for the fish skills
-const SHORT_NAMES = { "Blue Essence": "BE", "Green Essence": "GE", "Evolution Points": "Evo" };
-
-const escapeHtml = (text) => String(text).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-
-const resourceSpan = (name, color, text = name) =>
-    `<span class="res" style="--resource-color:${color}">${escapeHtml(text)}</span>`;
-
-function resourcecolors(layer) {
-    const out = { ...OUTSIDE_RESOURCES };
-    for (const def of Object.values(layer.resources || {})) if (def.name) out[def.name] = def.color;
-    return out;
-}
-
-// Longest name first, so "Blue Essence" is taken before anything that sits inside it
-function colorResources(text, layer) {
-    const colors = resourcecolors(layer);
-    let html = escapeHtml(text);
-    for (const name of Object.keys(colors).sort((a, b) => b.length - a.length)) {
-        html = html.split(name).join(resourceSpan(name, colors[name]));
-    }
-    return html;
-}
-
-const shortResource = (name) => SHORT_NAMES[name] || name;
-
-// A price, with each resource named in its own color
-// only thought of this when working on this layer. I will need to implement this everywhere else
-// feck
-const costHtml = (cost, layer, short = false) => costParts(cost, layer.resources || {})
-    .map(part => `${part.amount} ${resourceSpan(part.label, part.color || "var(--text)",
-        short ? shortResource(part.label) : part.label)}`)
-    .join(" + ");
-
 // Levels read as numerals on the fish page because I like them
 const NUMERALS = [
     [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
@@ -998,9 +987,9 @@ function upgradeGrid(count, onClick) {
     return grid;
 }
 
-function fillUpgrade(btn, layer, { title, level, max, description, cost }) {
+function fillUpgrade(btn, { title, level, max, description, cost }) {
     const maxed = level >= max;
-    const affordable = !maxed && canAfford(layer, cost);
+    const affordable = !maxed && canAfford(cost);
     const want = maxed ? "owned" : affordable ? "affordable" : "locked";
     if (btn.dataset.state !== want) {
         btn.className = `upgrade-button ${want}`;
@@ -1008,8 +997,10 @@ function fillUpgrade(btn, layer, { title, level, max, description, cost }) {
     }
     setText(btn.querySelector(".upgrade-title"), title);
     setText(btn.querySelector(".upgrade-level"), `${level}/${max}`);
-    setRich(btn.querySelector(".upgrade-description"), description, layer);
-    setRich(btn.querySelector(".upgrade-cost"), maxed ? "Maxed" : `Cost: ${costHtml(cost, layer)}`, layer);
+    setText(btn.querySelector(".upgrade-title"), title);
+    setText(btn.querySelector(".upgrade-level"), `${level}/${max}`);
+    setRichText(btn.querySelector(".upgrade-description"), description);
+    setRichText(btn.querySelector(".upgrade-cost"), maxed ? "Maxed" : `Cost: ${costHtml(cost)}`);
 }
 
 const SKILL_MARKUP = `
@@ -1037,9 +1028,9 @@ function skillGrid(count, onClick) {
     return grid;
 }
 
-function fillSkill(card, layer, { stat, color, level, max, effect, cost }) {
+function fillSkill(card, { stat, color, level, max, effect, cost }) {
     const maxed = level >= max;
-    const want = maxed ? "owned" : canAfford(layer, cost) ? "affordable" : "locked";
+    const want = maxed ? "owned" : canAfford(cost) ? "affordable" : "locked";
     if (card.dataset.state !== want) {
         card.className = `skill ${want}`;
         card.dataset.state = want;
@@ -1049,13 +1040,13 @@ function fillSkill(card, layer, { stat, color, level, max, effect, cost }) {
         card.style.setProperty("--skill-color", color);
     }
 
-    setRich(card.querySelector(".skill-stat"), stat, layer);
+    setRichText(card.querySelector(".skill-stat"), stat);
     setText(card.querySelector(".skill-level"), roman(level));
-    setRich(card.querySelector(".skill-cost"), maxed ? "Fully grown" : costHtml(cost, layer, true), layer);
+    setRichText(card.querySelector(".skill-cost"), maxed ? "Fully grown" : costHtml(cost, true));
     setText(card.querySelector(".skill-effect"), effect);
 }
 
-function renderYield(host, amounts, layer, prefix = "+") {
+function renderYield(host, amounts, prefix = "+") {
     const ids = Object.keys(amounts).filter(id => D(amounts[id]).gt(0));
     const key = ids.map(id => `${id}:${formatNumber(amounts[id])}`).join(",");
     if (host.dataset.key === key) return;
@@ -1063,9 +1054,9 @@ function renderYield(host, amounts, layer, prefix = "+") {
 
     host.innerHTML = ids.length === 0 ? `<span class="ocean-yield-empty">Nothing next tick</span>`
         : ids.map(id => {
-            const def = layer.resources[id] || {};
+            const def = resourceDef(id);
             return `<span class="ocean-chip" style="--resource-color:${def.color || "var(--text)"}">`
-                + `${prefix}${formatNumber(amounts[id])} <em>${def.name || id}</em></span>`;
+                + `${prefix}${formatNumber(amounts[id])} <em>${def.name}</em></span>`;
         }).join("");
 }
 
@@ -1141,7 +1132,7 @@ const OCEAN_HUD = {
                 const upgradeId = REGION_UPGRADE_IDS[slot];
                 const level = regionLevel(s, id, upgradeId);
                 if (level >= REGION_UPGRADES[upgradeId].max) return;
-                if (!spend(layer, regionUpgradeCost(level))) return;
+                if (!spend(regionUpgradeCost(level))) return;
                 regionState(s, id).upgrades[upgradeId] = level + 1;
             }));
 
@@ -1155,7 +1146,7 @@ const OCEAN_HUD = {
             const aspect = SPECIES[id].aspects[aspectId];
             const level = aspectLevel(school, aspectId);
             if (level >= aspect.max) return;
-            if (!spend(layer, aspectUpgradeCost(level))) return;
+            if (!spend(aspectUpgradeCost(level))) return;
             school.upgrades[aspectId] = level + 1;
         }), pages.school.querySelector(".fish-flavor"));
 
@@ -1200,23 +1191,23 @@ const OCEAN_HUD = {
         setDisplay(el.querySelector(".ocean-clock"), !dry);
 
         if (page === "dry") return;
-        if (page === "overview") updateOverview(pages.overview, s, layer, left, part);
-        else if (page === "region") updateRegionPage(pages.region, s, layer, regionId);
-        else updateSchoolPage(pages.school, s, layer, schoolId);
+        if (page === "overview") updateOverview(pages.overview, s, left, part);
+        else if (page === "region") updateRegionPage(pages.region, s, regionId);
+        else updateSchoolPage(pages.school, s, schoolId);
     },
 };
 
-function updateOverview(page, s, layer, left, part) {
+function updateOverview(page, s, left, part) {
     setText(page.querySelector(".summary-time"), clockText(left));
     page.querySelector(".summary-fill").style.width = `${(100 * part).toFixed(1)}%`;
-    renderYield(page.querySelector(".ocean-yield"), tickProduction(s), layer);
+    renderYield(page.querySelector(".ocean-yield"), tickProduction(s));
     // Only the fish already in the water. A species you haven't been given yet isn't
     // something to buy from here, so listing it would just be a tease.
-    renderSchoolList(page.querySelector(".ocean-school-list"), s, layer,
+    renderSchoolList(page.querySelector(".ocean-school-list"), s,
         SPECIES_IDS.filter(id => schoolUnlocked(s, id)));
 }
 
-function updateRegionPage(page, s, layer, id) {
+function updateRegionPage(page, s, id) {
     const def = REGIONS[id];
     const region = regionState(s, id);
 
@@ -1226,7 +1217,7 @@ function updateRegionPage(page, s, layer, id) {
         banner.dataset.boost = boost || "";
         // Hidden rather than removed, so losing a boost doesn't shuffle the whole page up
         banner.innerHTML = boost ? `${boostIcon(boost)}<div><div class="banner-name">${BOOSTS[boost].name}</div>`
-            + `<div class="banner-text">${colorResources(BOOSTS[boost].text, layer)}</div></div>`
+            + `<div class="banner-text">${colorResources(BOOSTS[boost].text)}</div></div>`
             : `${boostIcon("upwelling")}<div><div class="banner-name">&nbsp;</div>`
             + `<div class="banner-text">&nbsp;</div></div>`;
         banner.classList.toggle("empty", !boost);
@@ -1235,16 +1226,16 @@ function updateRegionPage(page, s, layer, id) {
     setText(page.querySelector(".ocean-page-title"), def.name);
     const crowded = planMovement(s).contested.has(id)
         ? " Two schools are heading here, and only one will arrive." : "";
-    setRich(page.querySelector(".ocean-page-note"),
+    setRichText(page.querySelector(".ocean-page-note"),
         `Water worth ${Math.round(def.water * 100)}% of the ordinary.`
-        + ` Flowing into ${REGIONS[flowTarget(s, id)].name}.${crowded}`, layer);
-    renderSchoolList(page.querySelector(".ocean-here"), s, layer, schoolsAt(s, id).map(school => school.id));
+        + ` Flowing into ${REGIONS[flowTarget(s, id)].name}.${crowded}`);
+    renderSchoolList(page.querySelector(".ocean-here"), s, schoolsAt(s, id).map(school => school.id));
 
     const buttons = page.querySelectorAll(".ocean-upgrades .upgrade-button");
     REGION_UPGRADE_IDS.forEach((upgradeId, slot) => {
         const upgrade = REGION_UPGRADES[upgradeId];
         const level = regionLevel(s, id, upgradeId);
-        fillUpgrade(buttons[slot], layer, {
+        fillUpgrade(buttons[slot], {
             title: upgrade.title,
             level,
             max: upgrade.max,
@@ -1258,25 +1249,23 @@ function updateRegionPage(page, s, layer, id) {
     setText(redirect, isPicking(id) ? "Pick a gold path, or press to stop" : "Redirect the current");
 }
 
-function aspectHeadline(aspect, level, layer) {
+function aspectHeadline(aspect, level) {
     if (aspect.kind === "production") {
-        const name = (layer.resources[aspect.resource] || {}).name || aspect.resource;
-        return `+${formatNumber(aspect.base.mul(1 + PROD_PER_LEVEL * (level - 1)))} ${shortResource(name)}`;
+        const name = resourceDef(aspect.resource).short;
+        return `+${formatNumber(aspect.base.mul(1 + PROD_PER_LEVEL * (level - 1)))} ${name}`;
     }
     if (aspect.kind === "boost") {
-        const name = (layer.resources[aspect.resource] || {}).name || aspect.resource;
-        return `x${aspect.effect(level).toFixed(2)} ${shortResource(name)}`;
+        return `x${aspect.effect(level).toFixed(2)} ${resourceDef(aspect.resource).short}`;
     }
     return aspect.headline(level);
 }
 
-function aspectcolor(aspect, layer) {
+function aspectcolor(aspect) {
     if (aspect.kind === "trait") return "var(--gold)";
-    const def = layer.resources[aspect.resource];
-    return (def && def.color) || "var(--text)";
+    return resourceDef(aspect.resource).color || "var(--text)";
 }
 
-function updateSchoolPage(page, s, layer, id) {
+function updateSchoolPage(page, s, id) {
     const species = SPECIES[id];
     const school = schoolState(s, id);
 
@@ -1290,32 +1279,32 @@ function updateSchoolPage(page, s, layer, id) {
     renderBuffRow(page.querySelector(".school-buffs"), school, MAX_BUFFS);
     setText(page.querySelector(".fish-where"), `Currently in ${REGIONS[school.at].name}`);
     setText(page.querySelector(".fish-flavor"), species.blurb);
-    renderYield(page.querySelector(".fish-readout .ocean-yield"), schoolProduction(s, school), layer);
+    renderYield(page.querySelector(".fish-readout .ocean-yield"), schoolProduction(s, school));
 
     const cards = page.querySelectorAll(".fish-skills .skill");
     aspectIds(id).forEach((aspectId, slot) => {
         const aspect = species.aspects[aspectId];
         const level = aspectLevel(school, aspectId);
-        fillSkill(cards[slot], layer, {
-            stat: aspectHeadline(aspect, level, layer),
-            color: aspectcolor(aspect, layer),
+        fillSkill(cards[slot], {
+            stat: aspectHeadline(aspect, level),
+            color: aspectcolor(aspect),
             level,
             max: aspect.max,
             effect: aspect.step || `+${Math.round(PROD_PER_LEVEL * 100)}% per level`,
             cost: aspectUpgradeCost(level),
         });
-        cards[slot].title = `${aspect.title} - ${aspectDescription(aspect, level, layer)}`;
+        cards[slot].title = `${aspect.title} - ${aspectDescription(aspect, level)}`;
     });
 }
 
-const aspectDescription = (aspect, level, layer) => aspect.kind === "production"
+const aspectDescription = (aspect, level) => aspect.kind === "production"
     ? `Base ${formatNumber(aspect.base.mul(1 + PROD_PER_LEVEL * (level - 1)))} `
-        + `${(layer.resources[aspect.resource] || {}).name || aspect.resource} each tick.`
+        + `${resourceDef(aspect.resource).name} each tick.`
     : aspect.description(level);
 
 // The list of fish types
 // Need to make it so ones that aren't unlocked just don't appear
-function renderSchoolList(host, s, layer, ids) {
+function renderSchoolList(host, s, ids) {
     const key = ids.map(id => {
         const school = schoolState(s, id);
         return `${id}:${school.at}:${activeBoosts(school).join("|")}`;
@@ -1329,7 +1318,7 @@ function renderSchoolList(host, s, layer, ids) {
     for (const row of host.querySelectorAll("[data-school]")) {
         const school = schoolState(s, row.dataset.school);
         setText(row.querySelector(".row-where"), REGIONS[school.at].name);
-        renderYield(row.querySelector(".ocean-yield"), schoolProduction(s, school), layer);
+        renderYield(row.querySelector(".ocean-yield"), schoolProduction(s, school));
         renderBuffRow(row.querySelector(".school-buffs"), school, MAX_BUFFS);
     }
 }
@@ -1369,18 +1358,3 @@ export const OCEAN_VIEW = {
     subWindows: {},
     nodes: {},
 };
-
-function setText(el, text) {
-    if (el.textContent !== text) el.textContent = text;
-}
-
-function setRich(el, text, layer) {
-    if (el.dataset.rich === text) return;
-    el.dataset.rich = text;
-    el.innerHTML = text.includes("<span") ? text : colorResources(text, layer);
-}
-
-function setDisplay(el, shown) {
-    const display = shown ? "" : "none";
-    if (el.style.display !== display) el.style.display = display;
-}

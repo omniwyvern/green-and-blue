@@ -39,5 +39,5 @@ export function nodeBuyable(layer, nodeId, layerState) {
     if (layerState.purchasedUpgrades[nodeId]) return false;
     if (!nodeVisible(layer, nodeId, layerState)) return false;
     if (!prereqMet(layer, def, layerState)) return false;
-    return canAfford(layer, def.cost(layerState));
+    return canAfford(def.cost(layerState));
 }

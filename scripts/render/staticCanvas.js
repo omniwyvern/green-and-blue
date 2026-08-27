@@ -6,13 +6,15 @@
 // Everything is built once and then patched, rather than rebuilt every render.
 
 import { getLayerState } from "../core/state.js";
-import { canAfford, spend, formatCost, getLevel } from "../core/resources.js";
+import { canAfford, spend, getLevel } from "../core/resources.js";
 import { markDirty } from "./canvasRouter.js";
+import { setText, setDisplay } from "../utils/dom.js";
+import { setRichText, costHtml } from "./richText.js";
 
 // Cache built DOM nodes per layer, so it doesn't rebuild everything every time something changes
 const builtCanvases = new Map();
 
-// This is for completely removing a canvas.
+// This is for completely removing a canvas
 export function forgetStaticCanvas(layerId) {
     builtCanvases.delete(layerId);
 }
@@ -28,7 +30,7 @@ export function renderStaticCanvas(layer, container) {
 
     const layerState = getLayerState(layer.stateKey);
     if (built.scene && layer.scene.update) layer.scene.update(built.scene, layerState, layer);
-    if (built.note) setText(built.note, layer.note(layerState));
+    if (built.note) setRichText(built.note, layer.note(layerState));
     updateDrawers(layer, built, layerState);
     updateUpgrades(layer, built, layerState);
 }
@@ -36,8 +38,7 @@ export function renderStaticCanvas(layer, container) {
 function buildCanvas(layer, container) {
     const built = { parent: container, scene: null, note: null, buttons: {}, drawer: null };
 
-    // Lets a layer restyle the canvas its pieces are laid out on - the Grass page splits it
-    // into a scene on one side and its upgrades on the other. Everything else is unchanged.
+    // Lets a layer restyle the canvas its pieces are laid out on
     if (layer.canvasClass) container.classList.add(layer.canvasClass);
 
     if (layer.scene) {
@@ -83,7 +84,10 @@ function buildGrid(layer, built, upgradeIds) {
             <div class="upgrade-cost"></div>
         `;
         btn.querySelector(".upgrade-title").textContent = def.title;
-        if (typeof def.description !== "function") btn.querySelector(".upgrade-description").textContent = def.description;
+        // Descriptions name what a purchase is for, so they read through the colored text writer
+        if (typeof def.description !== "function") {
+            setRichText(btn.querySelector(".upgrade-description"), def.description);
+        }
         btn.addEventListener("click", () => purchaseUpgrade(layer, upgradeId));
 
         grid.appendChild(btn);
@@ -93,7 +97,7 @@ function buildGrid(layer, built, upgradeIds) {
 }
 
 // Drawers, basically just a container you can open that holds upgrades and stuff,
-// opened/closed with a little tab on it.
+// opened/closed with a little tab on it
 function buildDrawer(layer, built, drawerIds, container) {
     const drawer = document.createElement("div");
     drawer.className = "upgrade-drawer";
@@ -133,7 +137,7 @@ function buildDrawer(layer, built, drawerIds, container) {
         pages[drawerId] = page;
     }
 
-    // Open/close tab moves with the drawer.
+    // Open/close tab moves with the drawer
     const slide = document.createElement("div");
     slide.className = "drawer-slide";
     slide.append(tabs, panel);
@@ -164,15 +168,10 @@ function updateDrawers(layer, built, layerState) {
 
         if (!shown && el.dataset.open === drawerId) openDrawer(built, null);
         if (def.note && el.dataset.open === drawerId) {
-            setText(pages[drawerId].querySelector(".canvas-note"), def.note(layerState));
+            setRichText(pages[drawerId].querySelector(".canvas-note"), def.note(layerState));
         }
     }
     setDisplay(el, anyShown);
-}
-
-function setDisplay(el, shown) {
-    const display = shown ? "" : "none";
-    if (el.style.display !== display) el.style.display = display;
 }
 
 function updateUpgrades(layer, built, layerState) {
@@ -188,27 +187,27 @@ function updateUpgrades(layer, built, layerState) {
         const level = getLevel(layerState, upgradeId);
         const maxed = level >= max;
         const cost = maxed ? null : def.cost(layerState, level);
-        const affordable = !maxed && canAfford(layer, cost);
+        const affordable = !maxed && canAfford(cost);
 
         const order = maxed ? "1" : "0";
         if (btn.style.order !== order) btn.style.order = order;
 
-        // Only changes the DOM when a value changes instead of once per tick.
+        // Only changes the DOM when a value changes instead of once per tick
         const wantState = maxed ? "owned" : affordable ? "affordable" : "locked";
         if (btn.dataset.state !== wantState) {
             btn.className = `upgrade-button ${wantState}`;
             btn.dataset.state = wantState;
         }
 
-        // Descriptions that quote live numbers come in as functions, so they refresh here.
+        // Descriptions that quote live numbers come in as functions, so they refresh here
         if (typeof def.description === "function") {
-            setText(btn.querySelector(".upgrade-description"), def.description(layerState, level));
+            setRichText(btn.querySelector(".upgrade-description"), def.description(layerState, level));
         }
 
-        // Only repeatable upgrades show the purchase count.
+        // Only repeatable upgrades show the purchase count
         setText(btn.querySelector(".upgrade-level"), max > 1 ? `${level}/${max}` : "");
-        setText(btn.querySelector(".upgrade-cost"),
-            maxed ? (max > 1 ? "Maxed" : "Purchased") : `Cost: ${formatCost(cost, layer.resources)}`);
+        setRichText(btn.querySelector(".upgrade-cost"),
+            maxed ? (max > 1 ? "Maxed" : "Purchased") : `Cost: ${costHtml(cost)}`);
     }
 }
 
@@ -219,7 +218,7 @@ function purchaseUpgrade(layer, upgradeId) {
     const max = def.max || 1;
     const level = getLevel(layerState, upgradeId);
     if (level >= max) return;
-    if (!spend(layer, def.cost(layerState, level))) return;
+    if (!spend(def.cost(layerState, level))) return;
 
     layerState.purchasedUpgrades[upgradeId] = level + 1;
     if (def.onPurchase) def.onPurchase(layerState, level + 1);
@@ -227,6 +226,4 @@ function purchaseUpgrade(layer, upgradeId) {
     markDirty(layer.stateKey);
 }
 
-function setText(el, text) {
-    if (el.textContent !== text) el.textContent = text;
-}
+

@@ -152,7 +152,72 @@
 
 .settings-status { font-size: 0.75rem; color: var(--text-dim); min-height: 1rem; }
 
+.settings-note {
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+}
+
+/* Shown when saving is off, so a save the game can't write doesn't go unnoticed */
+.settings-warning {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text);
+    background: color-mix(in srgb, var(--danger) 18%, var(--panel-light));
+    border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--border));
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.625rem;
+    margin-bottom: 0.875rem;
+}
+.settings-warning[hidden] { display: none; }
+
+#settings-button.has-problem {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* The dev window's one box per resource pool */
+.dev-resource-list { display: grid; gap: 0.375rem; }
+
+.dev-resource {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dev-resource-name {
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dev-resource-input {
+    width: 100%;
+    min-width: 0;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+}
+.dev-resource-input:focus { outline: none; border-color: var(--accent); }
+
 .guide-window { width: min(31.25rem, calc(100vw - 2rem)); }
+
+/* The multi-tab warning */
+.tab-body {
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+}
+.tab-body p { margin: 0 0 0.625rem; }
+.tab-body p:last-child { margin-bottom: 0; }
 
 .guide-body {
     max-height: min(52dvh, 26.25rem);

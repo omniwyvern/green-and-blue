@@ -8,7 +8,9 @@ import { state, getLayerState } from "../core/state.js";
 import { canAfford, spend, formatCost, costParts } from "../core/resources.js";
 import { parentsOf, nodeOwned, nodeVisible, prereqMet } from "../core/nodes.js";
 import { formatNumber } from "../utils/format.js";
-import { hexToPixel, areNeighbours } from "../utils/hex.js";
+import { hexToPixel, neighboursOf, areNeighbours } from "../utils/hex.js";
+import { setText } from "../utils/dom.js";
+import { setRichText } from "./richText.js";
 import { markDirty, refreshCanvasControls } from "./canvasRouter.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -88,6 +90,9 @@ class DragCanvas {
         this.subWindowEls = {};
         this.sceneEl = null;
         this.panFrame = null;
+        this._rectCache = null;     // Viewport size, re-read only once the observer says it moved
+        this._boundsCache = null;   // Content bounds in canvas units, remade when state renders
+        this._boundsStale = true;
         this.nodeEls = {};
         this.connectorEls = {};
         this.tileEls = {};
@@ -190,6 +195,7 @@ class DragCanvas {
 
 
         this._resizeObserver = new ResizeObserver(() => {
+            this._rectCache = null; // The viewport changed size; next reader measures again
             if (this.hascenterd) this._applyTransform();
             else this.recenter();
         });
@@ -331,6 +337,7 @@ class DragCanvas {
                 ${def.aura ? auraMarkup() : ""}
                 <div class="node-ring"></div>
                 <div class="node-face">
+                    ${def.combo ? '<div class="node-combo"></div>' : ""}
                     ${def.split ? '<div class="node-split-fill"></div>' : ""}
                     ${def.badge ? '<div class="node-badge"></div>' : ""}
                     <div class="node-title"></div>
@@ -359,7 +366,7 @@ class DragCanvas {
 
         if (def.cost) {
             if (layerState.purchasedUpgrades[nodeId]) return;
-            if (!spend(this.layer, def.cost(layerState))) return;
+            if (!spend(def.cost(layerState))) return;
             layerState.purchasedUpgrades[nodeId] = true;
             if (def.onPurchase) def.onPurchase(layerState);
         } else if (def.onClick) {
@@ -396,10 +403,10 @@ class DragCanvas {
 
             const owned = !!layerState.purchasedUpgrades[nodeId];
 
-            // Owning something counts as meeting its prereqs. Caused problems before without this.
+            // Owning something counts as meeting its prereqs. Caused problems before without this
             const met = owned || this._prereqMet(def, layerState);
 
-            // Meter drives the ring fill, as a 0 to 1 fraction.
+            // Meter drives the ring fill, as a 0 to 1 fraction
             const fill = def.meter ? Math.max(0, Math.min(1, def.meter(layerState))) : 0;
             const fillText = fill.toFixed(3);
             if (el.dataset.fill !== fillText) {
@@ -407,9 +414,17 @@ class DragCanvas {
                 el.dataset.fill = fillText;
             }
 
+            // A running-out bonus, drawn as the node's own color draining off the top of its
+            // face. Set as a bare custom property rather than a class, since the state block
+            // below rewrites className outright
+            if (def.combo) {
+                el.style.setProperty("--node-combo",
+                    met ? Math.max(0, Math.min(1, def.combo(layerState))) : 0);
+            }
+
             setText(el.querySelector(".node-title"), met ? def.title : anonymousTitle(def));
             setText(el.querySelector(".node-value"), met && def.value ? def.value(layerState) : "");
-            setText(el.querySelector(".node-detail"), met && def.detail ? def.detail(layerState) : "");
+            setRichText(el.querySelector(".node-detail"), met && def.detail ? def.detail(layerState) : "");
             if (def.badge) this._renderBadge(el, met ? def.badge(layerState) : null);
 
 
@@ -418,7 +433,7 @@ class DragCanvas {
             if (!met) wantState = "unmet";
             else if (owned) wantState = "owned";
             else if (def.cost) {
-                wantState = canAfford(this.layer, def.cost(layerState)) ? "affordable" : "locked";
+                wantState = canAfford(def.cost(layerState)) ? "affordable" : "locked";
             }
             if (el.dataset.state !== wantState) {
                 el.className = `node node-${def.kind} ${wantState}`
@@ -430,9 +445,9 @@ class DragCanvas {
             let tooltip;
             // Gives a hint for node prereqs that aren't on the tree
             if (!met) tooltip = def.hint ? def.hint(layerState) : "Something is missing...";
-            else if (def.cost && !owned) tooltip = `${def.description}\nCost: ${formatCost(def.cost(layerState), this.layer.resources)}`;
+            else if (def.cost && !owned) tooltip = `${def.description}\nCost: ${formatCost(def.cost(layerState))}`;
             else tooltip = def.tooltip ? def.tooltip(layerState) : (def.description || "");
-            setText(el.querySelector(".node-tooltip"), tooltip);
+            setRichText(el.querySelector(".node-tooltip"), tooltip);
         }
     }
 
@@ -451,11 +466,7 @@ class DragCanvas {
         badgeEl.style.display = "";
         badgeEl.classList.toggle("full", !!badge.full);
 
-        // How much of the badge is still filled in, for a badge that runs out. Set before the
-        // early return below, since it changes on frames where the number doesn't.
-        badgeEl.style.setProperty("--badge-part",
-            badge.part == null ? 1 : Math.max(0, Math.min(1, badge.part)));
-
+        // early return below, since it changes on frames where the number doesn't
         if (badgeEl.dataset.shown === badge.text) return;
         const first = !badgeEl.dataset.shown;
         badgeEl.dataset.shown = badge.text;
@@ -473,7 +484,16 @@ class DragCanvas {
         );
     }
 
+    // Bounds don't move on their own - what counts as content moves only when game state does -
+    // so these are remembered between renders instead of being walked out again on every pan step
     _contentBounds() {
+        if (!this._boundsStale) return this._boundsCache;
+        this._boundsCache = this._measureContentBounds();
+        this._boundsStale = false;
+        return this._boundsCache;
+    }
+
+    _measureContentBounds() {
         const layerState = getLayerState(this.layer.stateKey);
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
@@ -519,7 +539,7 @@ class DragCanvas {
         const bounds = this._contentBounds();
         if (!bounds) return;
 
-        const { width, height } = this.viewport.getBoundingClientRect();
+        const { width, height } = this._viewportRect();
         if (!width || !height) return;
 
         const clampAxis = (pan, min, max, viewportSize) => {
@@ -554,14 +574,23 @@ class DragCanvas {
         return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
     }
 
+    // Reads the viewport through a cache. ResizeObserver resets the cache whenever
+    // the real size moves, which is the only moment a fresh number matters anyway
+    _viewportRect() {
+        if (!this._rectCache) this._rectCache = this.viewport.getBoundingClientRect();
+        return this._rectCache;
+    }
+
     // Since centering goes to the direct center of the whole window, it looks off depending
     // on if stuff is covering the sides of the screen. So this makes it go based on
     // how much room there really is for the canvas to be seen
-    _openCenter(width, height) {
+    _openCenter(rect) {
+        const width = rect.width;
+        const height = rect.height;
         const spot = { x: width / 2, y: height / 2 };
         if (!this.hudEl) return spot;
 
-        const view = this.viewport.getBoundingClientRect();
+        const view = rect;
         for (const cover of this.hudEl.querySelectorAll("[data-canvas-cover]")) {
             const box = cover.getBoundingClientRect();
             if (!box.width || !box.height) continue; // Not on screen right now
@@ -584,12 +613,12 @@ class DragCanvas {
 
     // Centers the view on something, with a smooth pan
     centerOn(x, y, smooth = true) {
-        const { width, height } = this.viewport.getBoundingClientRect();
-        if (!width || !height) return;
+        const rect = this._viewportRect();
+        if (!rect.width || !rect.height) return;
 
         this._stopPanTween();
         this.hascenterd = true;
-        const open = this._openCenter(width, height);
+        const open = this._openCenter(rect);
         const toX = open.x - x * this.zoom;
         const toY = open.y - y * this.zoom;
 
@@ -623,12 +652,12 @@ class DragCanvas {
 
     // Is the actual recentering
     recenter() {
-        const { width, height } = this.viewport.getBoundingClientRect();
-        if (!width || !height) return;
+        const rect = this._viewportRect();
+        if (!rect.width || !rect.height) return;
 
         const center = this._viewcenter();
-        this.panX = width / 2 - center.x * this.zoom;
-        this.panY = height / 2 - 1.5 * center.y * this.zoom;
+        this.panX = rect.width / 2 - center.x * this.zoom;
+        this.panY = rect.height / 2 - 1.5 * center.y * this.zoom;
         this.hascenterd = true;
         this._applyTransform();
     }
@@ -652,7 +681,7 @@ class DragCanvas {
     stepZoom(direction, clientX, clientY) {
         if (!this.canZoom(direction)) return false;
 
-        const rect = this.viewport.getBoundingClientRect();
+        const rect = this._viewportRect();
         const atX = clientX === undefined ? rect.width / 2 : clientX - rect.left;
         const atY = clientY === undefined ? rect.height / 2 : clientY - rect.top;
 
@@ -679,7 +708,7 @@ class DragCanvas {
             return;
         }
 
-        const rect = this.viewport.getBoundingClientRect();
+        const rect = this._viewportRect();
         const x = Math.round((this.pointerClient.x - rect.left - this.panX) / this.zoom);
         const y = Math.round((this.pointerClient.y - rect.top - this.panY) / this.zoom);
         setText(this.coordEl, `x ${x}  y ${y}`);
@@ -697,6 +726,21 @@ class DragCanvas {
         const tiles = def.list(layerState);
         const unlocked = layerState.tiles || {};
 
+        // A tile is for sale where it sits next to an owned one. Previously it
+        // was checking for all neighbors for all tiles like every tick so this just
+        // makes it not absolutely horrible on performance 
+        const listed = new Map(tiles.map(tile => [tile.id, tile]));
+        const reachableIds = new Set();
+        if (!hidden) {
+            for (const id in unlocked) {
+                const ownedTile = unlocked[id] && listed.get(id);
+                if (!ownedTile) continue;
+                for (const n of neighboursOf(ownedTile)) {
+                    if (listed.has(n.id)) reachableIds.add(n.id);
+                }
+            }
+        }
+
         for (const tile of tiles) {
             // Built on demand, so the canvas doesn't need to be rebuilt
             const el = this.tileEls[tile.id] || this._buildTile(tile, def);
@@ -706,10 +750,9 @@ class DragCanvas {
             if (hidden) continue;
 
             const isUnlocked = !!unlocked[tile.id];
-            const reachable = isUnlocked || tiles.some(other =>
-                unlocked[other.id] && areNeighbours(tile, other));
+            const reachable = isUnlocked || reachableIds.has(tile.id);
             const cost = !isUnlocked && reachable && def.cost ? def.cost(layerState, tile) : null;
-            const affordable = cost ? canAfford(this.layer, cost) : false;
+            const affordable = cost ? canAfford(cost) : false;
 
             const state = isUnlocked ? "unlocked" : !reachable ? "unreachable"
                 : affordable ? "affordable" : "locked";
@@ -799,12 +842,12 @@ class DragCanvas {
             return;
         }
 
-        const parts = costParts(cost, this.layer.resources);
+        const parts = costParts(cost);
         const single = parts.length === 1 ? parts[0] : null;
 
         const color = single ? single.color || "" : "";
         if (costEl.style.color !== color) costEl.style.color = color;
-        setText(costEl, !single ? formatCost(cost, this.layer.resources)
+        setText(costEl, !single ? formatCost(cost)
             : single.ids.length === 1 ? single.amount
             : `${single.amount} ${single.label}`);
         setText(actionEl, (own && own.action) || def.buyLabel || "Buy this tile");
@@ -824,7 +867,7 @@ class DragCanvas {
         const tiles = def.list(layerState);
         const reachable = tiles.some(other => layerState.tiles[other.id] && areNeighbours(tile, other));
         if (!reachable) return;
-        if (def.cost && !spend(this.layer, def.cost(layerState, tile))) return;
+        if (def.cost && !spend(def.cost(layerState, tile))) return;
 
         layerState.tiles[tile.id] = true;
         if (def.onUnlock) def.onUnlock(layerState, tile);
@@ -838,13 +881,16 @@ class DragCanvas {
         if (text) setText(this.overlayEl, text);
     }
 
-    // Called by canvasRouter whenever this layer is dirty and visible.
+    // Called by canvasRouter whenever this layer is dirty and visible
     render() {
         const layerState = getLayerState(this.layer.stateKey);
+        // Game state just moved, so whatever bounded the content before may not bound it now
+        this._boundsStale = true;
+
         for (const subId in this.layer.subWindows) {
             const def = this.layer.subWindows[subId];
             const bodyEl = this.subWindowEls[subId].querySelector(".sub-window-body");
-            setText(bodyEl, def.render(layerState));
+            setRichText(bodyEl, def.render(layerState));
         }
         this._renderNodes(layerState);
         this._renderTiles(layerState);
@@ -862,12 +908,6 @@ const LOCK_ICON = `
         <path d="M5 7.4V5a3 3 0 0 1 6 0v2.4"/>
         <rect x="3.4" y="7.4" width="9.2" height="6.4" rx="1.3"/>
     </svg>`;
-
-// textContent reassignment spends time recalculating style EVERY SINGLE TICK
-// So this is better an makes it Not Do That
-function setText(el, text) {
-    if (el.textContent !== text) el.textContent = text;
-}
 
 function wavePath(radius, amplitude, lobes, samples = 120) {
     const points = [];

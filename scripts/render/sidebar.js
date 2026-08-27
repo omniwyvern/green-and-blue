@@ -15,7 +15,7 @@ const appEl = document.getElementById("app");
 let lastRenderedCategory = null;
 let lastRenderedLayer = null;
 
-// Called every frame from loop.js, but the tab list only rebuilds on category switch.
+// Called once per simulation tick; the tab list only rebuilds on category switch.
 // It also renders the category bar which is on the top and isn't a sidebar teehee
 export function renderSidebar() {
     if (state.activeCategory !== lastRenderedCategory) {
@@ -33,20 +33,36 @@ export function renderSidebar() {
     refreshLockedStates();
     refreshFlyoutMembership();
     refreshActiveSubLayer();
-    positionNavToggle();
+    syncNavToggleTarget();
 }
 
-// The chevron hangs off the header's bottom edge, so it has to be measured rather than guessed:
-// the header is shorter on a phone, taller when the resource chips wrap, and gone entirely on a
-// layer that holds nothing. Read once a frame, written only when it actually moves.
+let watchedHeader = null;
 let lastHeaderHeight = -1;
+const headerWatcher = "ResizeObserver" in window ? new ResizeObserver(() => {
+    if (!watchedHeader) return;
+    applyHeaderHeight(watchedHeader.offsetHeight);
+}) : null;
 
-function positionNavToggle() {
-    const header = activeHeaderElement();
-    const height = header ? header.offsetHeight : 0;
+function applyHeaderHeight(height) {
     if (height === lastHeaderHeight) return;
     lastHeaderHeight = height;
     appEl.style.setProperty("--nav-toggle-top", `${height}px`);
+}
+
+
+export function syncNavToggleTarget() {
+    const header = activeHeaderElement();
+    if (!headerWatcher) { // No way to hear about a wrap without it; measure per call instead
+        applyHeaderHeight(header ? header.offsetHeight : 0);
+        return;
+    }
+    if (header === watchedHeader) return;
+    if (watchedHeader) headerWatcher.unobserve(watchedHeader);
+    watchedHeader = header;
+    if (header) headerWatcher.observe(header);
+
+    // Whatever size it has right now, so switching headers isn't a frame of guesswork
+    applyHeaderHeight(header ? header.offsetHeight : 0);
 }
 
 // Folding the navigation away gives the canvas the whole window
@@ -86,15 +102,22 @@ function buildCategoryBar() {
     }
 }
 
-// Tabs are grouped, with a little divider between them
+// Tabs are grouped, with a little divider between them. Built once per category switch, so
+// everything else walks these cached arrays instead of querying the sidebar over and over
+let sidebarGroups = [];   // [{ el: group div, tabs: [button, ...] }] in display order
+let tabButtons = [];      // Flat view of the above
+
 function buildLayerSidebar() {
     sidebarEl.innerHTML = "";
+    sidebarGroups = [];
+    tabButtons = [];
     for (const group of getOrderedGroups(state.activeCategory)) {
         if (group.layers.length === 0) continue;
 
         const groupEl = document.createElement("div");
         groupEl.className = "sidebar-group";
         groupEl.dataset.groupId = group.id;
+        const tabs = [];
 
         if (group.name) {
             const label = document.createElement("div");
@@ -111,23 +134,24 @@ function buildLayerSidebar() {
             btn.dataset.layerId = layer.id;
             btn.addEventListener("click", () => switchToLayer(layer.id));
             groupEl.appendChild(btn);
+            tabs.push(btn);
         }
 
         sidebarEl.appendChild(groupEl);
+        sidebarGroups.push({ el: groupEl, tabs });
+        tabButtons.push(...tabs);
     }
     highlightActiveLayer();
 }
 
-const layerTabs = () => sidebarEl.querySelectorAll(".layer-tab");
-
 function highlightActiveLayer() {
-    for (const btn of layerTabs()) {
+    for (const btn of tabButtons) {
         btn.classList.toggle("active", btn.dataset.layerId === state.activeLayer);
     }
 }
 
 function refreshLockedStates() {
-    for (const btn of layerTabs()) {
+    for (const btn of tabButtons) {
         const layerId = btn.dataset.layerId;
         const absorbed = !!absorbedInto(layers[layerId]);
         const locked = !getLayerState(layerId).unlocked || absorbed;
@@ -147,14 +171,13 @@ function refreshLockedStates() {
 
 function refreshGroupVisibility() {
     let seenVisible = false;
-    for (const groupEl of sidebarEl.children) {
-        const anyVisible = [...groupEl.querySelectorAll(".layer-tab")]
-            .some(btn => !btn.classList.contains("locked-tab"));
+    for (const group of sidebarGroups) {
+        const anyVisible = group.tabs.some(btn => !btn.classList.contains("locked-tab"));
 
         const display = anyVisible ? "" : "none";
-        if (groupEl.style.display !== display) groupEl.style.display = display;
+        if (group.el.style.display !== display) group.el.style.display = display;
 
-        groupEl.classList.toggle("first-visible", anyVisible && !seenVisible);
+        group.el.classList.toggle("first-visible", anyVisible && !seenVisible);
         if (anyVisible) seenVisible = true;
     }
 }
@@ -264,7 +287,7 @@ function refreshFlyoutMembership() {
     if (signatureOf(visibleSubLayers()) !== lastFlyoutSignature) buildFlyout();
 }
 
-// Called after building the flyout and every frame after
+// Called after building the flyout and every tick after
 function highlightActiveSubLayer() {
     const activeKey = getLayerState(state.activeLayer).activeSubLayer;
     for (const btn of flyoutEl.children) {

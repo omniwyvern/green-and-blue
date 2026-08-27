@@ -56,6 +56,14 @@ export const BANNERS = {
         baseCost: 12,
         text: "Grass: how fast it grows, and what a tile is worth once it has.",
     },
+
+    ocean: {
+        name: "Open Waters",
+        layer: "aquatic",
+        color: "#3f9ad4",
+        baseCost: 15,
+        text: "Currents, the schools riding them, and whatever drifts along for the ride.",
+    },
 };
 
 export const BANNER_IDS = Object.keys(BANNERS);
@@ -149,7 +157,7 @@ export const CARDS = {
     },
 
     // ---------- The Pond ----------
-    thrivingAlgae: {
+    thrivingAlgae: { // REMOVE THIS ONE
         name: "Thriving Algae",
         rarity: "common",
         banner: "pond",
@@ -157,7 +165,7 @@ export const CARDS = {
         mods: { algaeGrowth: 0.06 },
         text: "Algae fills the pond faster.",
     },
-    healthyFish: {
+    healthyFish: { // REMOVE THIS ONE
         name: "Healthy Fish",
         rarity: "common",
         banner: "pond",
@@ -213,7 +221,7 @@ export const CARDS = {
         mods: { turbulenceMax: 0.1 },
         text: "The water can be stirred past what used to be its roughest, and everything living in it makes use of the room.",
     },
-    strongCurrent: {
+    strongCurrent: { // REMOVE THIS ONE (figure out combos after)
         name: "Strong Current",
         rarity: "uncommon",
         banner: "pond",
@@ -221,7 +229,7 @@ export const CARDS = {
         mods: { roughFish: 0.15 },
         text: "Fish breed faster while the water is rough, above two thirds of maximum turbulence.",
     },
-    nutrientRich: {
+    nutrientRich: { // REMOVE THIS ONE (figure out combos after)
         name: "Nutrient-Rich Waters",
         rarity: "uncommon",
         banner: "pond",
@@ -261,6 +269,7 @@ export const CARDS = {
         banner: "pond",
         color: "#35d0d0",
         mods: { tidalCycle: 1 },
+        unique: true,
         effect: "Turbulence rises and falls on its own - and can't be stirred",
         text: "The water keeps its own time now.",
     },
@@ -330,6 +339,7 @@ export const CARDS = {
         banner: "rain",
         color: "#7fc8ff",
         mods: { cloudBreak: 1 },
+        unique: true,
         effect: "Weather can be called off early",
         text: "The rain stops when you say it does.",
     },
@@ -339,6 +349,7 @@ export const CARDS = {
         banner: "rain",
         color: "#7fc8ff",
         mods: { monsoon: 1 },
+        unique: true,
         effect: "Weather moves itself to the neighbour that needs it most",
         text: "The rain follows the land.",
     },
@@ -357,6 +368,7 @@ export const CARDS = {
         banner: "rain",
         color: "#7fc8ff",
         mods: { saturation: 1 },
+        unique: true,
         effect: "Flooding a tile leaves Pond instead of Water, and an Ice Field instead of Snow",
         text: "What falls doesn't sit on the land. It becomes it.",
     },
@@ -436,6 +448,7 @@ export const CARDS = {
         banner: "grass",
         color: "#3aa876",
         mods: { dampMastery: 1 },
+        unique: true,
         effect: "Wet ground never slows grass down, however sodden it gets",
         text: "Roots that reach far enough down don't mind how much came out of the sky.",
     },
@@ -447,6 +460,85 @@ export const CARDS = {
         mods: { seedstorm: 0.35 },
         effect: "35% chance starting rain plants a seed under it",
         text: "The wind carries life everywhere.",
+    },
+
+    // ---------- Open Waters ----------
+    richWaters: {
+        name: "Rich Waters",
+        rarity: "common",
+        banner: "ocean",
+        color: "#2c78c8",
+        mods: { oceanOutput: 0.06 },
+        text: "Every school brings up more of whatever it makes.",
+    },
+    swiftTide: {
+        name: "Swift Tide",
+        rarity: "common",
+        banner: "ocean",
+        color: "#45c4d8",
+        mods: { oceanTickSpeed: 0.06 },
+        text: "Ticks come round sooner, so everything in the water happens more often.",
+    },
+    bountifulDrift: {
+        name: "Bountiful Drift",
+        rarity: "common",
+        banner: "ocean",
+        color: "#45c4d8",
+        mods: { boostSpawn: 0.06 },
+        text: "More of whatever drifts on the currents ends up within reach.",
+    },
+    deepHarvest: {
+        name: "Deep Harvest",
+        rarity: "uncommon",
+        banner: "ocean",
+        color: "#3f9ad4",
+        mods: { oceanOutput: 0.15 },
+        text: "There is plenty down there for anything willing to look for it.",
+    },
+    turnOfTheTide: {
+        name: "Turn of the Tide",
+        rarity: "uncommon",
+        banner: "ocean",
+        color: "#45c4d8",
+        mods: { oceanTickSpeed: 0.12 },
+        text: "The water keeps a quicker time, and ticks come round faster still.",
+    },
+    learnedShoals: {
+        name: "Learned Shoals",
+        rarity: "uncommon",
+        banner: "ocean",
+        color: "#2c78c8",
+        mods: { learnedShoals: 0.12 },
+        text: "Every trick taught to one generation comes cheaper to the next.",
+    },
+    bloodInTheWater: {
+        name: "Blood in the Water",
+        rarity: "rare",
+        banner: "ocean",
+        color: "#3f9ad4",
+        mods: { pickupPayout: 0.5 },
+        effect: "Schools grabbing a drifting boost instantly pay half of their usual catch",
+        text: "One fish finds food, and suddenly everyone is eating.",
+    },
+    undertow: {
+        name: "The Undertow",
+        rarity: "rare",
+        banner: "ocean",
+        color: "#2c78c8",
+        mods: { undertow: 1 },
+        unique: true,
+        effect: "Every school rides across two currents each tick.",
+        text: "Not everything in the sea swims near the surface.",
+    },
+    slackWater: {
+        name: "Slack Water",
+        rarity: "rare",
+        banner: "ocean",
+        color: "#45c4d8",
+        mods: { slackWater: 1 },
+        unique: true,
+        effect: "Ocean ticks take twice as long, but every region catches a drifting boost each time",
+        text: "The sea pauses for breath, and everything worth having washes up.",
     },
 };
 
@@ -595,6 +687,31 @@ export const COMBOS = [
         effect: "Fish never starve, however many of them there are",
         text: "The fish move as one, carried effortlessly through the restless water.",
     },
+
+    { // Two tide cards together push the tick along further than either alone
+        id: "runningTides",
+        name: "Running Tides",
+        cards: ["swiftTide", "turnOfTheTide"],
+        mods: { oceanTickSpeed: 0.08 },
+        effect: "Tide ticks come round even quicker",
+        text: "Where two tides cross paths, they agree to hurry.",
+    },
+    { // A fat drift meets rich waters, and the whole season pays out
+        id: "seasonalRuns",
+        name: "Seasonal Runs",
+        cards: ["bountifulDrift", "deepHarvest"],
+        mods: { oceanOutput: 0.1 },
+        effect: "Every school hauls up even more than either card alone",
+        text: "When the food arrives all at once, nobody misses a meal.",
+    },
+    { // Turbulent pond currents pour out to meet a turning tide
+        id: "brackishReach",
+        name: "Brackish Reach",
+        cards: ["turbulentWaters", "turnOfTheTide"],
+        mods: { oceanTickSpeed: 0.12 },
+        effect: "Ocean ticks come round quicker still",
+        text: "Where the pond pours into the sea, the tide picks up speed.",
+    },
 ];
 
 export const CARD_IDS = Object.keys(CARDS);
@@ -629,8 +746,12 @@ export const bannerUnlocked = (id) => {
 };
 
 // Everything a draw could currently turn up.
+// Unique cards drop out of the pool once owned, so you can only ever hold one of them.
 export const drawableCardIds = (s = evolutionState()) =>
-    CARD_IDS.filter(id => isCardUnlocked(id, s) && bannerUnlocked(CARDS[id].banner));
+    CARD_IDS.filter(id =>
+        isCardUnlocked(id, s) &&
+        bannerUnlocked(CARDS[id].banner) &&
+        !(CARDS[id].unique && s.cards?.[id]));
 
 // Drops anything that isn't in the pool anymore. Deals with removed or changed cards.
 function pruneCards(s) {
@@ -751,6 +872,9 @@ export function collectCard(id, s = evolutionState()) {
 
     const entry = s.cards[id];
     if (!entry) return (s.cards[id] = { level: 1, copies: 0 });
+
+    // Unique cards never stack past the one copy - they can't even be drawn again
+    if (CARDS[id]?.unique) return entry;
 
     entry.copies += 1;
     while (entry.copies >= COPIES_TO_COMBINE) {

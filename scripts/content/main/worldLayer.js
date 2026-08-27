@@ -10,6 +10,8 @@ import { registerLayer } from "../../core/registry.js";
 import { state, getLayerState } from "../../core/state.js";
 import { spend, canAfford } from "../../core/resources.js";
 import { formatNumber, formatPercent } from "../../utils/format.js";
+import { setText, setDisplay, setWidth } from "../../utils/dom.js";
+import { namedResourceSpan, setRichText } from "../../render/richText.js";
 import { switchToLayer } from "../../render/canvasRouter.js";
 import {
     mapTiles, TILE_SIZE, STAGE_NAMES, MATURE, LAND_COST, TERRAIN, grassOn, tileCost, canPlant, plantGrass,
@@ -34,7 +36,7 @@ const razeCost = (s) => ({
     blueEssence: chargeCost(s).mul(capacity()).mul(CLOUDS_PER_RAZE),
 });
 
-// What the tile adds on top, and the share of that one neighbour keeps.
+// What the tile adds on top, and the share of that one neighbour keeps
 const bonusNote = (name, bonus) => `+${formatPercent(bonus)} ${name}`
     + ` (+${formatPercent(bonus * ADJACENT_SHARE)} nearby)`;
 
@@ -43,7 +45,7 @@ const grassBought = () => !!getLayerState("cores").purchasedUpgrades.grass;
 const rainBought = () => !!getLayerState("cores").purchasedUpgrades.rain;
 const environmentBought = () => !!getLayerState("cores").purchasedUpgrades.environment;
 
-// One drawing per growth stage, scaling with whatever tile size is set to.
+// One drawing per growth stage, scaling with whatever tile size is set to
 const GRASS_ART = [
     // Seed
     `<svg class="tile-grass" viewBox="0 0 40 40" aria-hidden="true">
@@ -69,7 +71,7 @@ const GRASS_ART = [
     </svg>`,
 ];
 
-// Rain falling on a tile. Doesn't matter what's in the tile, this is drawn on top of it.
+// Rain falling on a tile. Doesn't matter what's in the tile, this is drawn on top of it
 const RAIN_ART = `
     <svg class="tile-rain" viewBox="0 0 40 40" aria-hidden="true">
         <path class="tile-raindrop" d="M11 6 L9 13"/>
@@ -79,7 +81,7 @@ const RAIN_ART = `
         <path class="tile-raindrop" d="M25 18 L23 25"/>
     </svg>`;
 
-// Snow falling on a tile. Same as above, it draws on top of it.
+// Snow falling on a tile. Same as above, it draws on top of it
 const SNOW_ART = `
     <svg class="tile-snow" viewBox="0 0 40 40" aria-hidden="true">
         <circle class="tile-snowflake" cx="10" cy="7" r="1.5"/>
@@ -90,7 +92,7 @@ const SNOW_ART = `
         <circle class="tile-snowflake" cx="33" cy="15" r="1.1"/>
     </svg>`;
 
-// The cloud for the precipitation icon.
+// The cloud for the precipitation icon
 const CLOUD = `
     <g class="cloud">
         <circle cx="12" cy="14" r="5"/>
@@ -116,16 +118,15 @@ const PRECIPITATION_ICON = {
         </svg>`,
 };
 
-// Manual interactions the player can do on the map.
+// Manual interactions the player can do on the map
 const INTERACTIONS = [
-    // No tool at all. Clicking a tile just selects it, which is what every other interaction
-    // falls back to anyway - this is the way back out of one without picking another.
+    // This is just for clicking without having an interaction selected
     { id: "select", name: "Select", available: () => true, icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
             <path class="cursor-arrow" d="M10 5 L10 24 L14.8 19.6 L18.2 27 L21.6 25.4 L18.2 18.2 L24.6 17.6 Z"/>
         </svg>` },
 
-    // Merge/transform tiles into other ones. Interaction is in the transform window thing.
+    // Merge/transform tiles into other ones. Interaction is in the transform window thing
     { id: "transform", name: "Transform", available: () => environmentBought(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
             <path class="transform-hex" d="M11 4 L18 7.5 L18 15.5 L11 19 L4 15.5 L4 7.5 Z"/>
@@ -134,7 +135,7 @@ const INTERACTIONS = [
             <path class="transform-swap" d="M24 11.5 L26.5 13.5 L28.5 11"/>
         </svg>` },
 
-    // Strips a tile back to bare ground, over two minutes and for a price.
+    // Strips a tile back to bare ground, over two minutes and for a price
     { id: "raze", name: "Raze", available: () => environmentBought(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
             <path class="transform-hex" d="M16 3 L23 6.5 L23 14.5 L16 18 L9 14.5 L9 6.5 Z"/>
@@ -143,7 +144,7 @@ const INTERACTIONS = [
             <path class="grow-arrow" d="M6 29 L26 29"/>
         </svg>` },
 
-    // Dev cheat, just uses the tiles' own grass classes.
+    // Dev cheat, just uses the tiles' own grass classes
     { id: "grow", name: "Grow grass (dev)", available: () => devInteractions(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
             <ellipse class="grass-soil" cx="13" cy="26" rx="9" ry="2.6"/>
@@ -154,7 +155,7 @@ const INTERACTIONS = [
             <path class="grow-arrow" d="M23 15 L26 12 L29 15"/>
         </svg>` },
 
-    // Dev cheat, soaks a tile instantly.
+    // Dev cheat, soaks a tile instantly
     { id: "soak", name: "Soak tile (dev)", available: () => devInteractions(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
             <ellipse class="terrain-pool" cx="16" cy="22" rx="11" ry="6"/>
@@ -162,7 +163,7 @@ const INTERACTIONS = [
             <path class="raindrop" d="M13 10 L16 13.5 L19 10"/>
         </svg>` },
 
-    // Dev cheat, cycles a tile through the list of tiles.
+    // Dev cheat, cycles a tile through the list of tiles
     { id: "ground", name: "Set ground (dev)", available: () => devInteractions(), icon: `
         <svg class="interaction-icon" viewBox="0 0 32 32" aria-hidden="true">
             <path class="transform-hex" d="M16 5 L23 8.5 L23 16.5 L16 20 L9 16.5 L9 8.5 Z"/>
@@ -176,7 +177,7 @@ const GROUND_RING = ["bare", ...Object.keys(TERRAIN).filter(kind => TERRAIN[kind
 
 function cycleGround(s) {
     if (!s.selectedTile) return;
-    // Grass isn't in the list of tiles cause it's weird, so this just does it first.
+    // Grass isn't in the list of tiles cause it's weird, so this just does it first
     const at = Math.max(0, GROUND_RING.indexOf(tileKind(s, s.selectedTile)));
     setTerrain(s, s.selectedTile, GROUND_RING[(at + 1) % GROUND_RING.length]);
 }
@@ -184,7 +185,7 @@ function cycleGround(s) {
 const devInteractions = () => !!state.settings.showDevInteractions;
 const availableInteractions = () => INTERACTIONS.filter(i => i.available());
 
-// Which kind of precipitation the cloud is loaded with.
+// Which kind of precipitation the cloud is loaded with
 const loadedKind = () => precipitationKind(getLayerState("world"));
 
 
@@ -199,39 +200,36 @@ registerLayer("world", {
     startUnlocked: false,
 
 
-    resources: {
-        greenEssence: { name: "Green Essence", color: "#3aa876", from: "cores" },
-        blueEssence: { name: "Blue Essence", color: "#4a90d9", from: "cores" },
-    },
+    resources: ["greenEssence", "blueEssence"],
 
     initialState: {
-        tiles: { "0,0": true }, // Map starts with only the center tile unlocked.
-        grass: {}, // Is the tile grassy.
+        tiles: { "0,0": true }, // Map starts with only the center tile unlocked
+        grass: {}, // Is the tile grassy?
         terrain: {}, // What type is the tile (forest, ocean, etc.)
-        moisture: {}, // How close is the tile to turning into a water tile.
-        snowpack: {}, // Same but for snow.
-        seenTerrain: {}, // Every kind of ground that has ever been on the map, made or not still there.
+        moisture: {}, // How close is the tile to turning into a water tile
+        snowpack: {}, // Same but for snow
+        seenTerrain: {}, // Every kind of ground that has ever been on the map, made or not still there
         selectedTile: null,
 
-        // Which interaction is picked out of the drawer, and some stuff based on what that they do.
+        // Which interaction is picked out of the drawer, and some stuff based on what that they do
         selectedInteraction: "select", // Reset to whatever is actually unlocked on the first render
-        weatherKind: "rain", // Rain or snow, precipitation layer is where you switch them.
+        weatherKind: "rain", // Rain or snow, precipitation layer is where you switch them
 
-        // What's currently falling, all of it decided by the release that started it.
+        // What's currently falling, all of it decided by the release that started it
         weatherSeconds: 0,
         weatherTotal: 0,
         weatherTile: null,
-        weatherPower: 0,  // What the event is worth to the tile, one being an ordinary full cloud.
-        weatherSoak: 0,   // Water it still owes the ground, handed over across the whole event.
+        weatherPower: 0,  // What the event is worth to the tile, one being an ordinary full cloud
+        weatherSoak: 0,   // Water it still owes the ground, handed over across the whole event
 
-        // The tiles picked around the selected one, waiting to be transformed with it.
+        // The tiles picked around the selected one, waiting to be transformed with it
         transformFodder: [],
 
-        // Tiles on their way back to bare ground, by how long each has been at it.
+        // Tiles on their way back to bare ground, by how long each has been at it
         razing: {},
     },
 
-    // Clock for the world. Here instead of land layer because drawing tiles here is what mostly (kinda) needs it.
+    // Clock for the world. Here instead of land layer because drawing tiles here is what mostly (kinda) needs it
     onTick(dt, layer) {
         const s = getLayerState(layer.id);
         tickBuildup(s, dt);
@@ -249,11 +247,10 @@ registerLayer("world", {
         list: () => mapTiles(),
         hidden: () => !landBought(),
 
-        // Tiles cost more based on how many you own. Price is in worldMap.js since rain price is based on it.
+        // Tiles cost more based on how many you own. Price is in worldMap.js since rain price is based on it
         cost: tileCost,
 
-        // Terrain replaces whatever was growing there, so it's one or the other rather than
-        // both stacked up. Weather goes on top of either.
+        // Terrain replaces whatever was growing there
         content(s, tile) {
             const terrain = terrainOn(s, tile.id);
             const grass = grassOn(s, tile.id);
@@ -282,12 +279,12 @@ registerLayer("world", {
         tileVars(s, tile) {
             return {
                 "--ground": `var(--ground-${terrainOn(s, tile.id) || "bare"})`,
-                // Whichever grass is being grown, so picking one is visible on the map itself.
+                // Whichever grass is being grown, so picking one is visible on the map itself
                 "--blade": activeType().color,
                 "--moisture": moistureOn(s, tile.id).toFixed(2),
                 "--snowpack": snowOn(s, tile.id).toFixed(2),
                 "--pulse": transformActive(s) ? pulse() : "0",
-                // How far the ground has been taken back, which the tile fades across.
+                // How far the ground has been taken back, which the tile fades across
                 "--raze": razeProgress(s, tile.id).toFixed(3),
             };
         },
@@ -295,6 +292,8 @@ registerLayer("world", {
         tooltip(s, tile) {
             // If no grass is in the world, you need to sow it manually.
             // !!!! THIS MIGHT CHANGE IDK !!!!
+            // !!!! it makes going for other terrain types a bit annoying !!!!
+
             if (canPlant(s, tile.id)) return { cost: LAND_COST(), action: "Plant grass here" };
 
             const grass = grassOn(s, tile.id);
@@ -307,7 +306,7 @@ registerLayer("world", {
             const soaked = oneSoakedBlue(s, tile.id);
             if (green > 0) parts.push(bonusNote("Green", green));
             if (soaked > 0) parts.push(bonusNote("Blue", soaked));
-            // The other half of what a pond is worth happens over on its own page.
+            // The other half of what a pond is worth happens over on its own page
             if (kind === "pond") parts.push(`+${PER_POND_TILE} Pond capacity`);
             const state = [];
             if (wet > 0) state.push(`${Math.round(wet * 100)}% soaked`);
@@ -320,10 +319,10 @@ registerLayer("world", {
             return parts.join("\n");
         },
 
-        // Clicking a tile you own selects it.
+        // Clicking a tile you own selects it
         onClick(s, tile, layer) {
             if (canPlant(s, tile.id)) {
-                if (spend(layer, LAND_COST())) plantGrass(s, tile.id);
+                if (spend(LAND_COST())) plantGrass(s, tile.id);
                 return;
             }
             if (transformActive(s)) {
@@ -437,11 +436,11 @@ registerLayer("world", {
                 applyTransform(getLayerState(layer.stateKey));
             });
 
-            // Starts a tile on its way back to bare ground, paid for up front.
+            // Starts a tile on its way back to bare ground, paid for up front
             el.querySelector(".raze-button").addEventListener("click", () => {
                 const s = getLayerState(layer.stateKey);
                 if (!s.selectedTile || !canRaze(s, s.selectedTile)) return;
-                if (spend(layer, razeCost(s))) startRaze(s, s.selectedTile);
+                if (spend(razeCost(s))) startRaze(s, s.selectedTile);
             });
         },
 
@@ -609,14 +608,15 @@ const LOCK_GLYPH = `
         <rect x="3.4" y="7.4" width="9.2" height="6.4" rx="1.3"/>
     </svg>`;
 
-// The window on the right while raze is selected. One tile, one price, one confirmation.
+// The window on the right while raze is selected. One tile, one price, one confirmation
 function updateRazeWindow(el, s, layer) {
     const cost = razeCost(s);
-    setText(el.querySelector(".raze-cost"),
-        `${formatNumber(cost.greenEssence)} Green + ${formatNumber(cost.blueEssence)} Blue`);
+    setRichText(el.querySelector(".raze-cost"),
+        `${namedResourceSpan("greenEssence", `${formatNumber(cost.greenEssence)} Green`)}`
+        + ` + ${namedResourceSpan("blueEssence", `${formatNumber(cost.blueEssence)} Blue`)}`);
 
     const id = s.selectedTile;
-    const affordable = canAfford(layer, cost);
+    const affordable = canAfford(cost);
     const ready = !!id && canRaze(s, id) && affordable;
 
     const button = el.querySelector(".raze-button");
@@ -643,18 +643,4 @@ function noteFor(kinds, recipe, locked, ready, s) {
         : "Nothing comes of this combination.";
     if (locked) return `These do make something. ${transformHint(recipe, s)}`;
     return `${recipe.text} ${fodderNote(recipe)}`;
-}
-
-function setDisplay(el, shown) {
-    const display = shown ? "" : "none";
-    if (el.style.display !== display) el.style.display = display;
-}
-
-function setText(el, text) {
-    if (el.textContent !== text) el.textContent = text;
-}
-
-function setWidth(el, fraction) {
-    const width = `${Math.round(Math.max(0, Math.min(1, fraction)) * 100)}%`;
-    if (el.style.width !== width) el.style.width = width;
 }

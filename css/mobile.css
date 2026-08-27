@@ -65,7 +65,8 @@
     .recipe-line .transform-inputs,
     .recipe-line .transform-outputs { width: 100%; }
     .recipe-arrow { transform: rotate(90deg); }
-    .terrain-list { gap: 0.5rem; }
+    /* One box to a row on a narrow screen, so nothing is squeezed into a half-width column. */
+    .recipe-list { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
 
     .pond-scene { --pond-corner-width: 0px; }
     .pond-balance {

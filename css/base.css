@@ -20,6 +20,8 @@
     --art-cloud: #93b7d6;
     --art-rain: #58a8e8;
     --art-sun: var(--gold);
+    --art-blood: #e04343;
+    --art-deep: #2a5a94;
     --canvas-bg: var(--bg);
     --canvas-line: var(--border);
 }
@@ -45,40 +47,30 @@
     --art-cloud: #6b8fae;
     --art-rain: #2f8fd0;
     --art-sun: var(--gold);
+    --art-blood: #b52733;
+    --art-deep: #1d4a80;
     --canvas-bg: #c2ccd8;
     --canvas-line: #94a3b5;
 }
 
-/* A second scale, steeper than the root font size and pinned to it at the small end. What it
-   sizes is the fixed furniture - navigation, corner buttons, meters - which a large screen makes
-   look small well before the text does. */
 :root { --u: clamp(16px, 0.75vw + 0.65vh + 2.5px, 34px); }
 
 :root {
     --sidebar-width: calc(4.5rem + 4 * var(--u));
     --flyout-inset: calc(7.25 * var(--u));
-    /* The breathing room every page keeps between its text and the edge of the screen. The
-       flyout insets are floored at it, so folding the navigation away never takes it to zero. */
     --page-pad: 1.25rem;
 
-    /* The round buttons floating in the corners. Everything down there is laid out off these,
-       so stacking one above another is --corner-step and the mobile override is three numbers. */
     --corner-size: calc(2.75 * var(--u));
     --corner-edge: calc(0.875 * var(--u));
     --corner-gap: calc(0.375 * var(--u));
     --corner-step: calc(var(--corner-edge) + var(--corner-size) + var(--corner-gap));
 
-    /* The zoom and recenter buttons in the other corner. Smaller than the round ones, since
-       they sit over a canvas and everything else down there has to fit around them. */
     --canvas-corner-size: calc(2.0625 * var(--u));
     --canvas-corner-step: calc(var(--corner-edge) + var(--canvas-corner-size) + var(--corner-gap));
 }
 
 * { box-sizing: border-box; }
 
-/* Every measurement in the interface is in rem, so this one number is how big the whole thing
-   is. Floored at the old 16px so small screens are unchanged, and grown from there - a 1080p
-   desktop lands near 20px and a 1440p one at the cap. */
 html {
     font-size: clamp(16px, 0.45vw + 0.4vh + 7.5px, 24px);
     -webkit-text-size-adjust: 100%;
@@ -91,14 +83,17 @@ body {
     background: var(--bg);
     color: var(--text);
     height: 100vh;
-    height: 100dvh; /* phone browsers count their address bar into vh, dvh drops it */
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* No rubber-banding or pull-to-refresh - a drag on the map is a pan, not a page scroll. */
     overscroll-behavior: none;
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Taps shouldn't wait on a double-tap-to-zoom that this game never wants. */
 button { touch-action: manipulation; }
+
+.res {
+    color: color-mix(in srgb, var(--resource-color) 80%, var(--text));
+    font-weight: 600;
+}

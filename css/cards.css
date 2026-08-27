@@ -44,6 +44,8 @@
 .art-cloud { color: var(--art-cloud); }
 .art-rain  { color: var(--art-rain); }
 .art-sun   { color: var(--art-sun); }
+.art-blood { color: var(--art-blood); }
+.art-deep  { color: var(--art-deep); }
 
 .card-body {
     --card-text-scale: 1;
