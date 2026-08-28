@@ -37,8 +37,6 @@
     white-space: pre;
 }
 
-/* A layer's own drawing on the canvas. No size of its own, so what it holds is placed in
-   canvas coordinates the same way nodes are. */
 .drag-scene {
     position: absolute;
     top: 0;

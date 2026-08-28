@@ -81,7 +81,10 @@ function buildGrid(layer, built, upgradeIds) {
                 <span class="upgrade-level"></span>
             </div>
             <div class="upgrade-description"></div>
-            <div class="upgrade-cost"></div>
+            <div class="upgrade-foot">
+                <div class="upgrade-cost"></div>
+                <span class="upgrade-max" title="Buys every level you can afford right now">Max</span>
+            </div>
         `;
         btn.querySelector(".upgrade-title").textContent = def.title;
         // Descriptions name what a purchase is for, so they read through the colored text writer
@@ -89,6 +92,11 @@ function buildGrid(layer, built, upgradeIds) {
             setRichText(btn.querySelector(".upgrade-description"), def.description);
         }
         btn.addEventListener("click", () => purchaseUpgrade(layer, upgradeId));
+        // The Max pill sits beside the cost; caught here so a click doesn't also buy one level
+        btn.querySelector(".upgrade-max").addEventListener("click", (event) => {
+            event.stopPropagation();
+            purchaseUpgrade(layer, upgradeId, true);
+        });
 
         grid.appendChild(btn);
         built.buttons[upgradeId] = btn;
@@ -204,26 +212,31 @@ function updateUpgrades(layer, built, layerState) {
             setRichText(btn.querySelector(".upgrade-description"), def.description(layerState, level));
         }
 
-        // Only repeatable upgrades show the purchase count
+        // Only repeatable upgrades show the purchase count, and only unmaxed ones the Max shortcut
         setText(btn.querySelector(".upgrade-level"), max > 1 ? `${level}/${max}` : "");
+        setDisplay(btn.querySelector(".upgrade-max"), max > 1 && !maxed);
         setRichText(btn.querySelector(".upgrade-cost"),
             maxed ? (max > 1 ? "Maxed" : "Purchased") : `Cost: ${costHtml(cost)}`);
     }
 }
 
-function purchaseUpgrade(layer, upgradeId) {
+function purchaseUpgrade(layer, upgradeId, buyMax = false) {
     const layerState = getLayerState(layer.stateKey);
     const def = layer.upgrades[upgradeId];
 
     const max = def.max || 1;
-    const level = getLevel(layerState, upgradeId);
-    if (level >= max) return;
-    if (!spend(def.cost(layerState, level))) return;
-
-    layerState.purchasedUpgrades[upgradeId] = level + 1;
-    if (def.onPurchase) def.onPurchase(layerState, level + 1);
-
-    markDirty(layer.stateKey);
+    let level = getLevel(layerState, upgradeId);
+    let bought = 0;
+    // One purchase per pass; on Max it keeps going until the pools run dry or the cap is hit
+    while (level < max) {
+        if (!spend(def.cost(layerState, level))) break;
+        level += 1;
+        layerState.purchasedUpgrades[upgradeId] = level;
+        if (def.onPurchase) def.onPurchase(layerState, level);
+        bought += 1;
+        if (!buyMax) break;
+    }
+    if (bought > 0) markDirty(layer.stateKey);
 }
 
 

@@ -1,6 +1,3 @@
-/* The ocean map: its regions, the currents between them, the schools riding those currents,
-   and the window down the side that whatever is selected is read out in. */
-
 .ocean-viewport {
     --ocean-deep: #0e2740;
     --ocean-edge: #58a8e8;
@@ -16,9 +13,6 @@
 }
 
 
-/* CURRENTS
-   Same trick the node connectors use: one big canvas parked off to the corner, with what's
-   drawn on it shifted back into place, so paths can use plain map coordinates. */
 .ocean-currents {
     position: absolute;
     top: -2000px;
@@ -39,14 +33,8 @@
     opacity: 0.75;
     animation: current-flow 1.4s linear infinite;
 }
-
-/* The marker lives in one shared <defs>, so it can't be picked out per line by a class.
-   Painting it with the stroke of whatever line is using it gets the arrow following the
-   line into whatever color it is drawn in. */
 .current-arrow { fill: context-stroke; }
 
-/* A fat invisible line over the drawn one, since a dashed 6px stroke is nothing to aim at.
-   Only the gold options are aimed at - an ordinary current is just drawn. */
 .ocean-current-hit {
     transform: translate(2000px, 2000px);
     fill: none;
@@ -57,24 +45,18 @@
     cursor: pointer;
 }
 
-/* Every place a region is allowed to send its water, laid over the map while it's being
-   pointed somewhere. The one it already uses is drawn solid; the rest wait to be picked. */
 .ocean-pick {
     transform: translate(2000px, 2000px);
     fill: none;
     stroke: var(--gold);
     stroke-width: 6;
     stroke-linecap: round;
-    /* The same dash period as an ordinary current. current-flow travels exactly one period,
-       so anything else here snaps back into place once a cycle. */
     stroke-dasharray: 16 14;
     opacity: 0.55;
     animation: current-flow 1.4s linear infinite;
 }
 .ocean-pick-group .ocean-current-hit { cursor: pointer; }
 .ocean-pick-group:hover .ocean-pick { opacity: 1; stroke-width: 8; }
-/* The one the region already uses. Kept on the same dashes as the rest so every gold line
-   flows together - it just runs brighter and heavier than the ones on offer. */
 .ocean-pick-group.chosen .ocean-pick { opacity: 1; stroke-width: 8; }
 
 @keyframes current-flow {
@@ -83,7 +65,6 @@
 }
 
 
-/* REGIONS */
 .ocean-region {
     position: absolute;
     cursor: pointer;
@@ -110,7 +91,6 @@
     fill: color-mix(in srgb, var(--ocean-face) 95%, transparent);
 }
 
-/* Along the bottom of the shape, under the school that's standing on it. */
 .region-name {
     position: absolute;
     inset: auto 0 19%;
@@ -126,7 +106,6 @@
 
 :root[data-theme="light"] .region-name { text-shadow: 0 1px 2px rgba(255, 255, 255, 0.85); }
 
-/* The drifting boost, in the corner of the shape the way the mockup has it. */
 .region-boost {
     position: absolute;
     top: 3%;
@@ -148,8 +127,7 @@
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-0.25rem); }
 }
-
-/* Two schools riding into the same region, only one of which will get there. */
+ 
 .region-warning {
     position: absolute;
     top: 3%;
@@ -160,10 +138,8 @@
     place-items: center;
     cursor: help;
     animation: warning-pulse 1.4s ease-in-out infinite;
-}
-/* Hovered, it stops flashing and reads plainly while the tip is up. The whole region comes
-   up with it, since a region is its own stacking context and the tip could never otherwise
-   get out from under the school swimming over it. */
+} 
+
 .region-warning:hover { animation: none; opacity: 1; }
 .ocean-region:has(.region-warning:hover) { z-index: 5; }
 .warning-icon { width: 100%; height: 100%; display: block; }
@@ -217,17 +193,12 @@
 .boost-icon .icon-hollow { fill: var(--panel); }
 
 
-/* SCHOOLS
-   Positioned by transform so a move between regions can just be a transition. */
 .ocean-school-layer {
     position: absolute;
     top: 0;
     left: 0;
 }
 
-/* A point on the map with no size of its own. Everything in it is placed around that point
-   by its own margins rather than by any kind of centring the box could do - an item bigger
-   than a zero-width box gets clamped back to the start, which throws it off to one side. */
 .ocean-school {
     position: absolute;
     top: 0;
@@ -256,8 +227,6 @@
         color-mix(in srgb, var(--gold) 45%, transparent), transparent);
 }
 
-/* Pulled back by half its size, so the school sits on its point rather than hanging off it.
-   Margins rather than a translate, so flipping the school around stays free to use transform. */
 .school-body {
     position: absolute;
     left: 0;
@@ -296,8 +265,6 @@
 }
 .ocean-fish .fish-eye { fill: #0b1a25; }
 
-/* The icons for what a school is carrying, over its head on the map and beside its name
-   everywhere else. */
 .school-buffs {
     display: flex;
     gap: 0.25rem;
@@ -323,7 +290,6 @@
 }
 .school-buff .boost-icon { width: 0.875rem; height: 0.875rem; }
 
-/* Room for a boost the school isn't carrying yet, so every row of them is the same width. */
 .buff-slot {
     width: 1.5rem;
     height: 1.5rem;
@@ -348,7 +314,6 @@
 }
 
 
-/* THE CLOCK */
 .ocean-clock {
     position: absolute;
     top: 0.625rem;
@@ -387,9 +352,6 @@
 }
 
 
-/* THE SIDE WINDOW
-   Held clear of the round buttons in the bottom corner, and scrolling inside itself rather
-   than passing the wheel on to the map. */
 .ocean-panel {
     position: absolute;
     top: 0.625rem;
@@ -423,8 +385,6 @@
 }
 .ocean-page-note { font-size: 0.75rem; color: var(--text-dim); line-height: 1.45; }
 
-/* One boxed group of things that belong together, so a page reads as a few blocks rather
-   than a stack of loose lines. */
 .ocean-card {
     display: flex;
     flex-direction: column;
@@ -435,7 +395,6 @@
     border: 1px solid var(--border);
 }
 
-/* The overview's header: the countdown, how far through it is, and the whole ocean's payout. */
 .summary-head {
     display: flex;
     align-items: baseline;
@@ -459,7 +418,6 @@
     background: var(--ocean-edge, var(--accent));
 }
 
-/* What the selection will hand over on the next tick. */
 .ocean-yield {
     display: flex;
     flex-wrap: wrap;
@@ -477,7 +435,6 @@
 .ocean-chip em { font-style: normal; opacity: 0.75; }
 .ocean-yield-empty { font-size: 0.75rem; color: var(--text-dim); }
 
-/* The boost sitting on the selected region, at the top the way the mockup has it. */
 .ocean-banner {
     display: flex;
     align-items: center;
@@ -500,9 +457,8 @@
 .ocean-upgrades .upgrade-button { min-height: 0; padding: 0.4375rem; font-size: 0.6875rem; }
 .ocean-upgrades .upgrade-description { font-size: 0.625rem; }
 .ocean-upgrades .upgrade-cost { font-size: 0.625rem; }
+.ocean-upgrades .upgrade-max { font-size: 0.625rem; }
 
-/* Opens the gold paths out on the map. Sits under the region's name, since picking where
-   the water goes is the main thing this page is for. */
 .ocean-redirect {
     padding: 0.4375rem;
     background: var(--panel-light);
@@ -520,8 +476,6 @@
     color: var(--gold);
 }
 
-/* One section holding the schools, with each of them on a card of its own inside it - so
-   the group reads as a single block without the fish running into one another. */
 .ocean-school-list {
     display: flex;
     flex-direction: column;
@@ -581,8 +535,6 @@
 .ocean-here {
     min-height: 7.75rem;
 }
-/* Fills the reserved space rather than adding to it, so an empty slot is exactly as tall
-   as one holding a school. */
 .ocean-here .ocean-empty {
     flex: 1;
     display: grid;
@@ -598,9 +550,6 @@
 }
 
 
-/* THE FISH PAGE
-   Read as a character sheet: a portrait, where it is, what it will hand over, then the four
-   things it is made of. */
 .fish-card {
     position: relative;
     display: grid;
@@ -624,7 +573,6 @@
 }
 :root[data-theme="light"] .portrait-name { text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8); }
 
-/* Over the top-left of the portrait, out of the fish's way. */
 .fish-card .school-buffs {
     position: absolute;
     top: 0.375rem;
@@ -638,8 +586,6 @@
     color: var(--text-dim);
 }
 
-/* The one number the page is really about: everything the fish hands over next tick, after
-   the region, the trait, and the boosts. Bigger than the cards, which quote base rates. */
 .fish-readout {
     display: flex;
     flex-direction: column;
@@ -657,18 +603,14 @@
     gap: 0.4375rem;
 }
 
-/* One aspect: what it is worth on its own along the top, and the button that grows it below. */
 .skill {
     display: flex;
     flex-direction: column;
     border-radius: 0.5rem;
-    /* --panel-light like every box on the region page, with the aspect's own color washed
-       over it so the body belongs to the header rather than sitting under it. */
     background: color-mix(in srgb, var(--skill-color, var(--accent)) 8%, var(--panel-light));
     border: 1px solid color-mix(in srgb, var(--skill-color, var(--border)) 80%, transparent);
     overflow: hidden;
 }
-/* The header the rest of the card hangs off, rather than a label floating above a button. */
 .skill-head {
     display: flex;
     align-items: baseline;
@@ -737,7 +679,6 @@
 .skill.affordable .skill-plus { border-color: var(--green); color: var(--green); }
 .skill.locked { opacity: 0.72; }
 .skill.locked .skill-buy { cursor: not-allowed; }
-/* Nothing left to buy, so the button stops behaving like one and just reads as done. */
 .skill.owned .skill-buy { cursor: default; }
 .skill.owned .skill-buy:hover { background: none; }
 .skill.owned .skill-plus { color: var(--text-dim); opacity: 0.4; }

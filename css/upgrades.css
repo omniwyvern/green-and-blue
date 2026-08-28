@@ -29,10 +29,17 @@
     cursor: pointer;
     background: var(--panel-light);
     color: var(--text);
+    display: flex;
+    flex-direction: column;
+    transition: background 0.12s ease, border-color 0.12s ease;
 }
 .upgrade-button.locked { opacity: 0.5; cursor: not-allowed; }
 .upgrade-button.affordable { border-color: var(--accent); }
 .upgrade-button.owned { border-color: var(--green); opacity: 0.7; cursor: default; }
+.upgrade-button:hover:not(.locked):not(.owned) {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--panel-light));
+}
 
 .upgrade-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
 .upgrade-title { font-weight: 600; }
@@ -46,14 +53,33 @@
     white-space: nowrap;
 }
 .upgrade-level:empty { display: none; }
-.upgrade-description { font-size: 0.8125rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+.upgrade-description {
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    flex: 1;
+}
 .upgrade-cost { font-size: 0.75rem; color: var(--text-dim); }
 
-/* What one more level buys, riding after an upgrade's total a shade quieter than it */
+.upgrade-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.upgrade-max {
+    font-size: .9rem;
+    color: var(--text-dim);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: .4rem;
+    padding: 0.2rem 0.7rem;
+    white-space: nowrap;
+    cursor: pointer;
+    opacity: .75;
+}
+.upgrade-max:hover { color: var(--text); border-color: var(--accent); }
+.upgrade-button.locked .upgrade-max { opacity: 0.6; }
+
 .upgrade-step { color: color-mix(in srgb, var(--text-dim) 70%, transparent); }
 
 .upgrade-drawer {
-    --drawer-height: 13.125rem;
+    --drawer-height: 12.125rem;
     position: absolute;
     inset: 0;
     z-index: 20;

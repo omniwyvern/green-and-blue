@@ -4,7 +4,11 @@ Optimization, Resource Rendering, & Ocean Cards: 8/27/26
 	- Resource names and the amount of resource color themselves anywhere they appear
 	- Removed repeated code and put it into a general file
 	- Upgrade descriptions now quietly say what one more level adds after what you already have
-
+	- Few more optimizations
+	- Fish now only render when there is at least one region
+	- "Max" button added to upgrades to buy as many as you can
+	- Made it a bit more clear when you are hovering over an upgrade button
+	
 Ocean Layer, General Balancing, & Save Changes: 8/25/26
 	- Added the ocean sub-layer
 	- Prices for multiple upgrades changed (mostly grass sub-layer)

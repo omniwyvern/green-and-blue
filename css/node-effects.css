@@ -54,8 +54,6 @@
     overflow: hidden;
 }
 
-/* Bought, so both halves are at full strength - lifted off the raw variables, which are dark
-   enough on their own to read as a black disc once the two of them sit side by side. */
 .node.node-split.owned .node-face {
     background: color-mix(in srgb, var(--blue) 86%, #ffffff);
 }
@@ -84,8 +82,6 @@
     background: color-mix(in srgb, var(--green) 48%, var(--panel));
 }
 
-/* Affordable brings both halves most of the way up, the way every other node says it. The extra
-   :not() is only there to outrank the pair above, whose own :not()s count towards specificity. */
 .node.node-split.affordable:not(.owned) .node-face {
     background: color-mix(in srgb, var(--blue) 58%, var(--panel));
 }
@@ -122,8 +118,6 @@
 .node-split .node-value,
 .node-split .node-detail { position: relative; color: #ffffff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
 
-/* White on a pale half is nothing to read, so light mode flips the label dark until the node is
-   bought or at least within reach. */
 :root[data-theme="light"] .node-split:not(.owned):not(.affordable) .node-title,
 :root[data-theme="light"] .node-split:not(.owned):not(.affordable) .node-value,
 :root[data-theme="light"] .node-split:not(.owned):not(.affordable) .node-detail {

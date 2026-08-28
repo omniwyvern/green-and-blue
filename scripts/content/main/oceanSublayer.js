@@ -30,7 +30,7 @@ const REGION_HEIGHT = 165;
 
 const BOOST_SPAWN_SHARE = 3;    // One boost wants to appear per this many regions in the water
 const BOOST_PER_LEFT = 1;       // Every this many still lying around cancels one of those
-const BOOST_WEIGHT = 2;         // Extra weight per level of boostier boosts
+const BOOST_WEIGHT = 1;         // Extra weight per level of boostier boosts
 const MAX_BUFFS = 3;            // How many boosts one school can carry at a time
 
 const PROD_PER_LEVEL = 0.4;     // Each level of a production aspect 
@@ -164,7 +164,7 @@ const REGION_UPGRADES = {
         max: 2,
         description: (level) => upgradeDescription(
             `Boosts picked up here last ${level} more ocean tick${level === 1 ? "" : "s"}.`,
-            stepNote(level, 2, "+1 tick")),
+            stepNote(level, 2, "+1")),
         effect: (level) => level,
     },
     boostier: {
@@ -172,7 +172,7 @@ const REGION_UPGRADES = {
         max: 5,
         description: (level) => upgradeDescription(
             `Drifting boosts are ${1 + BOOST_WEIGHT * level} times as likely to appear here.`,
-            stepNote(level, 5, "+2 times")),
+            stepNote(level, 5, "+2")),
         effect: (level) => 1 + BOOST_WEIGHT * level,
     },
 };
@@ -970,7 +970,10 @@ function roman(value) {
 const UPGRADE_MARKUP = `
     <div class="upgrade-head"><span class="upgrade-title"></span><span class="upgrade-level"></span></div>
     <div class="upgrade-description"></div>
-    <div class="upgrade-cost"></div>
+    <div class="upgrade-foot">
+        <div class="upgrade-cost"></div>
+        <span class="upgrade-max" title="Buys every level you can afford right now">Max</span>
+    </div>
 `;
 
 function upgradeGrid(count, onClick) {
@@ -980,7 +983,12 @@ function upgradeGrid(count, onClick) {
         const btn = document.createElement("button");
         btn.className = "upgrade-button";
         btn.innerHTML = UPGRADE_MARKUP;
-        btn.addEventListener("click", () => onClick(Number(btn.dataset.slot)));
+        btn.addEventListener("click", () => onClick(i));
+        // The Max pill sits beside the cost; caught here so a click doesn't also buy one level
+        btn.querySelector(".upgrade-max").addEventListener("click", (event) => {
+            event.stopPropagation();
+            onClick(i, true);
+        });
         btn.dataset.slot = i;
         grid.appendChild(btn);
     }
@@ -997,9 +1005,8 @@ function fillUpgrade(btn, { title, level, max, description, cost }) {
     }
     setText(btn.querySelector(".upgrade-title"), title);
     setText(btn.querySelector(".upgrade-level"), `${level}/${max}`);
-    setText(btn.querySelector(".upgrade-title"), title);
-    setText(btn.querySelector(".upgrade-level"), `${level}/${max}`);
     setRichText(btn.querySelector(".upgrade-description"), description);
+    setDisplay(btn.querySelector(".upgrade-max"), !maxed);
     setRichText(btn.querySelector(".upgrade-cost"), maxed ? "Maxed" : `Cost: ${costHtml(cost)}`);
 }
 
@@ -1090,9 +1097,8 @@ const OCEAN_HUD = {
                     <div class="ocean-page-title"></div>
                     <button class="ocean-redirect" type="button"></button>
                     <div class="ocean-page-note"></div>
-                    <div class="ocean-banner"></div>
                     <div class="ocean-school-list ocean-here"></div>
-                    <br>
+                    <div class="ocean-banner"></div>
                 </div>
 
                 <div class="ocean-page" data-page="school">
@@ -1125,15 +1131,20 @@ const OCEAN_HUD = {
         const stateOf = () => getLayerState(layer.stateKey);
 
         pages.region.appendChild(
-            upgradeGrid(REGION_UPGRADE_IDS.length, (slot) => {
+            upgradeGrid(REGION_UPGRADE_IDS.length, (slot, buyMax = false) => {
                 const s = stateOf();
                 const id = selectedRegion(s);
                 if (!id) return;
                 const upgradeId = REGION_UPGRADE_IDS[slot];
-                const level = regionLevel(s, id, upgradeId);
-                if (level >= REGION_UPGRADES[upgradeId].max) return;
-                if (!spend(regionUpgradeCost(level))) return;
-                regionState(s, id).upgrades[upgradeId] = level + 1;
+                const max = REGION_UPGRADES[upgradeId].max;
+                let level = regionLevel(s, id, upgradeId);
+                // One purchase per pass; on Max it keeps going until the pool runs dry or the cap
+                while (level < max) {
+                    if (!spend(regionUpgradeCost(level))) return;
+                    level += 1;
+                    regionState(s, id).upgrades[upgradeId] = level;
+                    if (!buyMax) return;
+                }
             }));
 
         // The skills sit between the readout and the flavor line, the way the fish page reads
@@ -1220,7 +1231,7 @@ function updateRegionPage(page, s, id) {
             + `<div class="banner-text">${colorResources(BOOSTS[boost].text)}</div></div>`
             : `${boostIcon("upwelling")}<div><div class="banner-name">&nbsp;</div>`
             + `<div class="banner-text">&nbsp;</div></div>`;
-        banner.classList.toggle("empty", !boost);
+        banner.innerHTML = `<span class="buff-slot">`;
     }
 
     setText(page.querySelector(".ocean-page-title"), def.name);
@@ -1239,7 +1250,7 @@ function updateRegionPage(page, s, id) {
             title: upgrade.title,
             level,
             max: upgrade.max,
-            description: upgrade.description(Math.max(1, level)),
+            description: upgrade.description(level),
             cost: regionUpgradeCost(level),
         });
     });

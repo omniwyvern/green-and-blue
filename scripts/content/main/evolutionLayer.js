@@ -1,7 +1,7 @@
 // evolutionLayer.js
 //
-// The first prestige layer. Give up everything that grows, get evolution points for them.
-// The cores tree, pond upgrades, and land upgrades all stay, while algae, fish, grass, and rain
+// The first prestige layer. Give up everything(? not really anymore) that grows, get evolution points for them.
+// The cores tree, pond upgrades, and land upgrades all stay, while algae + fish + grass tiles + pond tiles
 // return to nothing. Map goes back to one tile in the middle.
 // Sub-layers: Evolve is the button for it, cards are what the points are spent on.
 
@@ -38,22 +38,20 @@ export const pointsOnEvolve = () => POINTS_PER_MATURE_TILE
     .mul(matureTiles(getLayerState("world")).length)
     .mul(boostResource("evolutionPoints"));
 
-// Each banner scales its price separately based on how many cards you've drawn from it.
+// Each banner scales its price separately based on how many cards you've drawn from it
 const bannerDraws = (s, banner = s.banner) => (s.bannerDraws || {})[banner] || 0;
 
-// Costs are rounded to whole numbers.
+// Costs are rounded to whole numbers
 const costOf = (banner, draws) =>
     D(BANNERS[banner] ? BANNERS[banner].baseCost : DRAW_BASE_COST)
         .mul(DRAW_COST_SCALE.pow(draws)).ceil();
 
 const drawCost = (s) => ({ evolutionPoints: costOf(s.banner, bannerDraws(s)) });
 
-// The ground an evolution takes back: grass, whatever the weather left lying around, and the
-// ponds that fills. Everything built up past those is the world's to keep
 const RESET_TERRAIN = new Set(["water", "snow", "pond"]);
 
 // The actual reset. Rests growing things, and map size
-function resetLivingThings() {
+function evolutionReset() {
     // Pond
     const pond = getLayerState("pond");
     pond.algae = 0;
@@ -146,7 +144,7 @@ registerLayer("evolution", {
                                 return;
                             }
                         addResource("evolutionPoints", gain);
-                        resetLivingThings();
+                        evolutionReset();
                         releaseLoadout();
                         armEvo = false;
                         }

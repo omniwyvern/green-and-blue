@@ -3,8 +3,6 @@
     inset: 0;
     pointer-events: none;
     z-index: 6;
-    /* The viewport under this is set to the grab hand for panning, and cursor inherits.
-       Naming one here stops the whole HUD reading as something you can drag the map by. */
     cursor: default;
 }
 

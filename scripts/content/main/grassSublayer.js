@@ -149,8 +149,9 @@ const FINGERS_PER_LEVEL = 0.4;     // More Green Essence from grass
 const temper = (value, levels) =>
     value >= 1 ? value : Math.min(1, value + (1 - value) * TEMPER_PER_LEVEL * levels);
 
-// What the levels bought so far add up to.
-const soFar = (perLevel, levels) => `${round(100 * perLevel * Math.max(1, levels))}%`;
+// What the levels bought so far add up to. Nothing bought yet reads as nothing, so a fresh
+// upgrade quotes a 0 rather than dressing itself up with its first level's worth
+const soFar = (perLevel, levels) => `${round(100 * perLevel * levels)}%`;
 
 // The (+x%) tail closing an upgrade description off, naming what one more level buys.
 // Gone once the last level is held, the way the cost line stops quoting a price then too

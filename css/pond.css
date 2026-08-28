@@ -194,7 +194,6 @@
     font: inherit;
     font-size: calc(0.625 * var(--u));
     color: #93aec0;
-    /* The box around it is click-through so it doesn't swallow stirs - the bursts take theirs back. */
     pointer-events: auto;
     cursor: pointer;
 }
@@ -216,7 +215,6 @@
 .balance-timer[data-state="ready"] .timer-state { font-weight: 700; }
 .balance-timer[data-state="running"] { animation: burst-pulse 1.1s ease-in-out infinite; }
 
-/* Nothing happens while it's settling, so it doesn't offer itself. */
 .balance-timer[data-state="cooling"] { cursor: default; }
 .balance-timer[data-state="ready"]:hover .timer-fill,
 .balance-timer[data-state="running"]:hover .timer-fill { opacity: 0.38; }

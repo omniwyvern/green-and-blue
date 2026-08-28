@@ -78,16 +78,34 @@ export function setRichText(el, text) {
     el.innerHTML = text.includes("<span") ? text : colorResources(text);
 }
 
-// A quieter "(+25%)" sitting after an upgrade's quoted total, saying what the level being
+// A quieter "(+25%)" sitting beside an upgrade's quoted total, saying what the level being
 // bought adds. Call sites bring their own sign, and it drops out entirely once maxed
 export function gainNote(gain) {
     return gain ? ` <span class="upgrade-step">(${escapeHtml(gain)})</span>` : "";
 }
 
-// An upgrade description: resource names colored like everywhere else, and the next
-// level's gain tucked in ahead of the full stop so it reads as part of the sentence
+// Where a note slots into a sentence: just past the last number quoted (keeping any % with
+// it), so it lands beside the total it adds to. -1 when the sentence quotes no number at all
+function afterLastNumber(sentence) {
+    let at = -1;
+    for (const match of sentence.matchAll(/-?\d[\d,]*(?:\.\d+)?%?/g)) {
+        at = match.index + match[0].length;
+    }
+    return at;
+}
+
+// An upgrade description: resource names colored like everywhere else, and the next level's
+// gain tucked in right after the number it adds to - "40% (+40%)" - so the pair reads as one.
+// Sentences are written with the level-scaled number last; with no number anywhere the note
+// falls back to the old spot ahead of the full stop, and maxed upgrades just read their total
 export function upgradeDescription(sentence, gain = null) {
-    const cut = sentence.lastIndexOf(".");
-    if (cut < 0) return colorResources(sentence) + gainNote(gain);
-    return colorResources(sentence.slice(0, cut)) + gainNote(gain) + escapeHtml(sentence.slice(cut));
+    if (!gain) return colorResources(sentence);
+
+    const at = afterLastNumber(sentence);
+    if (at < 0) {
+        const cut = sentence.lastIndexOf(".");
+        if (cut < 0) return colorResources(sentence) + gainNote(gain);
+        return colorResources(sentence.slice(0, cut)) + gainNote(gain) + escapeHtml(sentence.slice(cut));
+    }
+    return colorResources(sentence.slice(0, at)) + gainNote(gain) + colorResources(sentence.slice(at));
 }

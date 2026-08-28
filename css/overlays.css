@@ -159,7 +159,6 @@
     margin-top: 0.5rem;
 }
 
-/* Shown when saving is off, so a save the game can't write doesn't go unnoticed */
 .settings-warning {
     font-size: 0.75rem;
     line-height: 1.5;
@@ -177,7 +176,6 @@
     color: var(--danger);
 }
 
-/* The dev window's one box per resource pool */
 .dev-resource-list { display: grid; gap: 0.375rem; }
 
 .dev-resource {
@@ -209,7 +207,6 @@
 
 .guide-window { width: min(31.25rem, calc(100vw - 2rem)); }
 
-/* The multi-tab warning */
 .tab-body {
     font-size: 0.8125rem;
     line-height: 1.55;

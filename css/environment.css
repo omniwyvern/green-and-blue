@@ -15,8 +15,6 @@
 
 .environment-page .cards-heading { margin-top: 0.5rem; }
 
-/* Two to a row, and every box the same height as the tallest - grid rows of 1fr share their
-   height, so the boxes line up straight across and down however much text is in one. */
 .recipe-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -45,7 +43,6 @@
 .recipe-cost { color: var(--danger); }
 .recipe-free { color: var(--green); }
 
-/* What the ground it makes is worth, sat at the foot of the box so the rows above it line up. */
 .recipe-gives {
     margin-top: auto;
     padding-top: 0.375rem;
