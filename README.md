@@ -1,6 +1,6 @@
 # Foreword
-An incremental game based around the constant intrusive phrase I have based on
-the meme that's in the main folder.  
+An incremental game based around green and blue. The meme in the primary directory is pretty much
+the entire reason that this exists, since I am thinking about green and blue frequently.
 
 Without the following code, I wouldn't have been able to make this game for one reason or another:  
 The Modding Tree by Acamaeda  
@@ -155,24 +155,14 @@ Email me at omniwyvern@gmail.com for anything like:
     - suggestions
     - help
 
-Or pretty much anything else. Please don't be mean with my email and sign me up for stuff.  
-
-If possible when sending a bug/error report or have a security concern, please give me:
-
-    Description of the error/bug/vulnerability
-    Affected component (version, commit, branch etc.)
-    Affected code (file path, line numbers), visible through F12 or right click inspect, then the error in console  
-
-If that's too much, just a description of what happened on what layer would be great.
+Or pretty much anything else.
 
 ## Known issues (bugs or unimplemented things)
     - Deep ocean tiles don't do anything right now, although they do count as oceans for the ocean layer.
     - Nothing calls drawInSchool() yet, so only cod are available.
     - No visual indicator for the Tidal Cycle card.
-    - The pond's capacity comes from the pondDeep node, cards, and pond tiles on the world map.
-      There's still no upgrade for it. Needs balancing.
-    - A tooltip on a node near the canvas edge is clipped by the viewport.
-    - No offline progress calculation on load.
-    - Achievements/milestones/challenges from the Modding-Tree structure aren't
-      added yet. Reasonable to add as their own render/ file plus a field on layer
-      definitions, following the same pattern as upgrades.
+    - The pond's capacity needs balancing.
+    - Some of the mobile formatting needs fixing.
+    - No offline progress calculation.
+    - Achievements aren't added yet.
+    - File tree needs to be reworked to be more readable, this many files in one directory are making it rough.
