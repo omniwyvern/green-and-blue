@@ -1,28 +1,29 @@
 // dragCanvas.js
 //
-// Draggable canvas class. Stores its pan position per-layer.
-// Uses pointer events, so it works on mouse or touch
-// Panning is through CSS transform, makes things smoother and quicker and easier
+// Pointer-driven pannable canvas using CSS transforms, with pan saved per layer
 
 import { state, getLayerState } from "../core/state.js";
 import { canAfford, spend, formatCost, costParts } from "../core/resources.js";
 import { parentsOf, nodeOwned, nodeVisible, prereqMet } from "../core/nodes.js";
-import { formatNumber } from "../utils/format.js";
-import { hexToPixel, neighboursOf, areNeighbours } from "../utils/hex.js";
-import { setText } from "../utils/dom.js";
-import { setRichText } from "./richText.js";
+import { hexToPixel, neighborsOf, areNeighbors } from "../utils/hex.js";
+import { setText, setDisplay, svgEl } from "../utils/dom.js";
+import { setRichText, costHtml } from "./richText.js";
 import { markDirty, refreshCanvasControls } from "./canvasRouter.js";
+import { buildGrid, buildDrawer, updateDrawers, updateUpgrades } from "./upgradePanel.js";
+import { clamp01 } from "../utils/math.js";
+import { refitTip } from "./fit.js";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
 
-// core: green and blue cores themselves
-// major: unlocks a layer, usually (sometimes just very important stuff)
-// sublayer: unlocks a sub-layer, usually
-// unlock: normal upgrade nodes
+//    !!! WHAT A NODE LOOKS LIKE !!!
+
+// core: the cores, major: unlocks a layer, sublayer: unlocks a sub-layer, unlock: normal upgrades
 
 const NODE_SIZE = { core: 150,  major: 115, layer: 90, sublayer: 70, unlock: 65 };
 
 const anonymousTitle = () => "???";
+
+
+//    !!! PANNING AND ZOOMING !!!
 
 // Little bit of wiggle room for what counts as a click vs. a drag
 const DRAG_ROOM = 4;
@@ -46,11 +47,13 @@ const PINCH_STEP = 1.22;
 // How long the view takes to slide when something asks to be centered on
 const PAN_TWEEN_MS = 420;
 
-// How far out past the nodes that you can pan, so that you have some space but you won't
-// be able to just pan super far away
+// How far past the nodes you can pan
 const PAN_MARGIN = 400;
 const PAN_MARGIN_SHARE = 0.75;
 const panMargin = (viewportSize) => Math.max(PAN_MARGIN, viewportSize * PAN_MARGIN_SHARE);
+
+
+//    !!! ONE CANVAS PER LAYER !!!
 
 const instances = new Map();
 
@@ -63,18 +66,23 @@ export function getDragCanvas(layer, container) {
     return instance;
 }
 
-// This is just for the dev function that lets you see canvas coordinates of the mouse
+// For the dev readout of canvas coordinates under the cursor
 export function refreshCoordReadouts() {
     for (const instance of instances.values()) instance._updateCoords();
 }
 
-// This is for completely getting rid of a canvas rather than just hiding it 
+// Drops a canvas for good, where the router normally only hides one
 export function forgetDragCanvas(layerId) {
     const instance = instances.get(layerId);
     if (!instance) return;
     if (instance._resizeObserver) instance._resizeObserver.disconnect();
+    instance.viewport.remove();
+    if (instance.upgrades.drawer) instance.upgrades.drawer.el.remove();
     instances.delete(layerId);
 }
+
+
+//    !!! THE CANVAS !!!
 
 class DragCanvas {
     constructor(layer, container) {
@@ -96,6 +104,7 @@ class DragCanvas {
         this.nodeEls = {};
         this.connectorEls = {};
         this.tileEls = {};
+        this.upgrades = { buttons: {}, drawer: null };
         this.hascenterd = false;
 
         this.viewport = document.createElement("div");
@@ -115,7 +124,6 @@ class DragCanvas {
         this.hudEl.addEventListener("pointerdown", (e) => e.stopPropagation());
         this.hudEl.addEventListener("click", (e) => e.stopPropagation());
 
-        // Again just for dev function that lets you see cursor coordinates
         this.coordEl = document.createElement("div");
         this.coordEl.className = "canvas-coords";
         this.coordEl.style.display = "none";
@@ -130,7 +138,21 @@ class DragCanvas {
         this._buildNodes();
         this._buildScene();
         if (layer.hud) layer.hud.build(this.hudEl, getLayerState(layer.stateKey), layer, this);
+        this._buildUpgrades();
     }
+
+    // The static canvas's grid and drawer, laid over the viewport so drag layers can sell upgrades too
+    _buildUpgrades() {
+        const built = this.upgrades;
+        const loose = Object.keys(this.layer.upgrades || {})
+            .filter(id => !Object.values(this.layer.drawers || {}).some(d => d.upgradeIds.includes(id)));
+        if (loose.length > 0) this.container.appendChild(buildGrid(this.layer, built, loose));
+
+        const drawerIds = Object.keys(this.layer.drawers || {});
+        if (drawerIds.length > 0) built.drawer = buildDrawer(this.layer, built, drawerIds, this.container);
+    }
+
+    // !!! POINTERS !!!
 
     _bindDragEvents() {
         this.viewport.addEventListener("pointerdown", (e) => {
@@ -175,9 +197,7 @@ class DragCanvas {
             this._updateCoords();
         });
 
-        // Zoom in and out with the mouse wheel if you don't want to use the buttons. Still uses the zoom steps.
-        // A wheel over the HUD is the player scrolling a panel, not zooming the map, so it's
-        // left alone to do what it would have done
+        // Wheel zooms through the zoom steps, except over the HUD where it scrolls the panel
         this.viewport.addEventListener("wheel", (e) => {
             if (this.hudEl.contains(e.target)) return;
             e.preventDefault();
@@ -211,8 +231,7 @@ class DragCanvas {
         this.viewport.addEventListener("pointercancel", stopDragging);
     }
 
-    // Two fingers down is a pinch rather than a drag, so whatever the first one was doing stops.
-    // movedWhileDown stays set so lifting off doesn't land as a click on whatever was underneath
+    // A second finger makes it a pinch; movedWhileDown stays set so lifting doesn't click
     _startPinch() {
         this.pressing = false;
         this.isDragging = false;
@@ -261,7 +280,7 @@ class DragCanvas {
                 <div class="sub-window-body"></div>
             `;
 
-            // Makes it so clicking on a tab and dragging the background don't interfere with each othe
+            // Clicking a tab and dragging the background behind it stay out of each other's way
             el.addEventListener("pointerdown", (e) => e.stopPropagation());
 
             if (def.onClick) {
@@ -277,6 +296,7 @@ class DragCanvas {
         }
     }
 
+    // !!! WHAT IS ON THE CANVAS !!!
 
     // Whatever a layer draws for itself, panned and zoomed along with the nodes
     _buildScene() {
@@ -291,8 +311,7 @@ class DragCanvas {
         const nodes = this.layer.nodes;
         if (!nodes || Object.keys(nodes).length === 0) return;
 
-        const svg = document.createElementNS(SVG_NS, "svg");
-        svg.setAttribute("class", "node-connectors");
+        const svg = svgEl("svg", { class: "node-connectors" });
         this.inner.appendChild(svg);
 
         for (const nodeId in nodes) {
@@ -303,12 +322,11 @@ class DragCanvas {
                 const parent = nodes[parentId];
                 if (!parent) throw new Error(`Node "${nodeId}" has unknown parent "${parentId}".`);
 
-                const line = document.createElementNS(SVG_NS, "line");
-                line.setAttribute("class", "node-connector");
-                line.setAttribute("x1", parent.position.x);
-                line.setAttribute("y1", parent.position.y);
-                line.setAttribute("x2", def.position.x);
-                line.setAttribute("y2", def.position.y);
+                const line = svgEl("line", {
+                    class: "node-connector",
+                    x1: parent.position.x, y1: parent.position.y,
+                    x2: def.position.x, y2: def.position.y,
+                });
                 svg.appendChild(line);
                 lines.push({ line, parentId });
             }
@@ -347,9 +365,10 @@ class DragCanvas {
                 <div class="node-tooltip"></div>
             `;
 
-            // Makes sure that it doesn't start dragging if you click on a node
-            el.addEventListener("pointerdown", (e) => e.stopPropagation());
-            el.addEventListener("click", () => this._clickNode(nodeId, def));
+            el.addEventListener("click", () => {
+                if (this.movedWhileDown) return;
+                this._clickNode(nodeId, def);
+            });
 
             this.inner.appendChild(el);
             this.nodeEls[nodeId] = el;
@@ -386,18 +405,13 @@ class DragCanvas {
             const def = this.layer.nodes[nodeId];
             const el = this.nodeEls[nodeId];
 
-            // Three visibility tiers, in order of how much they give away:
-            //   hidden, not drawn at all
-            //   unmet, node that reads "???" and has a vague tooltip
-            //   normal, a node you can buy
+            // Visibility tiers: hidden isn't drawn, unmet reads "???", normal can be bought
             const hidden = !this._nodeVisible(nodeId, def, layerState);
-            const display = hidden ? "none" : "";
-            if (el.style.display !== display) el.style.display = display;
+            setDisplay(el, !hidden);
 
             // Lines are drawn only from parents the player already owns
             for (const { line, parentId } of this.connectorEls[nodeId] || []) {
-                const lineDisplay = !hidden && nodeOwned(this.layer, parentId, layerState) ? "" : "none";
-                if (line.style.display !== lineDisplay) line.style.display = lineDisplay;
+                setDisplay(line, !hidden && nodeOwned(this.layer, parentId, layerState));
             }
             if (hidden) continue;
 
@@ -407,19 +421,17 @@ class DragCanvas {
             const met = owned || this._prereqMet(def, layerState);
 
             // Meter drives the ring fill, as a 0 to 1 fraction
-            const fill = def.meter ? Math.max(0, Math.min(1, def.meter(layerState))) : 0;
+            const fill = def.meter ? clamp01(def.meter(layerState)) : 0;
             const fillText = fill.toFixed(3);
             if (el.dataset.fill !== fillText) {
                 el.style.setProperty("--node-fill", fill);
                 el.dataset.fill = fillText;
             }
 
-            // A running-out bonus, drawn as the node's own color draining off the top of its
-            // face. Set as a bare custom property rather than a class, since the state block
-            // below rewrites className outright
+            // A running-out bonus drains the node's color; a custom property since className is rewritten below
             if (def.combo) {
                 el.style.setProperty("--node-combo",
-                    met ? Math.max(0, Math.min(1, def.combo(layerState))) : 0);
+                    met ? clamp01(def.combo(layerState)) : 0);
             }
 
             setText(el.querySelector(".node-title"), met ? def.title : anonymousTitle(def));
@@ -451,29 +463,26 @@ class DragCanvas {
         }
     }
 
-    // For the blue core combo counter. It's through web animations instead of CSS because
-    // CSS ended up being weird but animate() just works
+    // Blue core combo counter, through animate() since the CSS version misbehaved
     _renderBadge(el, badge) {
         const badgeEl = el.querySelector(".node-badge");
         if (!badgeEl) return;
 
+        setDisplay(badgeEl, !!badge);
         if (!badge) {
-            badgeEl.style.display = "none";
             badgeEl.dataset.shown = "";
             return;
         }
 
-        badgeEl.style.display = "";
         badgeEl.classList.toggle("full", !!badge.full);
 
-        // early return below, since it changes on frames where the number doesn't
+        // The full flag is set every frame, so it is written before the text's early return
         if (badgeEl.dataset.shown === badge.text) return;
         const first = !badgeEl.dataset.shown;
         badgeEl.dataset.shown = badge.text;
         badgeEl.textContent = badge.text;
         if (first) return;
-        // Badge is centered with translateX(-50%) but the animation messes it up
-        // So the offset has to go through each keyframe or else it keeps moving
+        // The badge's translateX(-50%) has to be in every keyframe or it drifts
         badgeEl.animate(
             [
                 { transform: "translateX(-50%) scale(1)" },
@@ -484,8 +493,9 @@ class DragCanvas {
         );
     }
 
-    // Bounds don't move on their own - what counts as content moves only when game state does -
-    // so these are remembered between renders instead of being walked out again on every pan step
+    // !!! BOUNDS AND PANNING !!!
+
+    // Bounds only change with game state, so they're cached between renders
     _contentBounds() {
         if (!this._boundsStale) return this._boundsCache;
         this._boundsCache = this._measureContentBounds();
@@ -550,7 +560,7 @@ class DragCanvas {
             const margin = panMargin(viewportSize);
             const lowest = viewportSize - max - margin; // Right edge can't go further left than this
             const highest = margin - min;               // Left edge can't go further right than this
-            // If it's narrow instead of wide, this corrects it to midpoint stuff
+            // Narrower than the viewport, so the content is pinned to the middle instead
             return lowest > highest ? (lowest + highest) / 2 : Math.min(highest, Math.max(lowest, pan));
         };
 
@@ -558,7 +568,7 @@ class DragCanvas {
         this.panY = clampAxis(this.panY, bounds.minY, bounds.maxY, height);
     }
 
-    // It's where the canvas defaults to, and what the recenter button goes to.
+    // Where the canvas opens, and where the recenter button goes back to
     _viewcenter() {
         if (this.layer.defaultView) return this.layer.defaultView;
 
@@ -574,16 +584,13 @@ class DragCanvas {
         return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
     }
 
-    // Reads the viewport through a cache. ResizeObserver resets the cache whenever
-    // the real size moves, which is the only moment a fresh number matters anyway
+    // Cached viewport size, reset by the ResizeObserver
     _viewportRect() {
         if (!this._rectCache) this._rectCache = this.viewport.getBoundingClientRect();
         return this._rectCache;
     }
 
-    // Since centering goes to the direct center of the whole window, it looks off depending
-    // on if stuff is covering the sides of the screen. So this makes it go based on
-    // how much room there really is for the canvas to be seen
+    // Centers on the room actually left for the canvas, not the whole window
     _openCenter(rect) {
         const width = rect.width;
         const height = rect.height;
@@ -650,7 +657,6 @@ class DragCanvas {
         this.panFrame = null;
     }
 
-    // Is the actual recentering
     recenter() {
         const rect = this._viewportRect();
         if (!rect.width || !rect.height) return;
@@ -662,13 +668,16 @@ class DragCanvas {
         this._applyTransform();
     }
 
+    // !!! ZOOM !!!
+
     // Scale after translation, but makes sure not to shift everything
     _applyTransform() {
         this._clampPan();
         this.inner.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+        refitTip(); // A tip that was already up has just been moved under the cursor
     }
 
-    
+
     get zoom() {
         return ZOOM_STEPS[this.zoomStep];
     }
@@ -699,8 +708,7 @@ class DragCanvas {
 
     _updateCoords() {
         const shown = !!state.settings.showCanvasCoords;
-        const display = shown ? "" : "none";
-        if (this.coordEl.style.display !== display) this.coordEl.style.display = display;
+        setDisplay(this.coordEl, shown);
         if (!shown) return;
 
         if (!this.pointerClient) {
@@ -714,10 +722,8 @@ class DragCanvas {
         setText(this.coordEl, `x ${x}  y ${y}`);
     }
 
-   
+    // !!! HEX TILES !!!
 
-
-    // Hex tiles
     _renderTiles(layerState) {
         const def = this.layer.tiles;
         if (!def) return;
@@ -726,16 +732,14 @@ class DragCanvas {
         const tiles = def.list(layerState);
         const unlocked = layerState.tiles || {};
 
-        // A tile is for sale where it sits next to an owned one. Previously it
-        // was checking for all neighbors for all tiles like every tick so this just
-        // makes it not absolutely horrible on performance 
+        // A tile is for sale next to an owned one, found here instead of checking every neighbor every tick
         const listed = new Map(tiles.map(tile => [tile.id, tile]));
         const reachableIds = new Set();
         if (!hidden) {
             for (const id in unlocked) {
                 const ownedTile = unlocked[id] && listed.get(id);
                 if (!ownedTile) continue;
-                for (const n of neighboursOf(ownedTile)) {
+                for (const n of neighborsOf(ownedTile)) {
                     if (listed.has(n.id)) reachableIds.add(n.id);
                 }
             }
@@ -745,8 +749,7 @@ class DragCanvas {
             // Built on demand, so the canvas doesn't need to be rebuilt
             const el = this.tileEls[tile.id] || this._buildTile(tile, def);
 
-            const display = hidden ? "none" : "";
-            if (el.style.display !== display) el.style.display = display;
+            setDisplay(el, !hidden);
             if (hidden) continue;
 
             const isUnlocked = !!unlocked[tile.id];
@@ -837,7 +840,7 @@ class DragCanvas {
         if (display === "none") return;
 
         if (!forSale) {
-            setText(costEl, "");
+            setRichText(costEl, "");
             setText(actionEl, own);
             return;
         }
@@ -845,9 +848,10 @@ class DragCanvas {
         const parts = costParts(cost);
         const single = parts.length === 1 ? parts[0] : null;
 
-        const color = single ? single.color || "" : "";
+        // A group like G&B Essence colors its own letters, so the box doesn't tint it one color
+        const color = single && single.ids.length === 1 ? single.color || "" : "";
         if (costEl.style.color !== color) costEl.style.color = color;
-        setText(costEl, !single ? formatCost(cost)
+        setRichText(costEl, !single ? costHtml(cost)
             : single.ids.length === 1 ? single.amount
             : `${single.amount} ${single.label}`);
         setText(actionEl, (own && own.action) || def.buyLabel || "Buy this tile");
@@ -865,7 +869,7 @@ class DragCanvas {
         }
 
         const tiles = def.list(layerState);
-        const reachable = tiles.some(other => layerState.tiles[other.id] && areNeighbours(tile, other));
+        const reachable = tiles.some(other => layerState.tiles[other.id] && areNeighbors(tile, other));
         if (!reachable) return;
         if (def.cost && !spend(def.cost(layerState, tile))) return;
 
@@ -899,8 +903,13 @@ class DragCanvas {
             this.layer.scene.update(this.sceneEl, layerState, this.layer, this);
         }
         if (this.layer.hud && this.layer.hud.update) this.layer.hud.update(this.hudEl, layerState, this.layer, this);
+        updateDrawers(this.layer, this.upgrades, layerState);
+        updateUpgrades(this.layer, this.upgrades, layerState);
     }
 }
+
+
+//    !!! ART ON THE CANVAS !!!
 
 // A padlock, for a tile that hasn't been claimed
 const LOCK_ICON = `

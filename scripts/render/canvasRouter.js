@@ -1,10 +1,9 @@
 // canvasRouter.js
 //
-// One wrapper div per layer, that's created once and never destroyed.
-// Just toggling display lets it keep drag position across switching away and back.
+// One wrapper per layer, hidden instead of destroyed so drag position is kept
 
 
-import { state, getLayerState } from "../core/state.js";
+import { state, getLayerState, layerUnlocked } from "../core/state.js";
 import { layers, getOrderedSubLayers, getVisibleSubLayers } from "../core/registry.js";
 import { getResource, productionRate } from "../core/resources.js";
 import { renderStaticCanvas, forgetStaticCanvas } from "./staticCanvas.js";
@@ -14,6 +13,8 @@ import { formatNumber } from "../utils/format.js";
 const dirtyLayers = new Set();
 const canvasEl = document.getElementById("canvas");
 
+
+//    !!! A LAYER'S WRAPPER !!!
 
 const layerContainers = new Map(); // layerId is { wrapper, pointsEl, body }
 
@@ -57,9 +58,7 @@ function getLayerContainer(layerId) {
         chipEls[resourceId] = chip;
     }
 
-    // This was used for a thing in the pond, but it's not really used anymore.
-    // Keeping it for if I want something like it later.
-    // This just is for a display at the top that isn't numerical
+    // Non-numeric display at the top; unused now but kept for later
     const indicatorEls = {};
     for (const indicatorId in layer ? layer.indicators : {}) {
         const el = document.createElement("span");
@@ -81,6 +80,9 @@ function getLayerContainer(layerId) {
     return entry;
 }
 
+
+//    !!! A SUB-LAYER'S WRAPPER !!!
+
 const subLayerContainers = new Map(); // subLayerId -> div, appended into that layer's .layer-body
 
 function getSubLayerContainer(layerId, subLayer) {
@@ -96,14 +98,16 @@ function getSubLayerContainer(layerId, subLayer) {
     return container;
 }
 
+
+//    !!! WHAT IS ON SCREEN !!!
+
 // The header of whichever layer is on screen
 export function activeHeaderElement() {
     const entry = layerContainers.get(state.activeLayer);
     return entry ? entry.header : null;
 }
 
-// Called whenever a layer's data changes (aka every sim tick).
-// Doesn't touch the DOM itself, just says that a redraw is owed
+// Called every sim tick; just marks a redraw as owed
 export function markDirty(layerId) {
     dirtyLayers.add(layerId);
 }
@@ -112,7 +116,7 @@ export function markDirty(layerId) {
 export function absorbedInto(layer) {
     if (!layer || !layer.absorbedBy) return null;
     const host = layers[layer.absorbedBy];
-    if (!host || !getLayerState(host.id).unlocked) return null;
+    if (!host || !layerUnlocked(host.id)) return null;
     return host;
 }
 
@@ -149,7 +153,7 @@ export function switchToLayer(layerId) {
         return;
     }
 
-    if (!getLayerState(layerId).unlocked) return;
+    if (!layerUnlocked(layerId)) return;
 
     for (const entry of layerContainers.values()) entry.wrapper.style.display = "none";
     getLayerContainer(layerId).wrapper.style.display = "flex";
@@ -158,6 +162,12 @@ export function switchToLayer(layerId) {
     markDirty(layerId);
     renderActiveLayer(true); 
 }
+
+
+//    !!! RENDERING !!!
+
+// Which layer/sub-layer was drawn last, so a sub-layer knows when it's just been come onto
+let shownSubLayer = null;
 
 // Called every animation frame, skips all the DOM work unless the active layer is marked dirty
 export function renderActiveLayer(force = false) {
@@ -202,6 +212,8 @@ export function renderActiveLayer(force = false) {
         layer.indicators[indicatorId].update(entry.indicatorEls[indicatorId], layerState, layer);
     }
 
+    if (!layer.subLayers) shownSubLayer = null;
+
     if (layer.subLayers) {
         renderActiveSubLayer(layer, layerState);
     } else if (layer.canvasType === "static") {
@@ -213,7 +225,9 @@ export function renderActiveLayer(force = false) {
     refreshCanvasControls();
 }
 
-// Canvas controls
+
+//    !!! CANVAS CONTROLS !!!
+
 const recenterButton = document.getElementById("recenter-button");
 const zoomControls = document.getElementById("zoom-controls");
 const zoomInButton = document.getElementById("zoom-in-button");
@@ -234,6 +248,9 @@ function activeDragCanvas() {
 // Called at the end of every render and whenever the scroll wheel changes zoom
 export function refreshCanvasControls() {
     const canvas = activeDragCanvas();
+    // How high the corner buttons sit so they don't cover the canvas's bottom edge
+    document.documentElement.style.setProperty("--canvas-corner-lift",
+        (canvas && canvas.layer.cornerLift) || "0px");
     if (recenterButton) recenterButton.hidden = canvas === null;
     if (!zoomControls) return;
 
@@ -259,6 +276,9 @@ for (const [button, direction] of [[zoomInButton, 1], [zoomOutButton, -1]]) {
     });
 }
 
+
+//    !!! SUB-LAYERS !!!
+
 function renderActiveSubLayer(layer, layerState) {
     const current = layer.subLayers[layerState.activeSubLayer];
     if (!current || (current.hidden && current.hidden(layerState))) {
@@ -277,6 +297,13 @@ function renderActiveSubLayer(layer, layerState) {
     if (!activeSubLayer) return; // Shouldn't happen, but don't crash the render loop over a bad save
     const target = getSubLayerContainer(layer.id, activeSubLayer);
 
+    // A sub-layer can tidy itself up each time the player comes onto it
+    const shown = `${layer.id}/${activeKey}`;
+    if (shown !== shownSubLayer) {
+        shownSubLayer = shown;
+        if (activeSubLayer.onEnter) activeSubLayer.onEnter(layerState);
+    }
+
     if (activeSubLayer.canvasType === "static") {
         renderStaticCanvas(activeSubLayer, target);
     } else if (activeSubLayer.canvasType === "drag") {
@@ -288,7 +315,7 @@ function renderActiveSubLayer(layer, layerState) {
 export function switchToSubLayer(layerId, subLayerKey) {
     const layer = layers[layerId];
     if (!layer || !layer.subLayers || !layer.subLayers[subLayerKey]) return;
-    if (!getLayerState(layer.stateKey).unlocked) return;
+    if (!layerUnlocked(layer.stateKey)) return;
 
     const subLayer = layer.subLayers[subLayerKey];
     if (subLayer.hidden && subLayer.hidden(getLayerState(layer.stateKey))) return;

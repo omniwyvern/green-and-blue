@@ -1,11 +1,10 @@
 // guide.js
 //
-// These are the tutorial windows that pop up when you enter a layer/sublayer for the first time.
-// They're written in the content/main/guides.js file, this just constructs the popup.
-// Also the "i" icon opens this again. Uses the same framework as the settings and dev menus.
+// Builds the first-visit popups (text in content/main/guides.js) and the glossary
 
 import { state, claimUnseen } from "../core/state.js";
-import { availableGuides, pendingGuides } from "../core/guides.js";
+import { availableGuides, pendingGuides, availableTerms } from "../core/guides.js";
+import { colorResources } from "./richText.js";
 
 const overlay = document.getElementById("guide-overlay");
 const openButton = document.getElementById("guide-button");
@@ -15,12 +14,16 @@ const NOTHING_HERE = {
     id: null,
     title: "Nothing to explain",
     body: `<p>There's nothing to say about this layer yet. Come back once more of it has
-           opened up - anything that turns up here will explain itself first.</p>`,
+           opened up. Anything that turns up here will explain itself first.</p>`,
 };
 
 let els = null;
+let panel = null;
 let queue = [];
 let index = 0;
+
+
+//    !!! OPENING A GUIDE !!!
 
 export function initGuides() {
     if (!overlay || !openButton) return;
@@ -39,22 +42,54 @@ export function checkGuides() {
     if (pending.length > 0) open(pending);
 }
 
-// Every .modal-overlay exists from page load on, so only they're collected once
+// Every .modal-overlay exists from page load, so they're collected once
 const modalOverlays = [...document.querySelectorAll(".modal-overlay")];
 
 function anyModalOpen() {
     return modalOverlays.some(el => !el.hidden);
 }
 
+// Hitting the info button shows the glossary beside it, but auto-popups don't
 function openForActiveLayer() {
     const list = availableGuides(state.activeLayer);
-    open(list.length > 0 ? list : [NOTHING_HERE]);
+    open(list.length > 0 ? list : [NOTHING_HERE], { glossary: true });
 }
 
-function open(list, startIndex = 0) {
+
+//    !!! THE GLOSSARY !!!
+
+// Every term met so far, its shorthand, how it's gained, and what it does
+function fillGlossary() {
+    const met = availableTerms();
+    els.glossary.hidden = met.length === 0;
+    panel.classList.toggle("with-glossary", met.length > 0);
+    if (met.length === 0) return;
+
+    els.terms.innerHTML = met.map(term => {
+        const color = term.color || "var(--text)";
+        // The shorthand reads in the same color as the name, since it stands for the same thing
+        const named = (text) => `<span class="res" style="--resource-color:${color}">${text}</span>`;
+        const short = term.short ? ` <span class="glossary-slash">/</span> ${named(term.short)}` : "";
+        const body = typeof term.body === "function" ? term.body() : term.body;
+        return `<dt>${named(term.term)}${short}</dt><dd>${colorResources(body)}</dd>`;
+    }).join("");
+    els.terms.scrollTop = 0;
+}
+
+
+//    !!! THE QUEUE !!!
+
+function open(list, { glossary = false } = {}) {
     if (list.length === 0) return;
     queue = list;
-    index = startIndex;
+    index = 0;
+
+    if (glossary) fillGlossary();
+    else {
+        els.glossary.hidden = true;
+        panel.classList.remove("with-glossary");
+    }
+
     overlay.hidden = false;
     show();
 }
@@ -86,8 +121,11 @@ function close() {
     index = 0;
 }
 
+
+//    !!! THE WINDOW !!!
+
 function buildWindow() {
-    const panel = document.createElement("div");
+    panel = document.createElement("div");
     panel.className = "settings-window guide-window";
 
     panel.innerHTML = `
@@ -95,7 +133,13 @@ function buildWindow() {
             <h2 class="guide-title"></h2>
             <button class="settings-close" aria-label="Close">&times;</button>
         </div>
-        <div class="guide-body"></div>
+        <div class="guide-columns">
+            <div class="guide-body"></div>
+            <aside class="guide-glossary" hidden>
+                <h3 class="glossary-heading">Glossary</h3>
+                <dl class="glossary"></dl>
+            </aside>
+        </div>
         <div class="guide-footer">
             <span class="guide-progress"></span>
             <div class="guide-nav">
@@ -108,6 +152,8 @@ function buildWindow() {
     els = {
         title: panel.querySelector(".guide-title"),
         body: panel.querySelector(".guide-body"),
+        glossary: panel.querySelector(".guide-glossary"),
+        terms: panel.querySelector(".glossary"),
         progress: panel.querySelector(".guide-progress"),
         back: panel.querySelector(".guide-back"),
         next: panel.querySelector(".guide-next"),
