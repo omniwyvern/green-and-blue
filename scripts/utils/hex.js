@@ -1,10 +1,10 @@
 // hex.js
 //
-// Hex tiles, works off of axial coordinates (q along row, r down and to the right).
+// Hex tiles in axial coordinates (q along the row, r down-right)
 
 export const hexId = (q, r) => `${q},${r}`;
 
-// The six directions around a tile, in order.
+// The six directions around a tile, in order
 export const HEX_DIRECTIONS = [
     { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 },
     { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 },
@@ -14,7 +14,7 @@ export function hex(q, r) {
     return { id: hexId(q, r), q, r };
 }
 
-// Finds hexes within a given radius.
+// Finds hexes within a given radius
 export function hexesWithin(radius) {
     const tiles = [];
     for (let q = -radius; q <= radius; q++) {
@@ -25,18 +25,18 @@ export function hexesWithin(radius) {
     return tiles;
 }
 
-// Finds adjacent tiles.
-export function neighboursOf(tile) {
+// Finds adjacent tiles
+export function neighborsOf(tile) {
     return HEX_DIRECTIONS.map(step => hex(tile.q + step.q, tile.r + step.r));
 }
 
-export function areNeighbours(a, b) {
+export function areNeighbors(a, b) {
     const dq = a.q - b.q;
     const dr = a.r - b.r;
     return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr)) === 1;
 }
 
-// Deals with hex to actual size conversion.
+// Axial coordinates to pixels
 export function hexToPixel(tile, size) {
     return {
         x: size * Math.sqrt(3) * (tile.q + tile.r / 2),

@@ -1,49 +1,47 @@
-// Development-only cheats, in the same window shell the settings use.
+// dev.js
 //
-// Self-contained, so to remove it later just delete this file, its import line
-// in main.js, and the #dev-button / #dev-overlay elements in index.html
+// Dev cheats; delete this file, its import, and #dev-button/#dev-overlay to remove them
 
 import { state, getLayerState, saveState } from "../core/state.js";
-import { layers, resourceDefs, getVisibleSubLayers } from "../core/registry.js";
-import { addResource, resourceHolderId, resyncProduction } from "../core/resources.js";
+import { layers, resourceDefs } from "../core/registry.js";
+import { resyncProduction } from "../core/resources.js";
 import { parentsOf, prereqMet } from "../core/nodes.js";
 import { refreshCoordReadouts } from "./dragCanvas.js";
 import { D } from "../utils/decimal.js";
 import { formatNumber } from "../utils/format.js";
+import { buildModal, makeButton } from "./modal.js";
+import { getGameSpeed, setGameSpeed } from "../core/loop.js";
 
-// The nodes that stand for a layer, or for a step on the way to one. Everything else in a tree
-// is an ordinary upgrade, and the button leaves those to be bought the normal way
+// The nodes that open a layer or lead to one; ordinary upgrades are left to be bought normally
 const LAYER_NODE_KINDS = new Set(["layer", "sublayer", "major"]);
+
+const LOTS = "1e250";
+const SPEEDS = [1, 2, 5, 10, 25];
 
 const overlay = document.getElementById("dev-overlay");
 const openButton = document.getElementById("dev-button");
 
 let statusEl = null;
+let setOpen = null;
 let resourceFields = []; // One per pool, filled in by buildResourceFields
 let coordsButton = null;
 let interactionsButton = null;
 let fastGrassButton = null;
+let fastTreesButton = null;
+let unlimitedPotentialButton = null;
+
+
+//    !!! THE WINDOW !!!
 
 export function initDev() {
     if (!overlay || !openButton) return;
 
     buildWindow();
     openButton.addEventListener("click", () => setOpen(true));
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) setOpen(false); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
-}
-
-function setOpen(open) {
-    overlay.hidden = !open;
-    if (!open) return;
-    setStatus("");
-    readResourceFields(); // So the boxes always show what the game currently holds
 }
 
 function buildWindow() {
-    const panel = document.createElement("div");
-    panel.className = "settings-window";
-    panel.innerHTML = `
+    const built = buildModal(overlay, `
         <div class="settings-header">
             <h2>Dev tools</h2>
             <button class="settings-close" aria-label="Close">&times;</button>
@@ -57,47 +55,70 @@ function buildWindow() {
             <div class="dev-resource-list"></div>
             <div class="settings-row resource-row"></div>
             <div class="settings-note"\n>Type the amount you want to end up with, not the amount to
-                add. Scientific notation works: 1e20, 2.5e120. Blank leaves one alone.</div>
+                add. Commas and scientific notation work: 40,000, 1e20, 2.5e120. Blank leaves one alone.</div>
         </div>
         <div class="settings-section">
             <div class="settings-label">View</div>
             <div class="settings-row view-row"></div>
         </div>
+        <div class="settings-section">
+            <div class="settings-label">Game speed</div>
+            <div class="settings-row dev-speed-row">
+                <input class="dev-speed" type="range" min="0" max="${SPEEDS.length - 1}" step="1" value="0">
+                <span class="dev-speed-value">1x</span>
+            </div>
+        </div>
         <div class="settings-status"></div>
-    `;
-    panel.querySelector(".settings-close").addEventListener("click", () => setOpen(false));
+    `, (open) => {
+        if (!open) return;
+        setStatus("");
+        readResourceFields(); // So the boxes always show what the game currently holds
+    });
+    setOpen = built.setOpen;
+    const panel = built.panel;
 
     const row = panel.querySelector(".dev-row");
     row.appendChild(makeButton("Unlock all layers", unlockAllLayers));
     row.appendChild(makeButton("Zero all resources", zeroResources));
+    row.appendChild(makeButton("Complete all challenges", completeAllChallenges));
+    row.appendChild(makeButton("Clear challenge progress", clearChallenges));
 
     buildResourceFields(panel.querySelector(".dev-resource-list"));
     const resourceRow = panel.querySelector(".resource-row");
     resourceRow.appendChild(makeButton("Apply amounts", applyResourceAmounts));
+    resourceRow.appendChild(makeButton("Apply lots", applyLots));
 
     const viewRow = panel.querySelector(".view-row");
     coordsButton = makeButton("Canvas coordinates", toggleCoords);
     interactionsButton = makeButton("World dev interactions", toggleInteractions);
     fastGrassButton = makeButton("Fast grass", toggleFastGrass);
-    viewRow.append(coordsButton, interactionsButton, fastGrassButton);
+    fastTreesButton = makeButton("Fast trees", toggleFastTrees);
+    unlimitedPotentialButton = makeButton("Unlimited evolution meters", toggleUnlimitedPotential);
+    viewRow.append(coordsButton, interactionsButton, fastGrassButton, fastTreesButton, unlimitedPotentialButton);
     refreshToggleButtons();
 
+    const speed = panel.querySelector(".dev-speed");
+    const speedValue = panel.querySelector(".dev-speed-value");
+    speed.value = Math.max(0, SPEEDS.indexOf(getGameSpeed()));
+    speed.addEventListener("input", () => {
+        setGameSpeed(SPEEDS[Number(speed.value)]);
+        speedValue.textContent = `${getGameSpeed()}x`;
+    });
+
     statusEl = panel.querySelector(".settings-status");
-    overlay.appendChild(panel);
 }
 
-function makeButton(label, onClick) {
-    const btn = document.createElement("button");
-    btn.className = "settings-button-secondary";
-    btn.textContent = label;
-    btn.addEventListener("click", onClick);
-    return btn;
-}
+
+//    !!! OPENING EVERYTHING !!!
 
 // Buying the nodes themselves instead of setting the layers to be unlocked, so onPurchase conditions trigger
 function unlockAllLayers() {
+    // Sub-layers keep their own trees (the biome hexagon is one), which is where most sub-layers get opened
     let bought = 0;
-    for (const layerId in layers) bought += buyLayerNodes(layers[layerId]);
+    for (const layerId in layers) {
+        bought += buyLayerNodes(layers[layerId]);
+        for (const key in layers[layerId].subLayers || {}) bought += buyLayerNodes(layers[layerId].subLayers[key]);
+    }
 
     // Anything with no node behind it, so the button still opens every layer either way
     let unlocked = 0;
@@ -113,6 +134,45 @@ function unlockAllLayers() {
         : "Everything is already unlocked.");
 }
 
+// Loaded on use rather than imported, to stay out of the content modules' load order
+const challenges = () => import("../content/main/systems/challenges.js");
+
+// Finishes every challenge and hands out what each one gives, the same way claiming one does
+async function completeAllChallenges() {
+    const { CHALLENGE_IDS, REWARD_ACTIONS, challengeState, challengeDone } = await challenges();
+    const s = challengeState();
+
+    let finished = 0;
+    for (const id of CHALLENGE_IDS) {
+        if (challengeDone(id)) continue;
+        s.completed[id] = true;
+        if (REWARD_ACTIONS[id]) REWARD_ACTIONS[id]();
+        finished++;
+    }
+    s.active = null;
+    s.confirming = null;
+
+    setStatus(finished
+        ? `Finished ${finished} challenge${finished === 1 ? "" : "s"}.`
+        : "Every challenge is already finished.");
+}
+
+// Forgets every completion and the running challenge; rewards already opened stay open
+async function clearChallenges() {
+    const { completedCount, challengeState } = await challenges();
+    const s = challengeState();
+
+    const had = completedCount();
+    const running = !!s.active;
+    s.completed = {};
+    s.active = null;
+    s.confirming = null;
+
+    setStatus(had || running
+        ? `Cleared ${had} completion${had === 1 ? "" : "s"}. Anything a reward opened is still open.`
+        : "No challenges were finished.");
+}
+
 function buyLayerNodes(layer) {
     if (!layer.nodes) return 0;
 
@@ -122,8 +182,7 @@ function buyLayerNodes(layer) {
         if (LAYER_NODE_KINDS.has(layer.nodes[nodeId].kind)) addWithParents(layer, nodeId, ordered, new Set());
     }
 
-    // Parents are in the list ahead of their children already. Makes some things work better.
-    // Like if you buy environment at the same time as land, the world map size doesn't increase
+    // Parents come before children, so e.g. environment bought with land still grows the map
     let bought = 0;
     for (let sweeping = true; sweeping; ) {
         sweeping = false;
@@ -153,7 +212,8 @@ function addWithParents(layer, nodeId, ordered, walking) {
     for (const parentId of parentsOf(def)) addWithParents(layer, parentId, ordered, walking);
     walking.delete(nodeId);
 
-    if (def.kind !== "core" && def.cost) ordered.push(nodeId);
+    // Biome nodes have no cost, they're opened by challenge rewards instead
+    if (def.kind !== "core" && (def.cost || LAYER_NODE_KINDS.has(def.kind))) ordered.push(nodeId);
 }
 
 function buyNode(layer, nodeId, layerState) {
@@ -162,39 +222,8 @@ function buyNode(layer, nodeId, layerState) {
     if (def.onPurchase) def.onPurchase(layerState);
 }
 
-// Whichever layer, or sub-layer of one, is on screen right now
-function activeView() {
-    const layer = layers[state.activeLayer];
-    if (!layer) return null;
-    if (!layer.subLayers) return layer;
 
-    const layerState = getLayerState(layer.stateKey);
-    return layer.subLayers[layerState.activeSubLayer]
-        || getVisibleSubLayers(layer.id, layerState)[0]
-        || null;
-}
-
-// The resources a view holds itself, rather than the ones it only borrows to display
-function grantableResources(view) {
-    const ids = Object.keys(view.resources || {});
-    const owned = ids.filter(id => resourceHolderId(id) === view.stateKey);
-    return owned.length ? owned : ids;
-}
-
-function grantHere() {
-    const view = activeView();
-    if (!view) return setStatus("No layer open to grant resources to.");
-
-    const ids = grantableResources(view);
-    if (!ids.length) return setStatus(`${view.name} has no resources.`);
-
-    for (const id of ids) addResource(id, GRANT);
-    resyncProduction();
-    readResourceFields(); // The boxes below are showing these same pools
-    const names = ids.map(id => view.resources[id].name).join(", ");
-    setStatus(`Granted ${GRANT.toString()} ${names} on ${view.name}.`);
-}
-
+//    !!! THE RESOURCE BOXES !!!
 
 // One box per pool, not per layer showing it
 const resourcePools = () => Object.values(resourceDefs)
@@ -227,22 +256,21 @@ function buildResourceFields(container) {
 
 const currentAmount = ({ holderId, resourceId }) => D(getLayerState(holderId).resources[resourceId] || 0);
 
-// Decimal takes anything and quietly calls it a number, a typo wipes the pool instead of rejecting
-// so this makes it check if it's a number first
+// Decimal quietly accepts anything, so a typo would wipe the pool without this check
 const NUMERIC = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
 function readResourceFields() {
     for (const field of resourceFields) field.input.value = formatNumber(currentAmount(field));
 }
 
-// Sets each pool to what's in its box. Every box is checked before anything is written, so a typo
-// in one doesn't leave the rest half-applied
+// Every box is checked before anything is written, so one typo doesn't half-apply the rest
 function applyResourceAmounts() {
     const bad = [];
     const changes = [];
 
     for (const field of resourceFields) {
-        const text = field.input.value.trim();
+        // Commas are dropped, since the boxes fill in with numbers like 40,000
+        const text = field.input.value.trim().replace(/,/g, "");
         if (text === "") continue;
 
         if (!NUMERIC.test(text)) {
@@ -269,7 +297,16 @@ function applyResourceAmounts() {
     readResourceFields();
 
     const summary = changes.map(c => `${c.field.def.name || c.field.resourceId} to ${formatNumber(c.value)}`).join(", ");
-    setStatus(saveState() ? `Set ${summary}. Saved.` : `Set ${summary}. Not saved - saving is off.`);
+    setStatus(saveState() ? `Set ${summary}. Saved.` : `Set ${summary}. Not saved because saving is off.`);
+}
+
+
+//    !!! FILLING AND EMPTYING !!!
+
+// Fills every pool with a number big enough that nothing stays out of reach
+function applyLots() {
+    for (const field of resourceFields) field.input.value = LOTS;
+    applyResourceAmounts();
 }
 
 // Empties every pool
@@ -287,6 +324,9 @@ function zeroResources() {
     readResourceFields();
     setStatus(emptied ? `Emptied ${emptied} pool${emptied === 1 ? "" : "s"}.` : "Everything is already empty.");
 }
+
+
+//    !!! THE TOGGLES !!!
 
 // Readout of the cursor's current coordinates, so node positioning is easier
 function toggleCoords() {
@@ -310,7 +350,7 @@ function toggleInteractions() {
         : "Dev interactions removed from the world drawer.");
 }
 
-// Makes grass go through stages really fast
+// Grass runs through its stages at speed
 function toggleFastGrass() {
     state.settings.enableFastGrass = !state.settings.enableFastGrass;
     refreshToggleButtons();
@@ -320,10 +360,32 @@ function toggleFastGrass() {
         : "Fast grass maturating disabled.");
 }
 
+// Trees put on growth, and finish standing, at speed
+function toggleFastTrees() {
+    state.settings.enableFastTrees = !state.settings.enableFastTrees;
+    refreshToggleButtons();
+    saveState();
+    setStatus(state.settings.enableFastTrees
+        ? "Fast tree growth enabled."
+        : "Fast tree growth disabled.");
+}
+
+// Evolution meters stay full and never run down when spent
+function toggleUnlimitedPotential() {
+    state.settings.enableUnlimitedPotential = !state.settings.enableUnlimitedPotential;
+    refreshToggleButtons();
+    saveState();
+    setStatus(state.settings.enableUnlimitedPotential
+        ? "Evolution meters are unlimited."
+        : "Evolution meters are back to normal.");
+}
+
 function refreshToggleButtons() {
     setToggle(coordsButton, "Canvas coordinates", state.settings.showCanvasCoords);
     setToggle(interactionsButton, "World dev interactions", state.settings.showDevInteractions);
     setToggle(fastGrassButton, "Fast grass", state.settings.enableFastGrass);
+    setToggle(fastTreesButton, "Fast trees", state.settings.enableFastTrees);
+    setToggle(unlimitedPotentialButton, "Unlimited evolution meters", state.settings.enableUnlimitedPotential);
 }
 
 function setToggle(button, label, on) {

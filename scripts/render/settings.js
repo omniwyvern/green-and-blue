@@ -1,9 +1,10 @@
 // settings.js
 //
-// The settings window. Little gear icon on the bottom left opens it. Pretty self-explanatory.
+// The settings window (gear icon, bottom left)
 
-import { state, saveState, loadState, deleteSave, hasSave, isSavingBlocked, getSaveProblem,
+import { state, saveState, loadState, deleteSave, hasSave, getSaveProblem,
     hasBackup, restoreBackup, exportSave, importSave } from "../core/state.js";
+import { buildModal, makeButton } from "./modal.js";
 
 const AUTOSAVE_MINUTES = 5; // Matches AUTOSAVE_MS in loop.js
 
@@ -16,12 +17,15 @@ const overlay = document.getElementById("settings-overlay");
 const openButton = document.getElementById("settings-button");
 
 let statusEl = null;
+let setOpen = null;
 let warningEl = null;
 let autosaveButton = null;
 let restoreButton = null;
 let restoreArmed = false;
 let deleteButton = null;
-let deleteArmed = false; // Second click confirms; see armDelete below
+let deleteArmed = false; // Second click confirms the delete
+let playtimeEl = null;
+let playtimeTimer = null;
 
 // Kept off-screen and opened by the Load from file button, since a bare file input can't be styled
 const filePicker = document.createElement("input");
@@ -34,6 +38,9 @@ filePicker.addEventListener("change", () => {
     loadFromFile(file);
 });
 
+
+//    !!! THE WINDOW !!!
+
 export function initSettings() {
     if (!overlay || !openButton) return;
 
@@ -42,28 +49,13 @@ export function initSettings() {
 
     openButton.addEventListener("click", () => setOpen(true));
 
-    // A save that couldn't be read is worth saying out loud. It used to only reach the console,
-    // which meant the first a player knew of it was their progress being gone
+    // If the save has a problem, it'll tell the player and bring up the window for it
     if (getSaveProblem()) {
         openButton.classList.add("has-problem");
         setOpen(true);
     }
-
-    // Clicking the backdrop (but not the panel itself) or escape closes it.
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) setOpen(false); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
 }
 
-function setOpen(open) {
-    overlay.hidden = !open;
-    if (!open) return disarmAll();
-
-    setStatus("");
-    refreshWarning();
-}
-
-// For whatever switches saving off after this window was already built, since the banner is
-// only rebuilt when the window opens
 export function notifySaveProblem() {
     if (openButton && getSaveProblem()) openButton.classList.add("has-problem");
     refreshWarning();
@@ -79,15 +71,17 @@ function refreshWarning() {
 }
 
 function buildWindow() {
-    const panel = document.createElement("div");
-    panel.className = "settings-window";
-
-    panel.innerHTML = `
+    const built = buildModal(overlay, `
         <div class="settings-header">
             <h2>Settings</h2>
             <button class="settings-close" aria-label="Close">&times;</button>
         </div>
         <div class="settings-warning" hidden></div>
+        <div class="settings-section">
+            <div class="settings-label">Time played</div>
+            <div class="settings-playtime"></div>
+            <div class="settings-note">How long this save has been open in a tab. Time away doesn't count.</div>
+        </div>
         <div class="settings-section">
             <div class="settings-label">Theme</div>
             <div class="settings-row theme-row"></div>
@@ -107,9 +101,17 @@ function buildWindow() {
             <div class="settings-row file-row"></div>
         </div>
         <div class="settings-status"></div>
-    `;
-
-    panel.querySelector(".settings-close").addEventListener("click", () => setOpen(false));
+    `, (open) => {
+        clearInterval(playtimeTimer);
+        if (!open) return disarmAll();
+        setStatus("");
+        refreshWarning();
+        // Only ticks while the window is open, since nothing else reads it
+        refreshPlaytime();
+        playtimeTimer = setInterval(refreshPlaytime, 250);
+    });
+    setOpen = built.setOpen;
+    const panel = built.panel;
 
     const themeRow = panel.querySelector(".theme-row");
     for (const theme of THEMES) {
@@ -127,45 +129,47 @@ function buildWindow() {
     }
 
     const autosaveRow = panel.querySelector(".autosave-row");
-    autosaveButton = makeButton("Autosave", "settings-button-secondary", toggleAutosave);
+    autosaveButton = makeButton("Autosave", toggleAutosave);
     autosaveRow.appendChild(autosaveButton);
     refreshAutosaveButton();
 
     const saveRow = panel.querySelector(".save-row");
-    saveRow.appendChild(makeButton("Save", "settings-button-secondary", () => {
+    saveRow.appendChild(makeButton("Save", () => {
         // Saving goes quiet after a half-loaded page, so say that rather than claim it worked
         setStatus(saveState() ? "Saved." : getSaveProblem() || "Couldn't save.");
         refreshWarning();
     }));
-    saveRow.appendChild(makeButton("Load", "settings-button-secondary", () => {
+    saveRow.appendChild(makeButton("Load", () => {
         if (!hasSave()) return setStatus("No save to load.");
         loadState();
 
         window.location.reload();
     }));
 
-    restoreButton = makeButton("Restore backup", "settings-button-secondary", armRestore);
+    restoreButton = makeButton("Restore backup", armRestore);
     restoreButton.title = "Puts back the save as it was when this tab was opened";
     saveRow.appendChild(restoreButton);
 
-    deleteButton = makeButton("Delete save", "settings-button-danger", armDelete);
+    deleteButton = makeButton("Delete save", armDelete, "settings-button-danger");
     saveRow.appendChild(deleteButton);
 
     const fileRow = panel.querySelector(".file-row");
-    fileRow.appendChild(makeButton("Save to file", "settings-button-secondary", saveToFile));
-    fileRow.appendChild(makeButton("Load from file", "settings-button-secondary",
-        () => filePicker.click()));
+    fileRow.appendChild(makeButton("Save to file", saveToFile));
+    fileRow.appendChild(makeButton("Load from file", () => filePicker.click()));
     fileRow.appendChild(filePicker);
 
     statusEl = panel.querySelector(".settings-status");
     warningEl = panel.querySelector(".settings-warning");
+    playtimeEl = panel.querySelector(".settings-playtime");
 
-    overlay.appendChild(panel);
     highlightTheme(panel);
     refreshWarning();
 }
 
-// Writes the save out as a file instead of just having a local save
+
+//    !!! SAVE FILES !!!
+
+// Writes the save out as a file
 function saveToFile() {
     const contents = exportSave();
     const now = new Date();
@@ -192,13 +196,8 @@ async function loadFromFile(file) {
     window.location.reload();
 }
 
-function makeButton(label, className, onClick) {
-    const btn = document.createElement("button");
-    btn.className = className;
-    btn.textContent = label;
-    btn.addEventListener("click", onClick);
-    return btn;
-}
+
+//    !!! AUTOSAVE !!!
 
 function toggleAutosave() {
     state.settings.autosave = !state.settings.autosave;
@@ -215,6 +214,9 @@ function refreshAutosaveButton() {
     autosaveButton.textContent = `Autosave: ${on ? "on" : "off"}`;
     autosaveButton.classList.toggle("active", on);
 }
+
+
+//    !!! ROLLING BACK AND DELETING !!!
 
 // Rolling back throws away the session, so it asks twice the same way deleting does
 function armRestore() {
@@ -236,7 +238,7 @@ function disarmRestore() {
     restoreButton.classList.remove("active");
 }
 
-// Makes deleting the save a two-step thing, first click arms it and second deletes
+// Deleting is two steps: the first click arms it, the second deletes
 function armDelete() {
     if (!deleteArmed) {
         deleteArmed = true;
@@ -260,6 +262,9 @@ function disarmAll() {
     disarmRestore();
 }
 
+
+//    !!! THE REST OF THE WINDOW !!!
+
 function highlightTheme(panel) {
     for (const btn of panel.querySelectorAll(".theme-button")) {
         btn.classList.toggle("active", btn.dataset.theme === state.settings.theme);
@@ -270,8 +275,19 @@ function setStatus(text) {
     if (statusEl) statusEl.textContent = text;
 }
 
-// Everything color-related is a CSS variable keyed off this attribute, so switching
-// themes is one attribute write rather than a stylesheet swap
+// totalTimePlayed only moves on simulation ticks, which only run with the tab open
+function refreshPlaytime() {
+    if (!playtimeEl) return;
+    const total = Math.floor(Number(state.totalTimePlayed) || 0);
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor(total / 3600) % 24;
+    const minutes = String(Math.floor(total / 60) % 60).padStart(2, "0");
+    const seconds = String(total % 60).padStart(2, "0");
+    const text = (days ? `${days}d ` : "") + `${hours}h ${minutes}m ${seconds}s`;
+    if (playtimeEl.textContent !== text) playtimeEl.textContent = text;
+}
+
+// Colors are CSS variables keyed off this attribute, so themes switch with one write
 export function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
 }

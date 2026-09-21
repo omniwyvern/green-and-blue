@@ -1,12 +1,10 @@
 // category.js
-
-// The Main category. Imports all the layers from their files, then registers the category.
-// main.js imports this.
+//
+// Registers the Main category, its own module so index.js can import it before any layer
 
 import { registerCategory } from "../../core/registry.js";
 
-// Sidebar groups. "origin" is where the game itself is. "world" is where new layers go as they're added.
-// Layers name their group with "group" in registerLayer.
+// Sidebar groups, which layers pick with "group" in registerLayer
 registerCategory("main", {
     name: "Main",
     order: 0,

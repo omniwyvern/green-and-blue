@@ -1,23 +1,12 @@
 // boosts.js
 //
-// One place for every multiplier that applies to a resource wherever that resource is made.
-//
-// Whenever there's a global boost to something, it registers it here. Everything that produces
-// that resource just asks boostResource() for it, so you only need to ask in one place.
-//
-// This is only for boosts that follow the RESOURCE. A bonus that belongs to one mechanic -
-// the core's charge, a pond card, a single region's upgrade - stays where it is, because it
-// isn't about the resource, it's about that thing.
+// Every global multiplier on a resource; producers ask boostResource()
 
 import { D } from "../utils/decimal.js";
 
 const sources = [];
 
-/**
- * @param {string} name       what the boost is, for readouts
- * @param {(resourceId: string) => (number|object)} amount
- *        Its multiplier for that resource, and 1 for the resources it doesn't touch.
- */
+// amount(resourceId) returns the multiplier, 1 for unaffected resources
 export function registerBoost(name, amount) {
     sources.push({ name, amount });
 }
@@ -29,8 +18,7 @@ export function boostResource(resourceId) {
     return total;
 }
 
-// The same, split up, for anything that wants to say where the number came from. Sources
-// sitting at 1 are left out, since they have nothing to say.
+// The same, split up to show where the numbers came from
 export function boostParts(resourceId) {
     const parts = [];
     for (const source of sources) {

@@ -1,14 +1,21 @@
 // nodes.js
 //
-// This is for draggable canvas nodes.
+// Draggable canvas nodes
 
-import { canAfford } from "./resources.js";
+import { canAfford, getLevel } from "./resources.js";
+import { getLayerState } from "./state.js";
 
 // Some nodes are fed by two branches at once, so `parents` takes an array
 export function parentsOf(def) {
     if (def.parents) return def.parents;
     return def.parent ? [def.parent] : [];
 }
+
+// Look up a node on another layer by id
+export const nodeBought = (layerId, nodeId) => getLevel(getLayerState(layerId), nodeId) > 0;
+
+// Shortcut for the cores tree, which most unlock checks ask about
+export const coreNodeBought = (nodeId) => nodeBought("cores", nodeId);
 
 export function nodeOwned(layer, nodeId, layerState) {
     const def = layer.nodes[nodeId];
@@ -25,10 +32,10 @@ export function prereqMet(layer, def, layerState) {
 export function nodeVisible(layer, nodeId, layerState) {
     const def = layer.nodes[nodeId];
     if (!def) return false;
-    if (layerState.purchasedUpgrades[nodeId]) return true; // never hide something already bought
+    if (layerState.purchasedUpgrades[nodeId]) return true; // Never hide something already bought
     if (def.hidden && def.hidden(layerState)) return false;
     const parents = parentsOf(def);
-    if (!parents.length) return true; // the cores themselves
+    if (!parents.length) return true; // The cores themselves
     return parents.some(parentId => nodeOwned(layer, parentId, layerState));
 }
 

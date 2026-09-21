@@ -1,16 +1,14 @@
 // resources.js
 //
-// Reading, spending and rate-tracking the pools. What a resource is, and which layer holds it,
-// is declared in content/resourceDefs.js.
-//
-// Costs are maps of {resourceId: amount} rather than a single number, so an upgrade can
-// charge for more than one resource at once - which is what the "green and blue"
-// upgrades need. A single-resource cost is just a one-entry map. Amounts are Decimals.
+// Reading, spending and tracking pools; costs are {resourceId: Decimal} maps
 
 import { state, getLayerState } from "./state.js";
 import { resourceDef, resourceDefs } from "./registry.js";
 import { D } from "../utils/decimal.js";
 import { formatNumber } from "../utils/format.js";
+
+
+//    !!! THE POOLS !!!
 
 // However many layers show a resource, its pool is stored on exactly one
 export const resourceHolderId = (resourceId) => resourceDef(resourceId).holder;
@@ -32,6 +30,9 @@ export function setResource(resourceId, value) {
     holder.resources[resourceId] = D(value);
 }
 
+
+//    !!! SPENDING !!!
+
 export function canAfford(cost) {
     for (const resourceId in cost) {
         if (getResource(resourceId).lt(cost[resourceId])) return false;
@@ -42,7 +43,7 @@ export function canAfford(cost) {
 const spendListeners = [];
 export const onSpend = (listener) => spendListeners.push(listener);
 
-// Makes sure that you don't have a partial spend, it's all or nothing
+// All or nothing, so a spend can't half-apply
 export function spend(cost) {
     if (!canAfford(cost)) return false;
     for (const resourceId in cost) {
@@ -56,7 +57,9 @@ export function spend(cost) {
 }
 
 
-// For tracking resource generation
+//    !!! PRODUCTION RATES !!!
+
+// What each pool gained since the last sample
 const lastSeen = {};
 const spentSince = {};
 const rates = {};
@@ -99,29 +102,27 @@ export function productionRate(resourceId) {
     return rates[`${resourceHolderId(resourceId)}:${resourceId}`] || D(0);
 }
 
-// Big boosts make the production rate look reaaally off, so this makes them the actual rate
+// A big boost leaves the smoothed rate far behind, so it is resynced to the real one
 export function resyncProduction() {
     for (const key in lastSeen) delete lastSeen[key];
     for (const key in spentSince) delete spentSince[key];
     for (const key in rates) delete rates[key];
 }
 
-// When multiple currencies are used at the same time same amount, this makes it shorten the display of it
+
+//    !!! COST GROUPS !!!
+
+// Several resources spent at the same amount are read as one group
 const costGroups = [];
 
-/**
- * @param {object} def
- * @param {string[]} def.ids    
- *                              
- * @param {string} def.name
- * @param {string} [def.short]
- * @param {string} [def.color]
- */
 
 export function registerCostGroup({ ids, name, short = null, color = null }) {
     if (!ids || ids.length < 2) throw new Error(`Cost group "${name}" needs at least two resource ids.`);
     costGroups.push({ ids, name, short: short || name, color });
 }
+
+// For rich text, so a group's name typed into a sentence gets colored like a lone resource's would
+export const registeredCostGroups = () => costGroups;
 
 // A cost split into the pieces it should be read as
 export function costParts(cost) {
@@ -157,7 +158,17 @@ export function formatCost(cost) {
     return costParts(cost).map(part => `${part.amount} ${part.label}`).join(" + ");
 }
 
+
+//    !!! UPGRADE LEVELS !!!
+
 // How many times a repeatable upgrade has been bought
 export function getLevel(layerState, upgradeId) {
     return Number(layerState.purchasedUpgrades[upgradeId]) || 0;
 }
+
+// Binds a layer's state once so content doesn't look it up every call
+export const levelsIn = (layerId) => (upgradeId) => getLevel(getLayerState(layerId), upgradeId);
+
+// The (+x%) tail quoting what one more level buys, dropped once the upgrade sits at its cap
+export const stepNote = (level, max, gain) => level >= max ? null : gain;
+export const nextStep = (s, id, max, gain) => stepNote(getLevel(s, id), max, gain);

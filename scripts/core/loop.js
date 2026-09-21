@@ -1,11 +1,8 @@
-// loop.js 
-// 
-// Two clocks: the simulation tick advancing every unlocked layer, and requestAnimationFrame
-// drawing whichever one is on screen. The chrome around the canvas (sidebar, guides) reads game
-// data, which only moves on ticks - so it follows the simulation clock instead of re-checking
-// unchanged unlocks at frame rate.
+// loop.js
+//
+// The sim tick for every layer, plus requestAnimationFrame drawing the one on screen
 
-import { state, saveState, getLayerState } from "./state.js";
+import { state, saveState, layerUnlocked } from "./state.js";
 import { layers } from "./registry.js";
 import { sampleProduction } from "./resources.js";
 import { renderActiveLayer, markDirty } from "../render/canvasRouter.js";
@@ -16,11 +13,15 @@ const SIM_TICK_MS = 50;      // 20 ticks/sec
 const AUTOSAVE_MS = 5 * 60 * 1000; // Settings can switch this off; closing the tab still saves
 
 let lastTickTime = Date.now();
+let gameSpeed = 1;  // Dev menu only, and not saved
+
+export const getGameSpeed = () => gameSpeed;
+export function setGameSpeed(speed) { gameSpeed = speed > 0 ? speed : 1; }
 let lastAutosave = Date.now();
 
 function simulationTick() {
     const now = Date.now();
-    const dt = (now - lastTickTime) / 1000; // seconds, so onTick() reads as "+1 per second"
+    const dt = (now - lastTickTime) / 1000 * gameSpeed; // Seconds, so onTick() reads as "+1 per second"
     lastTickTime = now;
 
     state.totalTimePlayed += dt;
@@ -28,9 +29,9 @@ function simulationTick() {
     for (const layer of Object.values(layers)) {
         if (!layer.onTick) continue;
         // Being locked stops a layer, being off-screen doesn't
-        if (!getLayerState(layer.id).unlocked) continue;
+        if (!layerUnlocked(layer.id)) continue;
 
-        try {   // if it fails to tick a layer, it won't skip things after it
+        try {   // A layer that throws doesn't stop the ones after it
         layer.onTick(dt, layer);
         markDirty(layer.id);
        } catch (err) {
@@ -38,7 +39,7 @@ function simulationTick() {
        }
     }
 
-    try { // if it fails to tick the active layer, it won't skip things after it
+    try { // A failed tick of the active layer doesn't stop what follows it
         markDirty(state.activeLayer);
         sampleProduction(dt);
     } catch (err) {
@@ -58,8 +59,7 @@ function simulationTick() {
     }
 }
 
-// One thrown error used to take the whole animation frame chain with it, now
-// it's reported and the tick carries on
+// Report errors so one bad tick doesn't kill the frame loop
 let renderFailures = 0;
 const MAX_REPORTED_FAILURES = 5;
 
@@ -67,7 +67,7 @@ function renderFrame() {
     try {
         renderActiveLayer();
 
-        // Re-points the nav toggle at the active header. 
+        // Re-points the nav toggle at the active header
         syncNavToggleTarget();
     } catch (err) {
         if (renderFailures++ < MAX_REPORTED_FAILURES) {
