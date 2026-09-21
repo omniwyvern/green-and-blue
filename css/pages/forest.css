@@ -1,0 +1,630 @@
+/* forest.css */
+
+.forest-canvas {
+    overflow: hidden;
+    container-type: size;
+}
+
+.forest-scene {
+    --sky-top: #12303a;
+    --sky-low: #23483f;
+    --far-trees: #1b3b34;
+    --soil: #2c2318;
+    --soil-face: #3a2e1f;
+    --grass-line: #3d7a45;
+    --grass-deep: #27512f;
+    --grass-tuft: #4a8a4f;
+    --near-trees: #1d4432;
+    --near-trees-light: #27573c;
+    --canopy-shade: #16382a;
+    --fill-green: #1d5236;
+
+    --bark: #6b4a2f;
+    --bark-light: #85603d;
+    --leaf: #3f8f4e;
+    --leaf-light: #5fb264;
+    --root-color: #4a3823;
+
+    --floor: 21%;
+    --density: 0;
+    --tree-h: min(22 * var(--u), 62cqh);
+
+    overflow: hidden;
+    color: var(--text);
+}
+
+:root[data-theme="light"] .forest-scene {
+    --sky-top: #cfe4ea;
+    --sky-low: #dcecd6;
+    --far-trees: #a9c9ad;
+    --soil: #b39c7c;
+    --soil-face: #c4ae8c;
+    --grass-line: #6aa563;
+    --grass-deep: #4f8a4e;
+    --grass-tuft: #79b471;
+    --near-trees: #7fae88;
+    --near-trees-light: #93c199;
+    --canopy-shade: #8fbf94;
+    --fill-green: #9ccb9c;
+
+    --bark: #7d5636;
+    --bark-light: #99724a;
+    --leaf: #3f9350;
+    --leaf-light: #6cbf6f;
+    --root-color: #6a5236;
+}
+
+.forest-sky {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, var(--sky-top), var(--sky-low));
+}
+
+.forest-green {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(to bottom, var(--canopy-shade) 0, transparent 18%),
+        linear-gradient(to bottom, transparent 38%, var(--fill-green));
+    opacity: calc(var(--density) * 0.65);
+    pointer-events: none;
+}
+
+.forest-haze {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--floor);
+    height: calc((3.5 + 2.5 * var(--density)) * var(--u));
+    background:
+        radial-gradient(ellipse 58% 92% at 50% 100%, var(--far-trees) 0 72%, transparent 73%),
+        radial-gradient(ellipse 52% 62% at 50% 100%, var(--far-trees) 0 72%, transparent 73%);
+    background-size: 9% 100%, 6% 62%;
+    background-position: 0 100%, 3% 100%;
+    background-repeat: repeat-x;
+    opacity: calc(0.5 + 0.5 * var(--density));
+    pointer-events: none;
+}
+
+.forest-thicket {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--floor);
+    height: calc((2 + 3.5 * var(--density)) * var(--u));
+    background:
+        radial-gradient(ellipse 62% 96% at 50% 100%, var(--near-trees) 0 74%, transparent 75%),
+        radial-gradient(ellipse 56% 70% at 50% 100%, var(--near-trees-light) 0 74%, transparent 75%);
+    background-size: 13% 100%, 8% 68%;
+    background-position: -4% 100%, 2% 100%;
+    background-repeat: repeat-x;
+    opacity: calc(var(--density) * 0.9);
+    pointer-events: none;
+}
+
+.forest-floor {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--floor);
+    background: linear-gradient(to bottom, var(--soil-face), var(--soil));
+}
+
+.forest-grass {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 0.8125rem;
+    background:
+        radial-gradient(ellipse 58% 100% at 50% 100%, var(--grass-tuft) 0 72%, transparent 73%),
+        linear-gradient(to bottom, var(--grass-line), var(--grass-deep));
+    background-size: 0.625rem 0.3125rem, 100% 100%;
+    background-position: 0 0, 0 0;
+    background-repeat: repeat-x, no-repeat;
+}
+
+.forest-grove {
+    position: absolute;
+    inset: 0;
+}
+
+
+.forest-tree {
+    position: absolute;
+    bottom: calc(var(--floor) - 0.227 * var(--tree-h) - 0.3rem);
+    width: calc(var(--tree-h) * 0.5454);
+    height: var(--tree-h);
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transform-origin: bottom center;
+    transform: translateX(-50%) scale(calc(var(--depth) * (0.72 + 0.28 * var(--grown))));
+    opacity: calc(0.6 + 0.4 * var(--depth));
+    z-index: calc(var(--depth) * 100);
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.forest-tree:hover, .forest-tree.selected, .forest-tree:hover .tree-tag, .forest-tree.selected .tree-tag {
+    opacity: 1;
+}
+
+.tree-art-host {
+    position: absolute;
+    inset: 0;
+    display: block;
+    pointer-events: none;
+}
+
+.tree-art {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.tree-trunk { fill: var(--bark); }
+.tree-limb {
+    fill: none;
+    stroke: var(--bark-light);
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+.tree-leaf { fill: var(--leaf); }
+.tree-crown, .forest-tree:hover .tree-leaf, .forest-tree.selected .tree-leaf { fill: var(--leaf-light); }
+.tree-root {
+    fill: none;
+    stroke: var(--root-color);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    opacity: 0.65;
+}
+
+
+.tree-art.mature .tree-crown,
+.tree-art.mature .tree-leaf { filter: drop-shadow(0 0 0.35rem color-mix(in srgb, var(--gold) 60%, transparent)); }
+
+.forest-tree.selected { filter: drop-shadow(0 0 0.5rem color-mix(in srgb, var(--gold) 45%, transparent)); }
+
+.tree-flag {
+    position: absolute;
+    left: 50%;
+    top: calc(var(--crown) * 100% - 1.75rem);
+    display: none;
+    width: 1.375rem;
+    height: 1.375rem;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    background: var(--gold);
+    color: #1b1b18;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.375rem;
+    text-align: center;
+    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--gold) 70%, transparent);
+    --pulse-x0: -50%;
+    --pulse-to: 1.18;
+    animation: pulse 0.8s ease-in-out infinite alternate;
+}
+.forest-tree.timed .tree-flag {
+    width: auto;
+    padding: 0 0.4375rem;
+    border-radius: 0.6875rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.tree-tag {
+    position: absolute;
+    left: 50%;
+    bottom: calc(0.227 * var(--tree-h) - 1.25rem);
+    transform: translateX(-50%);
+    padding: 0.0625rem 0.375rem;
+    border-radius: 0.375rem;
+    background: color-mix(in srgb, var(--panel) 85%, transparent);
+    border: 1px solid var(--border);
+    font-size: 0.6875rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+
+.forest-open-summary {
+    position: absolute;
+    top: 0.625rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.0625rem;
+    padding: 0.375rem 0.875rem;
+    border-radius: 0.625rem;
+    background: color-mix(in srgb, var(--panel) 90%, transparent);
+    border: 1px solid var(--border);
+    box-shadow: 0 0.25rem 0.75rem var(--shadow);
+    color: var(--text);
+    cursor: pointer;
+    z-index: 200;
+}
+.forest-open-summary:hover, .silviculture-toggle:hover { border-color: var(--green); }
+
+.forest-open-summary[data-side="left"] { left: 0.625rem; right: auto; transform: none; }
+.forest-open-summary[data-side="right"] { left: auto; right: 0.625rem; transform: none; }
+
+.open-summary-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+}
+.open-summary-value, .forest-card-head .tree-growth { font-size: 0.8125rem; font-weight: 600; }
+.open-summary-count { font-size: 0.6875rem; color: var(--text-dim); }
+
+.forest-bare {
+    position: absolute;
+    inset: auto 50% auto auto;
+    top: 50%;
+    right: 50%;
+    transform: translate(50%, -50%);
+    width: min(24rem, 80%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 1rem;
+    text-align: center;
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--panel) 92%, transparent);
+    border: 1px solid var(--border);
+}
+
+.forest-panel {
+    position: absolute;
+    top: 0.625rem;
+    bottom: calc(var(--canvas-corner-step) + 2.75 * var(--u));
+    width: min(22.5rem, 42vw);
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: 0 0.5rem 1.5rem var(--shadow);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 300;
+}
+
+.forest-panel[data-side="right"] { right: 0.625rem; left: auto; }
+.forest-panel[data-side="left"] { left: 0.625rem; right: auto; }
+
+.forest-close {
+    position: absolute;
+    top: 0.375rem;
+    right: 0.5rem;
+    padding: 0 0.25rem;
+    border: 0;
+    background: none;
+    color: var(--text-dim);
+    font-size: 1.125rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.forest-close:hover, .reef-entry-boost b { color: var(--text); }
+
+.forest-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.forest-page-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-right: 1rem;
+}
+
+.forest-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    margin-top: 0.4375rem;
+}
+
+.summary-block {
+    margin-top: 1rem;
+    gap: 0.5rem;
+}
+
+.forest-section-head,
+.forest-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.forest-page-title { font-size: 1rem; font-weight: 600; }
+.forest-page-label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+}
+.forest-page-note { font-size: 0.75rem; color: var(--text-dim); line-height: 1.45; }
+
+.forest-reads-as {
+    flex: none;
+    padding: 0.0625rem 0.4375rem;
+    border-radius: 0.375rem;
+    background: color-mix(in srgb, var(--category-color) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--category-color) 60%, transparent);
+    color: var(--category-color);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.forest-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.5rem 0.5625rem 0.625rem;
+    border-radius: 0.5rem;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+}
+
+
+.forest-bar {
+    display: block;
+    height: 0.375rem;
+    border-radius: 0.1875rem;
+    background: color-mix(in srgb, var(--border) 70%, transparent);
+    overflow: hidden;
+}
+.forest-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 0.1875rem;
+    background: var(--green);
+    transition: width 0.2s linear;
+}
+
+
+.tree-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3125rem;
+}
+
+.stat-row {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr 1.75rem;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+}
+.combo-tag.folded b, .stat-name { color: var(--text-dim); }
+.stat-track {
+    display: block;
+    height: 0.5rem;
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--border) 70%, transparent);
+    overflow: hidden;
+}
+.stat-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 0.25rem;
+    background: var(--stat-color);
+    transition: width 0.25s ease;
+}
+.stat-points { text-align: right; font-weight: 600; color: var(--stat-color); }
+
+
+.forest-yield {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3125rem;
+}
+
+.forest-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    padding: 0.0625rem 0.4375rem;
+    border-radius: 0.375rem;
+    background: color-mix(in srgb, var(--resource-color) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--resource-color) 45%, transparent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--resource-color);
+}
+.forest-chip em { font-style: normal; font-weight: 400; opacity: 0.8; }
+
+.forest-yield-empty { font-size: 0.75rem; color: var(--text-dim); }
+
+
+.tree-offer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding-top: 0.125rem;
+}
+
+.offer-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.offer-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+    padding: 0.5rem 0.5625rem;
+    border-radius: 0.5rem;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.offer-card:hover {
+    border-color: var(--green);
+    background: color-mix(in srgb, var(--green) 12%, var(--panel-light));
+}
+
+.offer-name { font-size: 0.8125rem; font-weight: 600; }
+.offer-effects { display: flex; flex-wrap: wrap; gap: 0.3125rem; }
+.offer-effect {
+    padding: 0 0.3125rem;
+    border-radius: 0.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+}
+.offer-effect.good {
+    background: color-mix(in srgb, var(--green) 20%, transparent);
+    color: var(--green);
+}
+.offer-effect.bad {
+    background: color-mix(in srgb, #c96a5a 20%, transparent);
+    color: #d98374;
+}
+.offer-text { font-size: 0.75rem; color: var(--text-dim); line-height: 1.45; }
+
+.tree-picks { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.pick-tag {
+    padding: 0.0625rem 0.375rem;
+    border-radius: 0.375rem;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    font-size: 0.6875rem;
+    color: var(--text-dim);
+}
+
+
+.summary-old-list,
+.summary-live-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.forest-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.4375rem 0.5rem;
+    border-radius: 0.5rem;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-left: 0.1875rem solid var(--category-color);
+    text-align: left;
+    color: var(--text);
+}
+button.forest-row:hover { border-color: var(--category-color); }
+
+.row-count {
+    font-size: 0.6875rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+}
+.row-text { font-size: 0.6875rem; color: var(--text-dim); line-height: 1.4; }
+
+.tree-icon {
+    flex: none;
+    width: 1.75rem;
+    height: 2.1875rem;
+    overflow: visible;
+}
+.icon-trunk {
+    fill: none;
+    stroke: var(--bark, #6b4a2f);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+}
+.icon-root {
+    fill: none;
+    stroke: var(--root-color, #4a3823);
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    opacity: 0.7;
+}
+.icon-crown { fill: var(--icon-color); }
+
+
+@media (max-width: 720px) {
+    .forest-scene { --tree-h: min(11 * var(--u), 40cqh); }
+
+    .forest-panel,
+    .forest-panel[data-side="left"],
+    .forest-panel[data-side="right"] {
+        left: 0.5rem;
+        right: 0.5rem;
+        top: auto;
+        width: auto;
+        bottom: calc(var(--canvas-corner-step) + 0.5rem);
+        max-height: 55%;
+    }
+
+    .forest-open-summary { top: 0.375rem; }
+
+    .forest-open-summary[data-side="left"],
+    .forest-open-summary[data-side="right"] {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+    }
+    .stat-row { grid-template-columns: 3.75rem 1fr 1.5rem; }
+}
+
+.tree-fell {
+    margin-top: 0.5rem;
+    padding: 0.4375rem 0.625rem;
+    border-radius: 0.5rem;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tree-fell:hover {
+    border-color: var(--green);
+    background: color-mix(in srgb, var(--green) 12%, var(--panel-light));
+}
+
+.silviculture-toggle {
+    margin-top: 0.375rem;
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.5rem;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.silviculture-toggle.on {
+    border-color: var(--green);
+    color: var(--text);
+    background: color-mix(in srgb, var(--green) 14%, var(--panel-light));
+}
+
+

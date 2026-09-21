@@ -1,0 +1,346 @@
+/* evolution-scenery.css */
+
+.evo-scenery {
+    --sc-1: color-mix(in srgb, var(--tree-color) 8%, transparent);
+    --sc-2: color-mix(in srgb, var(--tree-color) 16%, transparent);
+    --sc-3: color-mix(in srgb, var(--tree-color) 26%, transparent);
+    --sc-4: color-mix(in srgb, var(--tree-color) 42%, transparent);
+    --sc-sun: rgba(255, 246, 205, 0.16);
+    --sc-white: rgba(255, 255, 255, 0.8);
+    --sc-leaf: color-mix(in srgb, var(--tree-color) 70%, transparent);
+    position: absolute;
+    inset: 0 0 var(--evo-bay-height) 0;
+    overflow: hidden;
+    pointer-events: none;
+    container-type: size;
+    --glow-from: 0;
+    animation: glow 0.6s ease-out;
+}
+:root[data-theme="light"] .evo-scenery {
+    --sc-sun: rgba(255, 252, 230, 0.45);
+    --sc-white: rgba(255, 255, 255, 0.95);
+}
+
+.evo-scenery > * {
+    position: absolute;
+    pointer-events: none;
+}
+.evo-scenery svg { overflow: visible; }
+.sc-wash { inset: 0; }
+
+
+.sc-spore {
+    left: var(--x);
+    top: var(--y);
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    opacity: 0;
+    animation: sc-drift var(--d) ease-in-out infinite;
+    animation-delay: var(--delay);
+}
+@keyframes sc-drift {
+    0% { transform: translate(0, 0); opacity: 0; }
+    30%, 70% { opacity: 0.7; }
+    100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+}
+.sc-leaf,
+.sc-snow {
+    left: var(--x);
+    top: 0;
+    opacity: 0;
+    animation: sc-fall var(--d) linear infinite;
+    animation-delay: var(--delay);
+}
+@keyframes sc-fall {
+    0% { transform: translate(0, -5cqh); opacity: 0; }
+    10%, 90% { opacity: 0.8; }
+    100% { transform: translate(var(--drift), 105cqh); opacity: 0; }
+}
+
+
+.evo-scenery[data-tree="tidal"] .sc-wash {
+    background: linear-gradient(to bottom, transparent 20%, var(--sc-1) 50%, var(--sc-3));
+}
+.sc-current {
+    left: 0;
+    top: var(--y);
+    width: var(--w);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--sc-4), transparent);
+    --slide-from: -30cqw; --slide: 130cqw;
+    animation: slide var(--d) linear infinite;
+    animation-delay: var(--delay);
+}
+.sc-swell {
+    left: 0;
+    bottom: 0;
+    width: 200%;
+    --slide: -50%;
+    animation: slide var(--d) linear infinite;
+}
+.sc-swell svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.sc-swell-far { height: 42%; --d: 48s; }
+.sc-swell-mid { height: 30%; --d: 32s; animation-direction: reverse; }
+.sc-swell-near { height: 18%; --d: 21s; }
+.sc-swell-body { fill: var(--sc-2); }
+.sc-swell-far .sc-swell-body { fill: var(--sc-1); }
+.sc-swell-crest {
+    fill: none;
+    stroke: var(--sc-4);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+}
+
+
+.evo-scenery[data-tree="canopy"] .sc-wash {
+    background: linear-gradient(to bottom, var(--sc-2), var(--sc-1) 35%, transparent 60%, var(--sc-2));
+}
+.sc-ray {
+    top: -10%;
+    left: var(--x);
+    width: var(--w);
+    height: 120%;
+    transform-origin: 50% 0;
+    transform: rotate(var(--tilt));
+    background: linear-gradient(to bottom, var(--sc-sun), transparent 85%);
+    --glow-from: 0.2;
+    animation: glow var(--d) ease-in-out infinite alternate;
+    animation-delay: var(--delay);
+}
+.sc-canopy {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 26%;
+}
+.sc-canopy-back { height: 34%; fill: var(--sc-2); }
+.sc-canopy-front { fill: var(--sc-3); }
+.sc-floor {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 13%;
+    fill: var(--sc-2);
+}
+.sc-leaf {
+    width: var(--s);
+    height: calc(var(--s) * 0.6);
+    border-radius: 0 100% 0 100%;
+    background: var(--sc-leaf);
+}
+
+
+.evo-scenery[data-tree="stagnant"] .sc-wash {
+    background: linear-gradient(to top,
+        color-mix(in srgb, var(--tree-color) 30%, rgba(55, 40, 12, 0.45)),
+        var(--sc-2) 26%,
+        rgba(210, 220, 195, 0.14) 40%,
+        var(--sc-1) 62%, transparent 85%);
+}
+.sc-reeds {
+    left: -2%;
+    bottom: 0;
+    width: 104%;
+    height: 34%;
+    color: var(--sc-4);
+    --sway-by: 0.5%;
+    animation: sway 9s ease-in-out infinite alternate;
+}
+.sc-reeds path, .sc-coral-arms { fill: none; stroke: currentColor; stroke-linecap: round; }
+.sc-reeds rect { fill: color-mix(in srgb, var(--tree-color) 25%, rgba(75, 48, 22, 0.7)); }
+.sc-bubble {
+    left: var(--x);
+    bottom: var(--y);
+    width: var(--s);
+    height: var(--s);
+    border: 1px solid rgba(220, 235, 200, 0.5);
+    border-radius: 50%;
+    opacity: 0;
+    animation: sc-bubble var(--d) ease-in infinite;
+    animation-delay: var(--delay);
+}
+@keyframes sc-bubble {
+    0% { transform: translateY(0); opacity: 0; }
+    15%, 85% { opacity: 0.7; }
+    100% { transform: translateY(calc(var(--rise) * -1)); opacity: 0; }
+}
+.sc-firefly {
+    left: var(--x);
+    top: var(--y);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #e4f78a;
+    box-shadow: 0 0 8px 2px rgba(220, 245, 120, 0.55);
+    opacity: 0;
+    animation: pulse var(--d) ease-in-out infinite alternate, sc-blink var(--b) ease-in-out infinite;
+    animation-delay: var(--delay), var(--delay);
+}
+@keyframes sc-blink {
+    0%, 40%, 100% { opacity: 0; }
+    55%, 75% { opacity: 0.9; }
+}
+
+
+.evo-scenery[data-tree="saline"] .sc-wash {
+    background:
+        linear-gradient(to bottom, var(--sc-3), var(--sc-1) 40%, transparent 65%),
+        linear-gradient(to top, var(--sc-2), transparent 35%);
+}
+.sc-reef {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 30%;
+}
+.sc-coral { color: var(--c); }
+.sc-coral-mound,
+.sc-coral-tubes { fill: currentColor; }
+.sc-coral-groove {
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.18);
+    stroke-width: 3;
+}
+.sc-tube-mouth { fill: rgba(0, 0, 0, 0.25); }
+.sc-school {
+    left: 0;
+    top: var(--y);
+    width: 1px;
+    height: 1px;
+    --slide-from: -25cqw; --slide: 125cqw;
+    animation: slide var(--d) linear infinite;
+    animation-delay: var(--delay);
+}
+.sc-school[style*="--flip"] { animation-direction: reverse; }
+.sc-school i {
+    position: absolute;
+    left: var(--ox);
+    top: var(--oy);
+    width: var(--s);
+    height: calc(var(--s) * 0.45);
+    transform: scaleX(var(--flip, 1));
+}
+.sc-school i::before,
+.sc-school i::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: var(--sc-4);
+}
+.sc-school i::before {
+    left: 30%;
+    width: 70%;
+    border-radius: 50%;
+}
+.sc-school i::after {
+    left: 0;
+    width: 38%;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+
+.evo-scenery[data-tree="frigid"] .sc-wash {
+    background:
+        radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.1), transparent 30%),
+        radial-gradient(circle at 100% 0, rgba(255, 255, 255, 0.1), transparent 30%),
+        linear-gradient(to bottom, var(--sc-2), transparent 45%),
+        linear-gradient(to top, var(--sc-2), transparent 30%);
+}
+.sc-aurora {
+    left: -25%;
+    top: var(--y);
+    width: 150%;
+    height: 24%;
+    border-radius: 50%;
+    background: linear-gradient(90deg, transparent 5%, var(--a) 28%, var(--b) 52%, var(--a) 74%, transparent 95%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%, #000 55%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 45%, #000 55%, transparent);
+    --pulse-x0: -5%; --pulse-x: 5%;
+    --pulse-o0: 0.45; --pulse-o: 0.95;
+    animation: pulse var(--d) ease-in-out infinite alternate;
+    animation-delay: var(--delay);
+}
+.sc-ice {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 20%;
+}
+.sc-ice-body { fill: var(--sc-3); }
+.sc-ice-edge {
+    fill: none;
+    stroke: rgba(235, 248, 255, 0.4);
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+.sc-snow {
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    background: var(--sc-white);
+}
+
+
+.evo-scenery[data-tree="decay"] .sc-wash {
+    background:
+        radial-gradient(ellipse 75% 70% at 50% 35%, transparent 40%, color-mix(in srgb, var(--tree-color) 14%, rgba(30, 15, 25, 0.35))),
+        linear-gradient(to top, color-mix(in srgb, var(--tree-color) 22%, rgba(40, 25, 20, 0.4)), transparent 35%);
+}
+.sc-hyphae {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke-linecap: round;
+}
+.sc-hyphae-base {
+    stroke: var(--sc-4);
+    stroke-width: 2;
+}
+.sc-node {
+    fill: color-mix(in srgb, var(--tree-color), #ffffff 40%);
+    stroke: none;
+    transform-box: fill-box;
+    transform-origin: center;
+    --pulse-from: 0.6; --pulse-to: 1.3;
+    --pulse-o0: 0.15; --pulse-o: 0.85;
+    animation: pulse var(--d) ease-in-out infinite alternate;
+    animation-delay: var(--delay);
+}
+.sc-mushrooms {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 30%;
+}
+.sc-soil { fill: var(--sc-2); }
+.sc-stem { fill: color-mix(in srgb, var(--tree-color) 18%, rgba(225, 210, 195, 0.22)); }
+.sc-cap,
+.sc-halo {
+    --glow-from: 0.4;
+    animation: glow var(--d) ease-in-out infinite alternate;
+    animation-delay: var(--delay);
+}
+.sc-cap { fill: color-mix(in srgb, var(--tree-color) 60%, transparent); }
+.sc-halo {
+    fill: none;
+    stroke: var(--sc-2);
+    stroke-width: 16;
+    stroke-linejoin: round;
+}
+.sc-spore {
+    background: color-mix(in srgb, var(--tree-color), #ffffff 40%);
+    box-shadow: 0 0 6px var(--tree-color);
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+    .evo-scenery,
+    .evo-scenery * { animation: none !important; }
+}

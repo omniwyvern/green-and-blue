@@ -1,0 +1,206 @@
+/* grass.css */
+
+.grass-canvas > .static-scene { right: 50%; }
+
+.grass-canvas > .upgrade-grid {
+    position: absolute;
+    inset: 0 0 0 50%;
+    height: auto;
+    border-left: 1px solid var(--border);
+    align-content: start;
+}
+#app.flyout-over-header #sidebar-flyout, #app.has-flyout .grass-canvas > .upgrade-grid { padding-left: 1.25rem; }
+
+
+@media (max-width: 700px) {
+    .grass-canvas {
+        display: block;
+        overflow-y: auto;
+    }
+    .grass-canvas > .static-scene {
+        position: static;
+        right: auto;
+        overflow: visible;
+    }
+    .grass-canvas > .upgrade-grid {
+        position: static;
+        inset: auto;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        overflow: visible;
+    }
+    .grass-scene { overflow-y: visible; }
+    #app.has-flyout .grass-canvas > .upgrade-grid { padding-left: var(--page-pad); }
+}
+
+.grass-page {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: var(--page-pad);
+}
+
+.grass-summary {
+    font-size: 0.8125rem;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+
+.yield-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0.625rem;
+}
+
+.yield-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.875rem 1rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+}
+
+.yield-value {
+    font-size: 1.625rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.yield-label, .yield-share { font-size: 0.75rem; color: var(--text-dim); }
+
+.yield-green { border-left: 3px solid var(--art-grass); }
+.yield-green .yield-value { color: var(--art-grass); }
+.yield-blue { border-left: 3px solid var(--art-water); }
+
+.yield-stat.idle { opacity: 0.5; border-left-color: var(--border); }
+.yield-stat.idle .yield-value, .marsh-readout span:first-child { color: var(--text-dim); }
+
+
+.yield-breakdown { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.yield-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.75rem;
+    row-gap: 0.125rem;
+    padding: 0.375rem 0.875rem;
+    background: var(--panel);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.yield-row-name { font-weight: 600; }
+.yield-row-count, .yield-row-each { color: var(--text-dim); font-size: 0.6875rem; }
+.yield-row-total { margin-left: auto; font-weight: 600; }
+.yield-row.green .yield-row-total { color: var(--art-grass); }
+.yield-blue .yield-value, .yield-row.blue .yield-row-total { color: var(--art-water); }
+
+.yield-row.summed { background: var(--panel-light); }
+.yield-row.summed .yield-row-name { font-weight: 500; color: var(--text-dim); }
+
+
+.grass-sacrifice {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1875rem;
+    align-items: flex-start;
+    padding: 0.6875rem 0.875rem;
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--art-grass);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+.grass-sacrifice:hover:not(:disabled) { border-color: var(--accent); border-left-color: var(--art-grass); }
+.grass-sacrifice:disabled { opacity: 0.5; cursor: default; border-left-color: var(--border); }
+
+.sacrifice-title { font-weight: 600; font-size: 0.8125rem; }
+.sacrifice-detail { font-size: 0.75rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+
+.grass-types {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11.875rem, 1fr));
+    gap: 0.625rem;
+}
+
+.grass-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0.75rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+.grass-card.active { border-color: var(--blade); background: var(--panel-light); }
+.grass-card.locked { border-style: dashed; opacity: 0.55; cursor: default; }
+.grass-card.sown { opacity: 0.45; cursor: default; }
+
+.grass-sown { text-transform: none; letter-spacing: 0; opacity: 0.8; }
+
+.grass-card-head { display: flex; align-items: center; gap: 0.5rem; }
+.grass-card-name { font-weight: 600; font-size: 0.8125rem; }
+
+.grass-card-art { width: 1.625rem; height: 1.625rem; flex-shrink: 0; }
+.grass-card-art .grass-blade {
+    fill: none;
+    stroke: var(--blade);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+}
+.grass-card.locked .grass-card-art .grass-blade { stroke: var(--text-dim); }
+
+.grass-card-effects {
+    margin: 0;
+    padding-left: 1rem;
+    font-size: 0.75rem;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.grass-card.locked .grass-card-effects { color: var(--gold); }
+.grass-card-blurb { font-size: 0.6875rem; color: var(--text-dim); line-height: 1.4; }
+
+.milestone-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--art-grass);
+    border-radius: 0.5rem;
+}
+
+.vitality-panel .milestone-row { margin-top: 0.5rem; }
+
+.milestone-facts { display: flex; flex-direction: column; gap: 0.125rem; }
+.milestone-title { font-size: 0.8125rem; font-weight: 600; }
+.milestone-effect { font-size: 0.6875rem; color: var(--text-dim); }
+
+.milestone-earned { display: flex; flex-direction: column; gap: 0.375rem; }
+
+.milestone-row.earned {
+    padding: 0.5rem 0.875rem;
+    background: transparent;
+    border-left-color: color-mix(in srgb, var(--art-grass) 45%, transparent);
+}
+.milestone-row.special { border-color: var(--gold); }
+.milestone-row.earned.special { border-left-color: var(--gold); }
+.milestone-row.earned .milestone-title { font-weight: 500; color: var(--text-dim); }
+
+.milestone-at {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    color: var(--art-grass);
+    font-variant-numeric: tabular-nums;
+}

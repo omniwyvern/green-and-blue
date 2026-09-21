@@ -1,0 +1,382 @@
+/* terrain.css */
+
+:root {
+    --ground-bare: #3f4a38;
+    --ground-grass: #2c4e2e;
+    --ground-water: #2c4a5c;
+    --ground-snow: #4a5560;
+
+    --ground-pond: #1e4058;
+    --ground-ocean: #2e6d9c;
+    --ground-deep-ocean: #2e6d9c;
+
+    --ground-reef: #368fa4;
+    --ground-coral-reef: #368fa4;
+    --ground-great-reef: #368fa4;
+
+    --ground-forest: #253d20;
+    --ground-dense-forest: #1c3119;
+    --ground-ancient-forest: #1a2b25;
+
+    --ground-ice-field: #55788e;
+    --ground-glacier: #3d5f78;
+    --ground-ice-cap: #2f4d68;
+
+    --ground-marsh: #36503f;
+    --ground-swamp: #2b4238;
+    --ground-mangrove: #2d4f4a;
+
+    --ground-mushroom-grove: #3a3346;
+    --ground-fungal-forest: #3a2f4c;
+    --ground-mycelial-network: #241d33;
+}
+
+.hex-unlocked.has-terrain .hex-face { background: var(--ground, var(--ground-bare)); }
+.hex-unlocked.has-terrain:hover .hex-face, .node:not(.owned):not(.unmet):hover > .node-face {
+    filter: brightness(1.12);
+}
+
+.tile-terrain {
+    width: 82%;
+    height: 82%;
+    display: block;
+}
+.terrain-art-ocean,
+.terrain-art-deep-ocean,
+.terrain-art-reef,
+.terrain-art-coral-reef,
+.terrain-art-great-reef,
+.terrain-art-ice-field,
+.terrain-art-glacier,
+.terrain-art-ice-cap,
+.terrain-art-mycelial-network { width: 100%; height: 100%; }
+.terrain-art-forest,
+.terrain-art-dense-forest,
+.terrain-art-ancient-forest,
+.terrain-art-fungal-forest,
+.terrain-art-mangrove { width: 96%; height: 96%; }
+.terrain-art-marsh,
+.terrain-art-swamp,
+.terrain-art-snow { width: 92%; height: 92%; }
+
+.terrain-soil { fill: rgba(0, 0, 0, 0.28); }
+.terrain-clod {
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.35);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+}
+.terrain-pool { fill: #3d86bd; }
+.terrain-bank { fill: #4a5a44; }
+.terrain-crest {
+    fill: #a9dcfa;
+    opacity: 0.45;
+}
+.terrain-ripple {
+    fill: none;
+    stroke: #bfe4ff;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    opacity: 0.75;
+}
+.terrain-reed {
+    fill: none;
+    stroke: #7fa05a;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+.terrain-trunk { fill: #6b4a2f; }
+.terrain-canopy { fill: #2f7a44; }
+.terrain-tree:last-of-type .terrain-canopy { fill: #3d9455; }
+.terrain-back .terrain-tree .terrain-canopy { fill: #256b3b; }
+.terrain-back .terrain-trunk { fill: #4f3721; }
+
+.terrain-art-dense-forest .terrain-canopy { fill: #276237; }
+.terrain-art-dense-forest .terrain-tree:last-of-type .terrain-canopy { fill: #327a45; }
+.terrain-art-dense-forest .terrain-back .terrain-tree .terrain-canopy { fill: #1d5730; }
+
+.terrain-murk { fill: #2a5a50; }
+.terrain-lily { fill: #3f7a44; }
+.terrain-sedge,
+.terrain-deadwood,
+.terrain-root,
+.terrain-weed {
+    fill: none;
+    stroke-linecap: round;
+}
+.terrain-sedge { stroke: #86a95e; stroke-width: 1.5; }
+.terrain-deadwood { stroke: #7a6b58; stroke-width: 1.7; }
+.terrain-root { stroke: #7a5a3d; stroke-width: 1.6; }
+.terrain-weed { stroke: #63c184; stroke-width: 1.9; opacity: 0.85; }
+
+.terrain-leaf { fill: #2f7a4a; }
+
+.terrain-bole { fill: #6b4a2f; }
+.terrain-bough {
+    fill: none;
+    stroke: #6b4a2f;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+}
+.terrain-elder-leaf { fill: #2b6b46; }
+.terrain-elder-crown { fill: #358352; }
+.terrain-mote {
+    fill: #d8f08c;
+    opacity: 0.75;
+}
+
+.terrain-rock { fill: #5b7285; opacity: 0.88; }
+.terrain-rock-far { fill: #4a6274; opacity: 0.7; }
+
+.terrain-coral {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    opacity: 0.9;
+}
+.terrain-coral-a { stroke: #e0736f; }
+.terrain-coral-b { stroke: #e8a24c; }
+.terrain-coral-c { stroke: #a982d8; }
+.terrain-fan-blade {
+    fill: #d76fa0;
+    opacity: 0.85;
+}
+.terrain-fan-rib {
+    fill: none;
+    stroke: #8e3d68;
+    stroke-width: 1;
+    stroke-linecap: round;
+    opacity: 0.6;
+}
+.terrain-brain-body {
+    fill: #d9a05e;
+    opacity: 0.9;
+}
+.terrain-brain-line {
+    fill: none;
+    stroke: #7a5024;
+    stroke-width: 0.9;
+    stroke-linecap: round;
+    opacity: 0.75;
+}
+.terrain-table-stem { fill: #b58a63; opacity: 0.9; }
+.terrain-table-top { fill: #6fc9b0; opacity: 0.9; }
+
+.terrain-stalk { fill: #e3d8c5; }
+.terrain-cap { fill: #c4544c; }
+.terrain-mushroom:nth-of-type(2) .terrain-cap { fill: #a8474f; }
+.terrain-spot { fill: #f3e8d6; }
+.terrain-spore {
+    fill: #cfd9f0;
+    opacity: 0.5;
+}
+.terrain-tallcap .terrain-cap { fill: #a8465b; }
+.terrain-gill {
+    fill: none;
+    stroke: #5e2233;
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    opacity: 0.8;
+}
+
+.terrain-hypha {
+    fill: none;
+    stroke: #b89bf0;
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    opacity: 0.55;
+}
+.terrain-node {
+    fill: #d9c4ff;
+    opacity: 0.9;
+}
+.terrain-node-far { opacity: 0.5; }
+
+.terrain-snow { fill: #c3d4e0; }
+.terrain-snow-lit { fill: #eef6fb; }
+.terrain-flake {
+    fill: #eef6fb;
+    opacity: 0.7;
+}
+
+.terrain-ice { fill: #9dc4dc; }
+.terrain-ice-lit { fill: #d8ecf7; }
+.terrain-ice-dark { fill: #75a0bd; }
+.terrain-crack {
+    fill: none;
+    stroke: #4d7794;
+    stroke-width: 1.2;
+    stroke-linecap: round;
+    opacity: 0.8;
+}
+
+.terrain-cap-ridge {
+    fill: none;
+    stroke: #a9c6da;
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    opacity: 0.85;
+}
+.terrain-aurora {
+    fill: none;
+    stroke: #7fe6c0;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    opacity: 0.55;
+}
+.terrain-aurora-far {
+    stroke: #8fb8f0;
+    opacity: 0.35;
+}
+.terrain-airsnow {
+    fill: #f2f8ff;
+    opacity: 0.8;
+}
+
+.terrain-deep {
+    fill: #041524;
+    opacity: 0.38;
+}
+.terrain-glint {
+    fill: #9fd8f5;
+    opacity: 0.5;
+}
+
+.terrain-deep-core {
+    transform-box: fill-box;
+    transform-origin: center;
+    --pulse-to: 1.16;
+    animation: pulse 5.5s ease-in-out infinite alternate;
+}
+.terrain-art-deep-ocean .terrain-crest { --sway-by: 1.4px; animation: sway 5s ease-in-out infinite alternate; }
+.terrain-art-deep-ocean .terrain-crest:nth-of-type(2) { animation-duration: 6.5s; animation-delay: -4s; }
+.terrain-art-deep-ocean .terrain-crest:nth-of-type(3) { animation-duration: 4.25s; animation-delay: -6s; }
+.terrain-art-deep-ocean .terrain-crest:nth-of-type(4) { animation-duration: 7.5s; animation-delay: -2s; }
+.terrain-art-deep-ocean .terrain-crest:nth-of-type(5) { animation-duration: 5.75s; animation-delay: -7.5s; }
+.terrain-art-deep-ocean .terrain-crest:nth-of-type(6), .terrain-glint:nth-of-type(2) {
+    animation-duration: 4.75s;
+    animation-delay: -3s;
+}
+.terrain-art-deep-ocean .terrain-crest:nth-of-type(7) { animation-duration: 7s; animation-delay: -5s; }
+
+.terrain-glint { --glow-from: 0.04; --glow-to: 0.6; animation: glow 3.5s ease-in-out infinite alternate; }
+.terrain-glint:nth-of-type(3) { animation-duration: 3s; animation-delay: -4.5s; }
+.terrain-glint:nth-of-type(4) { animation-duration: 5.5s; animation-delay: -1.5s; }
+.terrain-glint:nth-of-type(5) { animation-duration: 4s; animation-delay: -6s; }
+.terrain-glint:nth-of-type(6) { animation-duration: 6.25s; animation-delay: -2s; }
+
+.terrain-art-great-reef .terrain-surface .terrain-ripple { --sway-by: 1.7px; animation: sway 4.5s ease-in-out infinite alternate; }
+.terrain-art-great-reef .terrain-surface .terrain-ripple:nth-child(2) { animation-duration: 6.25s; animation-delay: -4s; }
+.terrain-art-great-reef .terrain-sway {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    --rock-by: 3deg;
+    animation: rock 3.75s ease-in-out infinite alternate;
+}
+
+.terrain-tide .terrain-ripple { --sway-by: 1.7px; animation: sway 5s ease-in-out infinite alternate; }
+.terrain-tide .terrain-ripple:nth-child(2) { animation-duration: 6.75s; animation-delay: -5s; }
+.terrain-crown {
+    transform-box: fill-box;
+    transform-origin: bottom center;
+    --rock-by: 1.8deg;
+    animation: rock 6s ease-in-out infinite alternate;
+}
+
+.terrain-mote { animation: mote-drift 9s ease-in-out infinite; }
+.terrain-mote:nth-of-type(2) { animation-duration: 11.5s; animation-delay: -3s; }
+.terrain-mote:nth-of-type(3) { animation-duration: 7.5s; animation-delay: -5s; }
+.terrain-mote:nth-of-type(4) { animation-duration: 13s; animation-delay: -1.5s; }
+.terrain-mote:nth-of-type(5) { animation-duration: 8.5s; animation-delay: -6.5s; }
+.terrain-mote:nth-of-type(6) { animation-duration: 10.5s; animation-delay: -4s; }
+.terrain-mote:nth-of-type(7) { animation-duration: 12s; animation-delay: -8s; }
+.terrain-mote:nth-of-type(8) { animation-duration: 9.5s; animation-delay: -2.5s; }
+@keyframes mote-drift {
+    0%, 100% { transform: translate(0, 0);        opacity: 0.2; }
+    30%      { transform: translate(1.2px, -2px); opacity: 0.95; }
+    60%      { transform: translate(-1px, -3.5px); opacity: 0.45; }
+    80%      { opacity: 0.8; }
+}
+
+.terrain-aurora {
+    --pulse-x0: -7px; --pulse-y0: 1.5px; --pulse-x: 7px; --pulse-y: -1.5px;
+    --pulse-o0: 0.3; --pulse-o: 0.75;
+    animation: pulse 5.5s ease-in-out infinite alternate;
+}
+.terrain-aurora-far {
+    animation-duration: 7.5s;
+    animation-delay: -5s;
+    animation-direction: alternate-reverse;
+}
+.terrain-airsnow {
+    --pulse-x0: -2px; --pulse-y0: 0.6px; --pulse-x: 2px; --pulse-y: -0.6px;
+    --pulse-o0: 0.5; --pulse-o: 0.9;
+    animation: pulse 3.25s ease-in-out infinite alternate;
+}
+.terrain-airsnow:nth-of-type(2) { animation-duration: 4.5s; animation-delay: -2s; }
+.terrain-airsnow:nth-of-type(3) { animation-duration: 3.75s; animation-delay: -4s; }
+.terrain-airsnow:nth-of-type(4) { animation-duration: 5.25s; animation-delay: -1s; }
+.terrain-airsnow:nth-of-type(5) { animation-duration: 4s; animation-delay: -5.5s; }
+.terrain-airsnow:nth-of-type(6) { animation-duration: 5.75s; animation-delay: -3s; }
+
+.terrain-hypha { --glow-from: 0.3; --glow-to: 0.75; animation: glow 3.25s ease-in-out infinite alternate; }
+.terrain-node {
+    transform-box: fill-box;
+    transform-origin: center;
+    --pulse-from: 0.85; --pulse-to: 1.2; --pulse-o0: 0.4;
+    animation: pulse 2.5s ease-in-out infinite alternate;
+}
+.terrain-node:nth-of-type(2) { animation-duration: 3.25s; animation-delay: -1.4s; }
+.terrain-node:nth-of-type(3) { animation-duration: 2.25s; animation-delay: -3s; }
+.terrain-node:nth-of-type(4) { animation-duration: 3.75s; animation-delay: -2.2s; }
+.terrain-node:nth-of-type(5) { animation-duration: 2.75s; animation-delay: -4s; }
+.terrain-node:nth-of-type(6) { animation-duration: 4s; animation-delay: -0.8s; }
+
+.hex-face::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(90, 165, 235, calc(var(--moisture, 0) * 0.5));
+    transition: background-color 0.3s linear;
+}
+
+.hex-face::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(226, 240, 252, calc(var(--snowpack, 0) * 0.55));
+    transition: background-color 0.3s linear;
+}
+
+.hex-affordable .hex-face,
+.hex-locked .hex-face { background: #4f5a66; }
+.hex-affordable:hover .hex-shape,
+.hex-locked:hover .hex-shape { transform: scale(1.04); }
+.hex-affordable:hover .hex-face { background: #5c6875; }
+
+.hex-unreachable .hex-shape, .weather-jump[data-state="locked"], .card-slot.locked,
+.collection-card.locked, .grove-bed.growing .grove-hit, .grove-bed.mature:not(.fruitable) .grove-hit {
+    cursor: default;
+}
+.hex-unreachable .hex-face { background: #38414b; }
+
+.hex-lock {
+    width: 20px;
+    height: 20px;
+    fill: rgba(255, 255, 255, 0.55);
+    stroke: rgba(255, 255, 255, 0.55);
+    stroke-width: 1.5;
+}
+.hex-lock path, .transform-lock path { fill: none; }
+.hex-lock rect, .transform-lock rect { stroke: none; }
+.hex-unreachable .hex-lock { opacity: 0.45; }
+
+.hex-tile.can-plant .hex-shape { background: #4b7a46; }
+.hex-tile.can-plant .hex-face { background: #46583c; }
+.hex-tile.can-plant:hover .hex-face { background: #52663f; }
+
+.hex-selected .hex-shape { background: var(--gold); }
+.hex-selected .hex-face { inset: 4px; }
+

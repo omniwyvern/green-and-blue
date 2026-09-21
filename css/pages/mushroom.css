@@ -1,0 +1,546 @@
+/* mushroom.css */
+
+.grove-scene {
+    --grove-sky: #252443;
+    --grove-sky-low: #483b5a;
+    --grove-bank: #4a382b;
+    --grove-bank-low: #2e231b;
+    --grove-strata: rgba(0, 0, 0, 0.28);
+    --grove-stone: #4a3f36;
+    --grove-root: #4e3a2a;
+    --grove-side: #3a2b20;
+    --grove-side-lip: #3c5230;
+    --grove-shaft: rgba(214, 196, 255, 0.11);
+    --grove-shade: rgba(8, 5, 12, 0.38);
+    --grove-fog: rgba(190, 170, 210, 0.14);
+    --grove-floor: #323f28;
+    --grove-floor-low: #1f271a;
+    --grove-leaf-a: #3a4a2a;
+    --grove-leaf-b: #4a3a26;
+    --grove-leaf-c: #2f3d25;
+    --grove-leaf-d: #445530;
+    --grove-log: #3a2a20;
+    --grove-log-dark: #241912;
+    --grove-log-end: #6a5038;
+    --grove-moss: #4d6b34;
+    --grove-fern: #2c3f26;
+    --grove-soil: #2b1d15;
+    --grove-soil-top: #4a3222;
+    --grove-thread: rgba(236, 226, 255, 0.55);
+    --grove-mote: rgba(214, 186, 255, 0.75);
+    --grove-glass: rgba(24, 18, 32, 0.88);
+    --grove-edge: rgba(220, 200, 255, 0.2);
+    --grove-ink: rgba(236, 228, 246, 0.72);
+    --grove-weave: #6b4a2e;
+    --grove-weave-dark: #4a321f;
+
+    --grove-left: max(var(--flyout-inset, 0px), 0.75rem);
+    --grove-tabs: 3.1rem;
+    --grove-u: clamp(3.6rem, min(15cqh, 11cqw), 7.5rem);
+    --grove-dock: 7rem;
+
+    container-type: size;
+    isolation: isolate;
+    overflow: hidden;
+    color: var(--text);
+    background: linear-gradient(to bottom, var(--grove-sky), var(--grove-sky-low) 9%, var(--grove-bank-low) 46%, var(--grove-floor) 46%, var(--grove-floor-low));
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+:root[data-theme="light"] .grove-scene {
+    --grove-sky: #b4c2cc;
+    --grove-sky-low: #e3d6c0;
+    --grove-bank: #9a7c5a;
+    --grove-bank-low: #735a40;
+    --grove-strata: rgba(60, 40, 20, 0.2);
+    --grove-stone: #b0a08a;
+    --grove-root: #5e4632;
+    --grove-side: #7e6448;
+    --grove-side-lip: #6f8a48;
+    --grove-shaft: rgba(255, 248, 215, 0.3);
+    --grove-shade: rgba(50, 36, 22, 0.3);
+    --grove-fog: rgba(255, 255, 255, 0.35);
+    --grove-floor: #6f7d4e;
+    --grove-floor-low: #515c39;
+    --grove-leaf-a: #8a9a55;
+    --grove-leaf-b: #a07a48;
+    --grove-leaf-c: #7a8a48;
+    --grove-leaf-d: #96a860;
+    --grove-log: #6e5238;
+    --grove-log-dark: #4e3a28;
+    --grove-log-end: #b89468;
+    --grove-moss: #7f9e50;
+    --grove-fern: #4f6a3c;
+    --grove-soil: #4a3525;
+    --grove-soil-top: #6e5038;
+    --grove-thread: rgba(255, 252, 240, 0.8);
+    --grove-mote: rgba(255, 250, 225, 0.85);
+    --grove-glass: rgba(252, 248, 240, 0.95);
+    --grove-edge: rgba(60, 40, 20, 0.2);
+    --grove-ink: rgba(50, 36, 24, 0.75);
+    --grove-weave: #b08a5a;
+    --grove-weave-dark: #8a6840;
+}
+
+
+.grove-back { position: absolute; left: 0; right: 0; top: 0; height: 46%; pointer-events: none; }
+.grove-bank { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.grove-bank-stop-top { stop-color: var(--grove-bank); }
+.grove-bank-stop-low { stop-color: var(--grove-bank-low); }
+.grove-bank-strata { fill: none; stroke: var(--grove-strata); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.grove-bank-stones { fill: var(--grove-stone); opacity: 0.55; }
+.grove-root { fill: none; stroke: var(--grove-root); stroke-width: 2.2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.grove-bank-lip { fill: none; stroke: var(--grove-moss); stroke-width: 5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.grove-bank-tufts { fill: none; stroke: var(--grove-moss); stroke-width: 1.3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+.grove-side {
+    position: absolute;
+    top: 0;
+    width: clamp(3rem, 10cqw, 8rem);
+    height: 50%;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 90;
+}
+.grove-side.left {
+    left: 0;
+    padding-left: calc(var(--grove-left) - 0.75rem);
+    background: linear-gradient(to bottom, var(--grove-side) 55%, transparent) no-repeat 0 0 / calc(var(--grove-left) - 0.75rem) 100%;
+}
+.grove-side.right { right: 0; transform: scaleX(-1); }
+.grove-side-fill { fill: var(--grove-side); }
+.grove-side-lip { fill: none; stroke: var(--grove-side-lip); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+.grove-shade {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 75% at 55% 62%, transparent 50%, var(--grove-shade));
+    pointer-events: none;
+    z-index: 95;
+}
+
+.grove-shaft {
+    position: absolute;
+    left: 48%;
+    top: -5%;
+    width: clamp(6rem, 18cqw, 14rem);
+    height: 85%;
+    background: linear-gradient(to bottom, var(--grove-shaft), transparent 90%);
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 35%, #000 65%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 35%, #000 65%, transparent);
+    transform: skewX(-16deg);
+    transform-origin: 50% 0;
+    pointer-events: none;
+    z-index: 96;
+    --glow-from: 0.6;
+    animation: glow 14s ease-in-out infinite alternate;
+}
+
+.grove-log {
+    position: absolute;
+    left: 18%;
+    width: 44%;
+    top: calc(46% - clamp(1.2rem, 4cqw, 3.4rem));
+    pointer-events: none;
+    overflow: visible;
+}
+.grove-log-body { fill: var(--grove-log); }
+.grove-log-bark, .grove-log-drip { fill: none; stroke: var(--grove-log-dark); stroke-width: 1.2; stroke-linecap: round; }
+.grove-log-drip { stroke: var(--grove-moss); stroke-width: 1.4; opacity: 0.8; }
+.grove-log-end { fill: var(--grove-log-end); }
+.grove-log-ring { fill: none; stroke: var(--grove-log-dark); stroke-width: 0.8; opacity: 0.6; }
+.grove-log-moss { fill: var(--grove-moss); }
+.grove-log-shelf { fill: #c9a878; opacity: 0.85; }
+
+.grove-ferns {
+    position: absolute;
+    bottom: calc(var(--grove-tabs) - 0.5rem);
+    width: clamp(3.5rem, 7cqw, 5.5rem);
+    pointer-events: none;
+    overflow: visible;
+    z-index: 280;
+}
+.grove-ferns.left { left: calc(var(--grove-left) - 0.75rem); }
+.grove-ferns.right { right: 0; }
+.grove-fern, .grove-frond { fill: none; stroke: var(--grove-fern); stroke-linecap: round; }
+.grove-root:nth-child(3n), .grove-fern { stroke-width: 1.4; }
+.grove-frond { stroke-width: 1.1; }
+.grove-fog {
+    position: absolute;
+    left: -20%;
+    width: 140%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, var(--grove-fog), transparent);
+    --sway-by: 6%;
+    animation: sway 26s ease-in-out infinite alternate;
+}
+.grove-fog.far { bottom: -12%; height: 40%; }
+.grove-fog.near { top: 30%; height: 50%; animation-duration: 34s; animation-direction: alternate-reverse; }
+
+.grove-floor { position: absolute; left: 0; right: 0; top: 46%; bottom: 0; pointer-events: none; }
+.grove-litter { position: absolute; inset: 0; width: 100%; height: 100%; }
+.grove-leaf.leaf-0 { fill: var(--grove-leaf-a); }
+.grove-leaf.leaf-1 { fill: var(--grove-leaf-b); }
+.grove-leaf.leaf-2 { fill: var(--grove-leaf-c); }
+.grove-leaf.leaf-3 { fill: var(--grove-leaf-d); }
+
+.grove-motes { position: absolute; inset: 0; pointer-events: none; z-index: 300; }
+.grove-mote {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--grove-mote);
+    box-shadow: 0 0 6px var(--grove-mote);
+    animation: grove-mote calc(11s + var(--n) * 0.7s) ease-in-out infinite;
+    animation-delay: calc(var(--n) * -1.9s);
+}
+@keyframes grove-mote {
+    0% { transform: translate(0, 0); opacity: 0; }
+    20% { opacity: 1; }
+    50% { transform: translate(1.2rem, -2.5rem); }
+    80% { opacity: 0.8; }
+    100% { transform: translate(-0.6rem, -5rem); opacity: 0; }
+}
+
+
+.grove-clearing {
+    position: absolute;
+    left: calc(var(--grove-left) + 1rem);
+    right: 1rem;
+    top: calc(46% + var(--grove-u) * 0.35);
+    bottom: calc(var(--grove-tabs) + var(--grove-dock) + 1.4rem);
+}
+
+.grove-bed {
+    --s: calc(0.74 + var(--d) * 0.3);
+    position: absolute;
+    left: calc(var(--x) * 1%);
+    top: calc(var(--d) * 100%);
+    width: calc(var(--grove-u) * 1.25);
+    height: calc(var(--grove-u) * 1.3);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    transform: translate(-50%, -88%) scale(var(--s));
+    transform-origin: 50% 88%;
+    pointer-events: none;
+}
+.grove-bed:focus-visible { outline: 2px solid var(--grove-edge); outline-offset: 2px; border-radius: 0.5rem; }
+
+.grove-hit {
+    position: absolute;
+    left: 16%;
+    right: 16%;
+    bottom: 0;
+    top: 10%;
+    border-radius: 45% 45% 50% 50%;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.grove-soil {
+    position: absolute;
+    left: 6%;
+    right: 6%;
+    bottom: 4%;
+    height: 22%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 35%, var(--grove-soil-top), var(--grove-soil) 70%);
+    box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.35), 0 4px 10px rgba(0, 0, 0, 0.3);
+    transition: box-shadow 0.3s;
+}
+.grove-bed.empty:hover .grove-soil,
+.grove-bed.target .grove-soil { box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--grove-thread); }
+.grove-bed.target .grove-soil { animation: grove-beckon 1.6s ease-in-out infinite; }
+@keyframes grove-beckon {
+    50% { box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.35), 0 0 14px 2px var(--grove-mote); }
+}
+
+.grove-threads {
+    position: absolute;
+    left: -30%;
+    width: 160%;
+    bottom: -6%;
+    height: 34%;
+    opacity: calc(var(--g, 0) * 0.9);
+    pointer-events: none;
+}
+.grove-threads path { fill: none; stroke: var(--grove-thread); stroke-width: 0.35; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.grove-bed.empty .grove-threads { opacity: 0; }
+
+.grove-plant {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 9%;
+    height: 88%;
+    transform-origin: 50% 100%;
+    transform: scale(calc(0.12 + var(--g, 0) * 0.88));
+    opacity: calc(0.45 + var(--g, 0) * 0.55);
+    transition: transform 0.9s ease-out;
+    pointer-events: none;
+}
+.grove-art { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.grove-art .shroom { display: block; width: 100%; height: 100%; overflow: visible; }
+.grove-bed.growing .grove-art { filter: saturate(0.55) brightness(0.8); }
+.grove-art { --rock-by: 1.5deg; }
+.grove-bed.mature .grove-art { animation: rock 2.5s ease-in-out infinite alternate; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c) 45%, transparent)); }
+@property --grove-glow { syntax: "<number>"; inherits: false; initial-value: 0; }
+.grove-bed.fruitable .grove-art {
+    animation: rock 2.5s ease-in-out infinite alternate, grove-ready 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 calc(4px + var(--grove-glow) * 8px) color-mix(in srgb, var(--c) calc(40% + var(--grove-glow) * 60%), transparent));
+}
+.grove-bed.fruitable:hover .grove-art { filter: drop-shadow(0 0 12px var(--c)) brightness(1.12); }
+@keyframes grove-ready {
+    0%, 100% { --grove-glow: 0; }
+    50% { --grove-glow: 1; }
+}
+
+.grove-puffs { position: absolute; left: 30%; right: 30%; top: 20%; height: 30%; pointer-events: none; display: none; }
+.grove-bed.mature .grove-puffs { display: block; }
+.grove-puffs i {
+    position: absolute;
+    bottom: 0;
+    left: calc(20% + var(--p, 0) * 20%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--grove-mote);
+    opacity: 0;
+    animation: grove-puff 4.2s ease-out infinite;
+}
+.grove-puffs i:nth-child(2) { --p: 1; animation-delay: -1s; }
+.grove-puffs i:nth-child(3) { --p: 2; animation-delay: -2.2s; }
+.grove-puffs i:nth-child(4) { --p: 3; animation-delay: -3.3s; }
+@keyframes grove-puff {
+    0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+    20% { opacity: 0.9; }
+    100% { transform: translate(calc((var(--p, 0) - 1.5) * 0.6rem), -2.8rem) scale(1.6); opacity: 0; }
+}
+
+.grove-bed.planted .grove-soil { animation: grove-planted 0.5s ease-out; }
+@keyframes grove-planted {
+    40% { transform: scale(1.12, 0.9); }
+}
+
+.grove-burst {
+    --s: calc(0.74 + var(--d) * 0.3);
+    position: absolute;
+    left: calc(var(--x) * 1%);
+    top: calc(var(--d) * 100%);
+    width: calc(var(--grove-u) * 1.25);
+    height: calc(var(--grove-u) * 1.3);
+    transform: translate(-50%, -88%) scale(var(--s));
+    transform-origin: 50% 88%;
+    pointer-events: none;
+    z-index: 290 !important;
+}
+.grove-burst .grove-plant { transform: none; opacity: 1; animation: grove-lift 1.2s ease-in forwards; }
+@keyframes grove-lift {
+    0% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 6px var(--c)); }
+    30% { transform: scale(1.15); filter: drop-shadow(0 0 18px var(--c)) brightness(1.4); }
+    100% { transform: translateY(-40%) scale(0.3); opacity: 0; filter: drop-shadow(0 0 18px var(--c)) brightness(2); }
+}
+.grove-burst i {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    margin: -3px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 8px var(--c);
+    opacity: 0;
+    transform: rotate(calc(var(--k) * 30deg)) translateY(0);
+    animation: grove-spark 1.1s ease-out forwards;
+    animation-delay: 0.2s;
+}
+@keyframes grove-spark {
+    0% { opacity: 1; transform: rotate(calc(var(--k) * 30deg)) translateY(0); }
+    100% { opacity: 0; transform: rotate(calc(var(--k) * 30deg)) translateY(calc(var(--grove-u) * -0.9)); }
+}
+
+
+.grove-tag {
+    position: absolute;
+    left: calc(var(--x) * 1%);
+    top: calc(var(--d) * 100%);
+    transform: translate(-50%, calc(-100% - var(--grove-u) * 1.05));
+    width: max-content;
+    max-width: 17rem;
+    padding: 0.45rem 0.7rem 0.5rem;
+    border-radius: 0.6rem 0.6rem 0.6rem 0.2rem;
+    background: var(--grove-glass);
+    border: 1px solid var(--grove-edge);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    font-size: 0.78rem;
+    line-height: 1.35;
+    text-align: center;
+    pointer-events: none;
+    z-index: 400;
+}
+.grove-tag-name { font-weight: 600; }
+.grove-tag-line { margin-top: 0.2rem; }
+.grove-tag-act { color: var(--grove-ink); }
+
+
+.grove-boosts {
+    position: absolute;
+    top: 0;
+    left: calc(var(--grove-left) + 1rem);
+    right: 1rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.4rem;
+    pointer-events: none;
+    z-index: 350;
+}
+.grove-boost {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 8rem;
+    text-align: center;
+}
+.grove-boost:nth-child(2n) { --cord: 1.6rem; }
+.grove-boost:nth-child(3n) { --cord: 0.8rem; }
+.grove-boost-cord { width: 1px; height: var(--cord, 1.1rem); background: var(--grove-thread); }
+.grove-boost-orb {
+    width: 2.8rem;
+    height: 2.8rem;
+    padding: 0.3rem;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--c) 35%, transparent), transparent 72%);
+    box-shadow: 0 0 calc(4px + var(--left, 1) * 16px) color-mix(in srgb, var(--c) 60%, transparent);
+    opacity: calc(0.45 + var(--left, 1) * 0.55);
+}
+.grove-boost-orb .shroom, .grove-seed-art .shroom { width: 100%; height: 100%; }
+.grove-boost-text { margin-top: 0.15rem; font-size: 0.7rem; line-height: 1.2; color: var(--text); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.grove-boost-left { font-size: 0.68rem; color: var(--grove-ink); }
+.grove-boost.held .grove-boost-left::after { content: " held"; }
+:root[data-theme="light"] .grove-boost-text { text-shadow: 0 1px 2px rgba(255, 255, 255, 0.7); }
+
+
+.grove-bottom {
+    position: absolute;
+    left: calc(var(--grove-left) + 0.5rem);
+    right: 0.75rem;
+    bottom: calc(var(--grove-tabs) + 0.3rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    pointer-events: none;
+    z-index: 360;
+}
+
+.grove-hint {
+    max-width: 100%;
+    min-height: 1.5rem;
+    padding: 0.2rem 0.75rem;
+    border-radius: 1rem;
+    background: var(--grove-glass);
+    text-align: center;
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--grove-ink);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.grove-hint.on { opacity: 1; }
+
+.grove-basket {
+    display: flex;
+    width: max-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    gap: clamp(0.15rem, 0.5cqw, 0.3rem);
+    padding: 0.35rem clamp(0.3rem, 1cqw, 0.6rem);
+    overflow-x: auto;
+    pointer-events: auto;
+    border-radius: 1.2rem 1.2rem 0.6rem 0.6rem;
+    background:
+        repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, 0.14) 9px 11px),
+        repeating-linear-gradient(0deg, var(--grove-weave) 0 6px, var(--grove-weave-dark) 6px 8px);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.12), 0 6px 16px rgba(0, 0, 0, 0.35);
+    scrollbar-width: thin;
+}
+.grove-seed {
+    flex: 0 0 auto;
+    width: clamp(3.4rem, 7.2cqw, 4.9rem);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.2rem 0.15rem 0.25rem;
+    border-radius: 0.6rem;
+    border: 1px solid transparent;
+    background: var(--grove-glass);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.grove-seed:first-child { margin-left: auto; }
+.grove-seed:last-child { margin-right: auto; }
+.grove-seed:hover { transform: translateY(-2px); }
+.grove-seed.picked {
+    border-color: var(--c);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent);
+    transform: translateY(-4px);
+}
+.grove-seed-art { width: clamp(1.7rem, 3.6cqw, 2.4rem); height: clamp(1.7rem, 3.6cqw, 2.4rem); }
+.grove-seed-name { font-size: 0.66rem; line-height: 1.15; text-align: center; min-height: 1.5em; display: flex; align-items: center; }
+.grove-seed-cost { font-size: 0.62rem; color: var(--grove-ink); white-space: nowrap; }
+.grove-seed.poor .grove-seed-cost { color: #e08a70; }
+.grove-seed.poor .grove-seed-art { opacity: 0.6; }
+.grove-seed.locked:hover { transform: none; }
+.grove-seed.locked .grove-seed-art { filter: brightness(0) opacity(0.45); }
+
+
+.grove-veil {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding-left: var(--grove-left);
+    background: rgba(14, 10, 20, 0.6);
+    z-index: 500;
+}
+.grove-veil span {
+    padding: 0.6rem 1rem;
+    border-radius: 0.6rem;
+    background: var(--grove-glass);
+    border: 1px solid var(--grove-edge);
+}
+.grove-scene.bare .grove-veil, .evo-node:hover .evo-tip { display: flex; }
+
+
+@container (max-width: 760px) {
+    .grove-seed-name { display: none; }
+    .grove-seed-art { width: 1.9rem; height: 1.9rem; }
+    .grove-seed { width: 3.3rem; }
+    .grove-seed-cost { white-space: normal; text-align: center; font-size: 0.56rem; line-height: 1.1; }
+    .grove-clearing { bottom: calc(var(--grove-tabs) + var(--grove-dock) + 1rem); }
+    .grove-hint { font-size: 0.72rem; }
+}
+
+@media (max-width: 700px) {
+    .grove-scene { --grove-u: clamp(3rem, min(11cqh, 15cqw), 6rem); }
+    .grove-boosts { gap: 0.6rem; flex-wrap: wrap; }
+    .grove-boost { max-width: 5.5rem; }
+    .grove-tag { min-width: 9rem; max-width: 12rem; font-size: 0.72rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .grove-fog, .grove-shaft, .grove-mote, .grove-art, .grove-puffs i,
+    .grove-soil, .grove-burst .grove-plant, .grove-burst i { animation: none !important; }
+    .grove-mote, .grove-puffs { display: none; }
+}
