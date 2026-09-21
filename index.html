@@ -1,56 +1,77 @@
 <!-- index.html
-It's the main game file, standard HTML stuff.
- 
--->
+
+     The main game file -->
 
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
 <title>Green and Blue</title>
 
-<!-- Foundation of the game -->
-<link rel="stylesheet" href="css/base.css">           <!-- theme variables, reset, body -->
+<!-- Folders group by subject, this list is cascade order -->
+<!-- The theme, and the chrome that is on screen whatever layer you are on -->
+<link rel="stylesheet" href="css/base/base.css">               <!-- theme variables, reset, body, scrollbars -->
+<link rel="stylesheet" href="css/base/navigation.css">         <!-- category bar, sidebar, sub-layer flyout -->
 
-<!-- The core of a layer -->
-<link rel="stylesheet" href="css/navigation.css">     <!-- category bar, sidebar, sub-layer flyout -->
-<link rel="stylesheet" href="css/layer.css">          <!-- layer/sub-layer panels, header, resource chips -->
-<link rel="stylesheet" href="css/upgrades.css">       <!-- upgrade grid, drawers, scene wrapper -->
+<!-- The frame a layer is drawn into -->
+<link rel="stylesheet" href="css/canvas/layer.css">            <!-- layer/sub-layer panels, header, resource chips -->
+<link rel="stylesheet" href="css/canvas/upgrades.css">         <!-- upgrade grid, drawers, scene wrapper -->
 
-<!-- The World map -->
-<link rel="stylesheet" href="css/world.css">          <!-- the World's backdrop and its hex tiles -->
-<link rel="stylesheet" href="css/terrain.css">        <!-- what each kind of ground looks like on a tile -->
-<link rel="stylesheet" href="css/transform.css">      <!-- turning tiles into other tiles -->
-<link rel="stylesheet" href="css/canvas-hud.css">     <!-- the fixed controls over a drag canvas -->
-<link rel="stylesheet" href="css/interactions.css">   <!-- the tools inside the HUD: gather, grow, rain -->
+<!-- The World map and the HUD over it -->
+<link rel="stylesheet" href="css/world/world.css">             <!-- the World's backdrop and its hex tiles -->
+<link rel="stylesheet" href="css/world/terrain.css">           <!-- what each kind of ground looks like on a tile -->
+<link rel="stylesheet" href="css/world/transform.css">         <!-- turning tiles into other tiles -->
+<link rel="stylesheet" href="css/canvas/canvas-hud.css">       <!-- the fixed controls over a drag canvas -->
+<link rel="stylesheet" href="css/world/interactions.css">      <!-- the tools inside the HUD: gather, grow, rain -->
 
 <!-- Layers with their own page -->
-<link rel="stylesheet" href="css/environment.css">    <!-- the ground's reference page -->
-<link rel="stylesheet" href="css/grass.css">          <!-- Growth, its milestones, and the grasses -->
-<link rel="stylesheet" href="css/precipitation.css"> <!-- the cloud, its charge bar and meters -->
-<link rel="stylesheet" href="css/evolution.css">      <!-- the prestige layer -->
-<link rel="stylesheet" href="css/banners.css">        <!-- the Cards page and its banner stage -->
-<link rel="stylesheet" href="css/cards.css">          <!-- a card itself, and the collection -->
-<link rel="stylesheet" href="css/pond.css">           <!-- the water, what lives in it, burst timers -->
+<link rel="stylesheet" href="css/pages/environment.css">       <!-- the ground's reference page -->
+<link rel="stylesheet" href="css/pages/grass.css">             <!-- Growth, its milestones, and the grasses -->
+<link rel="stylesheet" href="css/pages/precipitation.css">     <!-- the cloud, its charge bar and meters -->
+<link rel="stylesheet" href="css/pages/adaptation.css">        <!-- the prestige layer -->
+<link rel="stylesheet" href="css/pages/banners.css">           <!-- the Cards page and its banner stage -->
+<link rel="stylesheet" href="css/pages/cards.css">             <!-- a card itself, and the collection -->
+<link rel="stylesheet" href="css/pages/pond.css">              <!-- the water, what lives in it, burst timers -->
+<link rel="stylesheet" href="css/pages/forest.css">            <!-- the grove, its trees and the tree window -->
+<link rel="stylesheet" href="css/pages/marsh.css">             <!-- the marsh basin, its zones and their tooltips -->
+<link rel="stylesheet" href="css/pages/ice.css">               <!-- the snowpack, its strata and its pressure gauge -->
+<link rel="stylesheet" href="css/pages/reef.css">              <!-- the reef sites, their meters and growth timers -->
+<link rel="stylesheet" href="css/pages/mushroom.css">          <!-- the mushroom grove clearing, its beds and basket -->
+<link rel="stylesheet" href="css/pages/ecology.css">           <!-- challenge cards, goals, and the start warning -->
+<link rel="stylesheet" href="css/pages/evolution.css">         <!-- the generation tree and its pressure meters -->
+<link rel="stylesheet" href="css/pages/evolution-scenery.css"> <!-- what's behind each pressure's tree -->
 
-<!-- Drag canvases and the skill trees on them -->
-<link rel="stylesheet" href="css/drag-canvas.css">    <!-- viewport, dot grid, sub-windows -->
-<link rel="stylesheet" href="css/nodes.css">          <!-- the nodes, their states and tooltips -->
-<link rel="stylesheet" href="css/node-effects.css">   <!-- auras, and Life's split face -->
-<link rel="stylesheet" href="css/ocean.css">          <!-- the ocean map: regions, currents, schools -->
+<!-- Drag canvases and the trees on them -->
+<link rel="stylesheet" href="css/canvas/drag-canvas.css">      <!-- viewport, dot grid, sub-windows -->
+<link rel="stylesheet" href="css/canvas/nodes.css">            <!-- the nodes, their states and tooltips -->
+<link rel="stylesheet" href="css/canvas/node-effects.css">     <!-- auras, and Life's split face -->
+<link rel="stylesheet" href="css/pages/ocean.css">             <!-- the ocean map: regions, currents, schools -->
 
-<!-- Above everything -->
-<link rel="stylesheet" href="css/overlays.css">       <!-- corner buttons, settings and guide windows -->
-<link rel="stylesheet" href="css/mobile.css">         <!-- narrow-screen overrides, loaded last -->
+<!-- Loaded last, so these win -->
+<link rel="stylesheet" href="css/base/overlays.css">           <!-- corner buttons, settings and guide windows -->
+<link rel="stylesheet" href="css/base/mobile.css">             <!-- narrow-screen overrides, loaded last -->
 </head>
 <body>
     <div id="category-bar"></div>
 
     <div id="app">
-        <div id="sidebar"></div>
+        <div id="sidebar">
+            <div id="sidebar-tabs"></div>
+            <!-- Docked at the bottom of the sidebar so they can never cover the tabs above -->
+            <div id="sidebar-footer">
+                <button id="settings-button" title="Settings" aria-label="Settings">&#9881;</button>
+                <button id="guide-button" title="About this layer" aria-label="About this layer">&#9432;</button>
+                <button id="dev-button" title="Dev tools" aria-label="Dev tools">&#9874;</button>
+            </div>
+        </div>
         <div id="sidebar-flyout"></div>
+        <!-- Pulls the flyout back out once it's folded away -->
+        <button id="flyout-toggle" type="button" title="Show sub-layers" aria-label="Show sub-layers">
+            <span class="flyout-chevron">&#8250;</span>
+        </button>
         <!-- Folds the sidebar and its flyout away, for when the canvas wants the whole window -->
         <button id="nav-toggle" type="button" title="Hide navigation" aria-label="Hide navigation">
             <span class="nav-chevron">&#8249;</span>
@@ -58,10 +79,7 @@ It's the main game file, standard HTML stuff.
         <div id="canvas"></div>
     </div>
 
-    <!-- Overlay above game. Settings button / menu and the recenter button -->
-    <button id="settings-button" title="Settings" aria-label="Settings">&#9881;</button>
-    <button id="guide-button" title="About this layer" aria-label="About this layer">&#9432;</button>
-    <button id="dev-button" title="Dev tools" aria-label="Dev tools">&#9874;</button>
+    <!-- Overlay above game. Zoom controls, recenter, and the modal windows -->
     <div id="zoom-controls">
         <button id="zoom-out-button" title="Zoom out" aria-label="Zoom out">&#8722;</button>
         <button id="zoom-in-button" title="Zoom in" aria-label="Zoom in">&#43;</button>
@@ -78,14 +96,11 @@ It's the main game file, standard HTML stuff.
     <!-- Warns when the game is open in more than one tab, since they'd save over each other -->
     <div id="tab-overlay" class="modal-overlay" hidden></div>
 
-    <!-- break_eternity and makes Decimal work for giant numbers. For ease of coding, files have the alias D in place of Decimal -->
+    <!-- break_eternity makes Decimal work for huge numbers (aliased as D) -->
     <script src="scripts/utils/break_eternity.min.js"></script>
 
     
-    <!-- type="module" is for proper import/export
-     Unfortunately browsers don't like running it locally, so you have to
-     get the vscode live server addon or run it through a local python server
-    -->
+    <!-- Modules need a local server (Live Server or python -m http.server) -->
     <script type="module" src="scripts/main.js"></script>
 </body>
 </html>
