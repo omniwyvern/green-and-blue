@@ -4,7 +4,6 @@
 
 import { getLayerState } from "../../../core/state.js";
 import { registerBoost } from "../../../core/boosts.js";
-import { formatNumber } from "../../../utils/format.js";
 
 export const evolutionState = () => getLayerState("evolution");
 export const evolutionOpen = () => !!evolutionState().unlocked;
@@ -16,7 +15,7 @@ export const evolutionOpen = () => !!evolutionState().unlocked;
 const COST_SCALE = { tidal: 3 };
 
 // Later generations ask for far more than meter room grows, so the top of a tree takes focus
-const GENERATION_SCALE = [1, 1.5, 3, 5, 8];
+const GENERATION_SCALE = [3, 5, 10, 16, 25];
 
 // Adaptation points per second each point of drift pours into every felt meter
 export const DRIFT_PER_SECOND = 1;
@@ -880,8 +879,8 @@ export const TREES = {
                     seaOfLight: {
                         title: "Sea of Light", x: 8, kind: "capstone", requires: ["pearlMaking", "duskRising"],
                         text: "The whole sea glows.",
-                        scaled: { blueEssence: 1.05 }, per: "evolved",
-                        effect: "x1.05 Blue Essence for every trait evolved, in every tree.",
+                        scaled: { blueEssence: 1.02 }, per: "evolved",
+                        effect: "x1.02 Blue Essence for every trait evolved, in every tree.",
                         cost: { saline: 6000, tidal: 2000, canopy: 2000 },
                     },
                 },
@@ -1563,13 +1562,13 @@ export const traitHas = (id) => evolutionOpen() && traitOwned(id);
 
 //    !!! PUSHING AN UPGRADE PAST ITS CAP !!!
 
-// Upgrades traits can push past their cap; each level past it multiplies by gain, at a price of its own
+// Upgrades traits can push past their cap; levels past it keep the same step, at a price of their own
 export const PAST_CAP = {
-    richerWaters: { key: "pondLevels", cap: 25, gain: 10 },
-    greenerBlades: { key: "grassLevels", cap: 10, gain: 3 },
-    keystone: { key: "marshLevels", cap: 8, gain: 10 },
-    deepen: { key: "oceanLevels", cap: 20, gain: 10 },
-    bed: { key: "oceanLevels", cap: 15, gain: 6 },
+    richerWaters: { key: "pondLevels", cap: 25 },
+    greenerBlades: { key: "grassLevels", cap: 10 },
+    keystone: { key: "marshLevels", cap: 8 },
+    deepen: { key: "oceanLevels", cap: 20 },
+    bed: { key: "oceanLevels", cap: 15 },
 };
 
 const CHALLENGE_LEVELS = {
@@ -1587,18 +1586,11 @@ const challengeLevels = (key) => {
 };
 
 export const capOf = (id) => PAST_CAP[id].cap + Math.round(traitBonus(PAST_CAP[id].key)) + challengeLevels(PAST_CAP[id].key);
-export const pastCapGain = (id, level) => Math.pow(PAST_CAP[id].gain, Math.max(0, level - PAST_CAP[id].cap));
-export const pastCapNote = (id, level) => capOf(id) > PAST_CAP[id].cap
-    ? ` Past level ${PAST_CAP[id].cap}, every level multiplies it by ${PAST_CAP[id].gain} (x${formatNumber(pastCapGain(id, level))} now).`
-    : "";
-
 export function extendUpgrade(id, def, pastCost) {
     const { cap } = PAST_CAP[id];
     const cost = def.cost;
-    const text = def.description;
     Object.defineProperty(def, "max", { get: () => capOf(id), enumerable: true });
     def.cost = (s, level) => level < cap ? cost(s, level) : pastCost(level - cap);
-    def.description = (s, level) => (typeof text === "function" ? text(s, level) : text) + pastCapNote(id, level);
     return def;
 }
 

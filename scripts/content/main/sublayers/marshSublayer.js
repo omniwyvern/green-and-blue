@@ -25,7 +25,7 @@ import {
     LEVEE_PER_LEVEL, CATCHMENT_PER_LEVEL, SEEPAGE_PER_LEVEL,
 } from "../systems/marsh.js";
 import { cardActive } from "../systems/cards.js";
-import { extendUpgrade } from "../systems/evolutionTraits.js";
+import { extendUpgrade, capOf } from "../systems/evolutionTraits.js";
 import { clamp01 } from "../../../utils/math.js";
 
 
@@ -817,7 +817,7 @@ export const MARSH_VIEW = {
                         `Each different plant community past the first multiplies`
                         + ` what the zones pay by ${formatNumber(communityMultiplier())}.`
                         + ` Two zones with the same plants count once.`,
-                        nextStep(s, "keystone", 8, "+50% each")),
+                        nextStep(s, "keystone", capOf("keystone"), "+50% each")),
                     max: 8,
                     cost: (s, level) => ({ greenEssence: D(1.25e21).mul(D(6.8).pow(level)), biomass: D(3e12).mul(D(6).pow(level)) }),
                 }, (over) => ({ greenEssence: D(1e38).mul(D(30).pow(over)) })),

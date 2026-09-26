@@ -8,6 +8,7 @@ import { registerCategory } from "../../core/registry.js";
 registerCategory("main", {
     name: "Main",
     order: 0,
+    defaultLayer: "world",
     groups: {
         origin: {},
         world: {},

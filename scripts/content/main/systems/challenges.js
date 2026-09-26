@@ -8,7 +8,7 @@ import { getResource } from "../../../core/resources.js";
 import { D } from "../../../utils/decimal.js";
 import { formatNumber } from "../../../utils/format.js";
 import { openBiome } from "../sublayers/ecosystemSublayer.js";
-import { countOf, ICE_KINDS, WOODLAND_KINDS } from "./worldMap.js";
+import { countOf, tilesOf, setTerrain, worldState, ICE_KINDS, WOODLAND_KINDS, keepProtectedGrass } from "./worldMap.js";
 import { clamp01 } from "../../../utils/math.js";
 // cards.js imports this too, but it's only read inside met(), so load order doesn't matter
 import { equippedIds } from "./cards.js";
@@ -128,7 +128,8 @@ const RESETS = {
     growing: {
         name: "Everything still growing: grass on the map, algae and fish, and every tree that isn't old growth",
         run() {
-            getLayerState("world").grass = {};
+            const world = getLayerState("world");
+            world.grass = keepProtectedGrass(world);
             RESETS.pondLife.run();
 
             const forest = getLayerState("woodland");
@@ -274,8 +275,8 @@ export const CHALLENGES = {
         text: "No more rain or snow, and the pond shrinks to a puddle. Make do with the ground you have.",
         resets: ["essence", "grassUpgrades", "pondUpgrades", "growing", "lying", "biomass"],
         blocks: ["precipitation"],
-        mods: { greenEssence: 1 / 3e8, blueEssence: 1 / 3e8 },
-        goal: { blueEssence: D("5e8") },
+        mods: { greenEssence: 1 / 3e11, blueEssence: 1 / 3e11 },
+        goal: { blueEssence: D("3e5") },
         boost: { blueEssence: 3 },
         reward: {
             title: "Standing Water",
@@ -294,9 +295,9 @@ export const CHALLENGES = {
         blocks: ["stir"],
         mods: {
             grassOutput: 0.02, oceanOutput: 0.25, forestOutput: 0.25, terrainOutput: 1e-6, algaeOutput: 2e4,
-            greenEssence: 1e-8, blueEssence: 1e-8, biomass: 1 / 300,
+            greenEssence: 1e-11, blueEssence: 1e-11, biomass: 1 / 300,
         },
-        goal: { greenEssence: D("5e9") },
+        goal: { greenEssence: D("1e6") },
         boost: { greenEssence: 3 },
         reward: {
             title: "Settled Water",
@@ -313,8 +314,8 @@ export const CHALLENGES = {
         text: "The ground barely dries. Grass struggles, but the pond thrives.",
         resets: ["essence", "grassUpgrades", "weatherUpgrades", "growing"],
         blocks: [],
-        mods: { drying: 0.05, grassGrowth: 0.25, pondOutput: 6, greenEssence: 5e-10, blueEssence: 3.5e-10 },
-        goal: { blueEssence: D("5e10") },
+        mods: { drying: 0.05, grassGrowth: 0.25, pondOutput: 6, greenEssence: 5e-12, blueEssence: 1.2e-13 },
+        goal: { blueEssence: D("2e12") },
         boost: { blueEssence: 3 },
         reward: {
             title: "Marsh",
@@ -332,7 +333,7 @@ export const CHALLENGES = {
         resets: ["essence", "grassUpgrades", "growing", "currentVitality", "coreGrowth", "marshZones"],
         blocks: [],
         mods: { grassOutput: 0, greenEssence: 1e-11 },
-        goal: { vitality: D("25000") },
+        goal: { vitality: D("3e5") },
         boost: { vitality: 3 },
         reward: {
             title: "Rotation",
@@ -349,7 +350,7 @@ export const CHALLENGES = {
         resets: ["essence", "biomass", "pondUpgrades", "oceanUpgrades", "growing"],
         blocks: [],
         mods: { pondOutput: 0, oceanTick: 2, biomass: 3 },
-        goal: { biomass: D("3e19") },
+        goal: { biomass: D("5e12") },
         boost: { biomass: 3 },
         reward: {
             title: "Herring",
@@ -368,7 +369,7 @@ export const CHALLENGES = {
             grassGrowth: 0.15, treeGrowth: 0.15, algaeGrowth: 0.2, drying: 0.1,
             greenEssence: 1e-2, blueEssence: 3e-3,
         },
-        goal: { blueEssence: D("4e21") },
+        goal: { blueEssence: D("2e20") },
         boost: { blueEssence: 3, greenEssence: 2 },
         reward: {
             title: "Ice Fields",
@@ -385,8 +386,8 @@ export const CHALLENGES = {
             + " what's standing. The marsh starts over.",
         resets: ["essence", "oldGrowth", "growing", "marshZones", "marshUpgrades"],
         blocks: ["noOldGrowth"],
-        mods: { treeGrowth: 3, forestOutput: 3, greenEssence: 1e-6, blueEssence: 1e-7 },
-        goal: { greenEssence: D("3e27") },
+        mods: { treeGrowth: 3, forestOutput: 3, greenEssence: 1e-8, blueEssence: 1e-9 },
+        goal: { greenEssence: D("2e25") },
         boost: { greenEssence: 3 },
         reward: {
             title: "Silviculture",
@@ -406,7 +407,7 @@ export const CHALLENGES = {
         resets: ["essence", "biomass", "oceanUpgrades", "pondUpgrades", "weatherUpgrades", "pondLife"],
         blocks: [],
         mods: { oceanOutput: 0, pondOutput: 5, algaeGrowth: 4, blueEssence: 1e-20, biomass: 2e-7 },
-        goal: { biomass: D("8e11") },
+        goal: { biomass: D("8e7") },
         boost: { biomass: 3, blueEssence: 2 },
         reward: {
             title: "Reefs",
@@ -439,10 +440,10 @@ export const CHALLENGES = {
         needs: ["longSummer"],
         gate: "standingWood",
         text: "Grass and trees barely grow, so the forest you already have has to carry you.",
-        resets: ["essence", "grassUpgrades", "growing"],
+        resets: ["essence", "grassUpgrades", "growing", "weatherUpgrades", "marshUpgrades"],
         blocks: [],
-        mods: { grassGrowth: 0.03, treeGrowth: 0.1, forestOutput: 5 },
-        goal: { greenEssence: D("1e32") },
+        mods: { grassGrowth: 0.03, treeGrowth: 0.1, forestOutput: 5, greenEssence: 1e-8, blueEssence: 1e-8 },
+        goal: { greenEssence: D("3e27") },
         boost: { greenEssence: 3, biomass: 2 },
         reward: {
             title: "Mushroom Grove",
@@ -463,7 +464,7 @@ export const CHALLENGES = {
             cardWorth: 3, grassOutput: 0.25, pondOutput: 0.25, oceanOutput: 0.25, forestOutput: 0.25,
             marshOutput: 0.25, greenEssence: 2, blueEssence: 2,
         },
-        goal: { blueEssence: D("1e34") },
+        goal: { blueEssence: D("3e37") },
         boost: { greenEssence: 2, blueEssence: 2 },
         reward: {
             title: "A Fourth Slot",
@@ -485,7 +486,8 @@ export const CHALLENGES = {
             greenEssence: 2e-3, blueEssence: 2e-3,
         },
         goal: {},
-        tally: { iceCover: 18 },
+        tally: { iceCover: 16 },
+        onClaim: "Completing it melts every ice tile on the map back to bare ground.",
         boost: { blueEssence: 3, biomass: 3 },
         reward: {
             title: "Meltwater",
@@ -502,8 +504,8 @@ export const CHALLENGES = {
         text: "Water, marsh and grass make almost nothing. Ice upgrades reset, and the ice field has to carry you.",
         resets: ["essence", "iceUpgrades"],
         blocks: [],
-        mods: { iceOutput: 3, pondOutput: 0.05, oceanOutput: 0.05, marshOutput: 0.05, grassOutput: 0.05, blueEssence: 1 },
-        goal: { blueEssence: D("6e42") },
+        mods: { iceOutput: 3, pondOutput: 0.05, oceanOutput: 0.05, marshOutput: 0.05, grassOutput: 0.05, blueEssence: 1e-9 },
+        goal: { blueEssence: D("3e35") },
         boost: { blueEssence: 3 },
         reward: {
             title: "Cold Currents",
@@ -521,8 +523,8 @@ export const CHALLENGES = {
             + " make all your Blue Essence.",
         resets: ["essence", "pondUpgrades", "pondLife"],
         blocks: [],
-        mods: { algaeGrowth: 4, algaeOutput: 8, oceanOutput: 0.05, iceOutput: 1e-6, marshOutput: 0.1, blueEssence: 1 },
-        goal: { blueEssence: D("2e43") },
+        mods: { algaeGrowth: 4, algaeOutput: 8, oceanOutput: 0.05, iceOutput: 1e-6, marshOutput: 0.1, blueEssence: 1e-15 },
+        goal: { blueEssence: D("3e27") },
         boost: { blueEssence: 3 },
         reward: {
             title: "Bloom Tolerance",
@@ -539,8 +541,8 @@ export const CHALLENGES = {
         text: "Grass and the ice field make almost nothing, so the forest has to make your Green Essence.",
         resets: ["essence", "grassUpgrades"],
         blocks: [],
-        mods: { grassOutput: 0.02, forestOutput: 3, iceOutput: 1e-6, greenEssence: 1 },
-        goal: { greenEssence: D("5e40") },
+        mods: { grassOutput: 0.02, forestOutput: 3, iceOutput: 1e-6, greenEssence: 1e-12 },
+        goal: { greenEssence: D("3e29") },
         boost: { greenEssence: 3, biomass: 2 },
         reward: {
             title: "Rich Rot",
@@ -558,9 +560,9 @@ export const CHALLENGES = {
             + " marsh has to carry you.",
         resets: ["essence", "marshZones"],
         blocks: [],
-        mods: { marshOutput: 5, pondOutput: 0.05, oceanOutput: 0.05, iceOutput: 1e-6, blueEssence: 1 },
-        goal: { blueEssence: D("1e49") },
-        boost: { biomass: 3, blueEssence: 2 },
+        mods: { marshOutput: 5, pondOutput: 0.05, oceanOutput: 0.05, iceOutput: 1e-6, blueEssence: 1e-15 },
+        goal: { blueEssence: D("1e29") },
+        boost: { biomass: 3, greenEssence: 2 },
         reward: {
             title: "Deep Mud",
             text: "Varied Life goes 5 more levels past its cap.",
@@ -578,7 +580,7 @@ export const CHALLENGES = {
         resets: ["essence", "oceanUpgrades"],
         blocks: [],
         mods: { oceanOutput: 3, pondOutput: 0.05, marshOutput: 0.05, iceOutput: 1e-6, blueEssence: 1 },
-        goal: { blueEssence: D("1e60") },
+        goal: { blueEssence: D("8e45") },
         boost: { blueEssence: 3 },
         reward: {
             title: "Brine Pools",
@@ -596,8 +598,8 @@ export const CHALLENGES = {
         resets: ["essence", "grassUpgrades", "growing", "currentVitality"],
         blocks: [],
         mods: { grassGrowth: 4, grassOutput: 3, forestOutput: 0.05, iceOutput: 1e-6, greenEssence: 1 },
-        goal: { vitality: D("3e22") },
-        boost: { greenEssence: 3 },
+        goal: { vitality: D("1e10") },
+        boost: { greenEssence: 3, vitality: 10 },
         reward: {
             title: "Wild Meadows",
             text: "Greener Blades goes 5 more levels past its cap.",
@@ -761,6 +763,11 @@ export const REWARD_ACTIONS = {
     clearwater: openOne("reef", "biomeReef", "reef"),
     deadfall: openOne("fungi", "biomeFungi", "mushroomGrove"),
     longWinter: openOne("ice", "biomeIce", "iceField"),
+
+    iceAge() {
+        const world = worldState();
+        for (const id of tilesOf(ICE_KINDS, world)) setTerrain(world, id, "bare");
+    },
 
     openWater() {
         const sea = getLayerState("aquatic");

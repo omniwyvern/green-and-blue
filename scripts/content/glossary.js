@@ -68,7 +68,60 @@ registerTerm("evolutionaryPotential", {
     short: "Potential",
     order: 6,
     when: () => layerUnlocked("evolution"),
-    body: "What Adaptation Points turn into for each pressure: 25 points per potential, times"
-        + " that pressure's modifier. Each pressure has its own meter with a cap, and Evolution"
+    body: "What Adaptation Points turn into for each pressure: 25 earned points per potential, times"
+        + " that pressure's modifier, and a quarter of that for banked points. Each pressure has its"
+        + " own meter with a cap, and Evolution"
         + " traits are bought by draining the meters they need.",
+});
+
+registerTerm("population", {
+    term: "Population",
+    order: 7,
+    when: () => layerUnlocked("settlement"),
+    body: "How big a settlement is. Each point of population stands for many people, and each one works a"
+        + " job or a project. It grows slowly on spare food, stops at the settlement's shelter, and shrinks"
+        + " when the food store runs empty.",
+});
+
+registerTerm("food", {
+    resource: "food",
+    order: 8,
+    when: () => layerUnlocked("settlement"),
+    body: "Gathered and hunted. Each population eats 0.1 a second. Only what's left over feeds growth,"
+        + " and the land only has room for so many gatherers and hunters: a real surplus is hard to come by.",
+});
+
+registerTerm("water", {
+    term: "Water",
+    order: 9,
+    when: () => layerUnlocked("settlement"),
+    body: "Each population drinks 0.1 a second. Springs and wet land supply a little, Water Carriers bring"
+        + " the rest, and what's spare is stored. When the store runs dry, everyone works worse and growth"
+        + " all but stops.",
+});
+
+registerTerm("shelter", {
+    term: "Shelter",
+    order: 10,
+    when: () => layerUnlocked("settlement"),
+    body: "How much population a settlement has room for. Building shelter raises it, up to what stone-age"
+        + " know-how can hold together.",
+});
+
+registerTerm("materials", {
+    term: "Materials",
+    order: 11,
+    when: () => layerUnlocked("settlement"),
+    body: "Sticks, stone, bone and hide. People at home pick a little up, more where there's wood around,"
+        + " and expeditions bring back far more. Every expedition needs some to set out. A settlement can only"
+        + " store so much, more with some projects, discoveries and innovations.",
+});
+
+registerTerm("expedition", {
+    term: "Expedition",
+    order: 12,
+    when: () => layerUnlocked("settlement"),
+    body: "A group sent out from a settlement along a route on the world map and back again. They carry"
+        + " back food and materials from the land they cross, and learn discoveries that land teaches,"
+        + " whatever kind of settlement they came from.",
 });

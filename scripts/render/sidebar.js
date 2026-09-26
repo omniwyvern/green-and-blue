@@ -2,7 +2,7 @@
 //
 // Builds and renders the category bar and the layer sidebar
 
-import { state, getLayerState, claimUnseen, saveState, layerUnlocked } from "../core/state.js";
+import { state, getLayerState, claimUnseen, saveState, layerUnlocked, defaultLayerId } from "../core/state.js";
 import { layers, getOrderedCategories, getOrderedLayers, getOrderedGroups, getVisibleSubLayers, isSubLayerBlocked } from "../core/registry.js";
 import { switchToLayer, switchToSubLayer, activeHeaderElement, absorbedInto, releaseLayerCanvas } from "./canvasRouter.js";
 import { setText, setDisplay, svgEl } from "../utils/dom.js";
@@ -32,6 +32,7 @@ export function renderSidebar() {
         lastRenderedLayer = state.activeLayer;
     }
 
+    refreshCategoryButtons();
     refreshLockedStates();
     refreshFlyoutMembership();
     refreshBlockedSubLayers();
@@ -113,15 +114,25 @@ function buildCategoryBar() {
     for (const category of getOrderedCategories()) {
         const btn = document.createElement("button");
         btn.className = "category-button";
+        btn.dataset.categoryId = category.id;
         btn.textContent = category.name;
         btn.classList.toggle("active", category.id === state.activeCategory);
         btn.addEventListener("click", () => {
             state.activeCategory = category.id;
-            const firstLayer = getOrderedLayers(category.id)[0];
-            if (firstLayer) switchToLayer(firstLayer.id);
+            const layerId = defaultLayerId(category.id);
+            if (layerId) switchToLayer(layerId);
             lastRenderedCategory = null; // Forces buildCategoryBar / buildLayerSidebar next tick
         });
         categoryBarEl.appendChild(btn);
+    }
+    refreshCategoryButtons();
+}
+
+// A category stays out of the bar until something in it opens
+const categoryOpen = (id) => getOrderedLayers(id).some(layer => layerUnlocked(layer.id));
+function refreshCategoryButtons() {
+    for (const btn of categoryBarEl.children) {
+        setDisplay(btn, btn.dataset.categoryId === state.activeCategory || categoryOpen(btn.dataset.categoryId));
     }
 }
 

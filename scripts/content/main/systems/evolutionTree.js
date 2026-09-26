@@ -3,14 +3,14 @@
 // Evolution numbers: potential, converting adaptation points, and buying traits
 
 import { state } from "../../../core/state.js";
-import { getResource, spend } from "../../../core/resources.js";
+import { addResource, getResource, spend } from "../../../core/resources.js";
 import { boostResource } from "../../../core/boosts.js";
 import { D } from "../../../utils/decimal.js";
 import { PRESSURE_IDS, pressureAmount } from "./pressures.js";
-import { diversityMultiplier } from "../layers/adaptationLayer.js";
+import { diversityMultiplier, evenDiversityMultiplier } from "../layers/adaptationLayer.js";
 import { vitalityTotal } from "../sublayers/grassSublayer.js";
 import {
-    TREES, evolutionState, evolutionOpen, evolutionMod, traitDef, traitEntry,
+    TREES, TRAIT_IDS, evolutionState, evolutionOpen, evolutionMod, traitDef, traitEntry,
     traitCost, traitOwned, traitParents, traitsInGeneration, ownedCount, registerScale, DRIFT_PER_SECOND,
 } from "./evolutionTraits.js";
 
@@ -49,9 +49,25 @@ const unlimited = () => !!state.settings.enableUnlimitedPotential;   // Dev tool
 export const potentialOf = (id, s = evolutionState()) =>
     unlimited() ? capacityOf(id, s) : Number((s.potential || {})[id]) || 0;
 
-// Doubles for each generation past the first that the pressure's own tree has opened
-export const capacityOf = (id, s = evolutionState()) =>
-    (BASE_CAPACITY + evolutionMod("capacity", s) + evolutionMod(`${id}Capacity`, s)) * (1 + evolutionMod("capacityMult", s))
+// The most any buyable trait asks of each meter, rebuilt when a trait is bought
+let askCache = null;
+
+function largestAsks(s) {
+    const count = ownedCount(s);
+    if (askCache && askCache.s === s && askCache.count === count) return askCache.asks;
+    const asks = {};
+    for (const id of TRAIT_IDS) {
+        if (traitOwned(id, s) || nodeLocked(id, s)) continue;
+        const cost = traitCost(id, s);
+        for (const pressureId in cost) asks[pressureId] = Math.max(asks[pressureId] || 0, cost[pressureId]);
+    }
+    askCache = { s, count, asks };
+    return asks;
+}
+
+// Room for the dearest buyable trait, plus spare room that doubles for each generation the pressure's own tree has opened
+export const capacityOf = (id, s = evolutionState()) => (largestAsks(s)[id] || 0)
+    + (BASE_CAPACITY + evolutionMod("capacity", s) + evolutionMod(`${id}Capacity`, s)) * (1 + evolutionMod("capacityMult", s))
         * Math.pow(CAPACITY_PER_GENERATION, generationsOpen(id, s) - 1);
 
 const roomIn = (id, s) => Math.max(0, capacityOf(id, s) - potentialOf(id, s));
@@ -121,9 +137,12 @@ const drainRamp = ramp(12, 2.8, 4000);  // Potential per second out of each mete
 const holdRate = (heldSeconds) => holdRamp(heldSeconds) * (1 + evolutionMod("haste"));
 const drainRate = (heldSeconds) => drainRamp(heldSeconds) * (1 + evolutionMod("haste"));
 
-// Spends adaptation points on one pressure's potential, limited by hold speed, points held and meter room
+// Banked points convert at a quarter of the rate earned ones pour in at
+const BANKED_RATE = 0.25;
+
+// Spends banked adaptation points on one pressure's potential, limited by hold speed, points held and meter room
 export function convertPressure(id, seconds, heldSeconds) {
-    const rate = BASE_RATE * conversionMod(id);
+    const rate = BASE_RATE * BANKED_RATE * conversionMod(id);
     if (rate <= 0) return 0;
 
     const s = evolutionState();
@@ -134,6 +153,23 @@ export function convertPressure(id, seconds, heldSeconds) {
     if (wanted.lte(0) || !spend({ adaptationPoints: wanted })) return 0;
 
     return pourInto(id, wanted.toNumber() * rate, s);
+}
+
+// Earned points pour into the chosen meter at the full rate, and whatever it can't take is banked
+export const BANK = "bank";
+export const flowingInto = (s = evolutionState()) => s.flowing === BANK ? null
+    : PRESSURE_IDS.includes(s.flowing) ? s.flowing : PRESSURE_IDS.find(id => feltPressure(id) > 0) || null;
+
+export function earnAdaptation(amount) {
+    let banked = D(amount);
+    const s = evolutionState();
+    const id = evolutionOpen() && !unlimited() ? flowingInto(s) : null;
+    const rate = id ? BASE_RATE * conversionMod(id) : 0;
+    if (rate > 0 && banked.gt(0)) {
+        const poured = Math.min(banked.toNumber(), pourRoom(id, s) / rate);
+        if (poured > 0) banked = banked.sub(pourInto(id, poured * rate, s) / rate).max(0);
+    }
+    if (banked.gt(0)) addResource("adaptationPoints", banked);
 }
 
 // What drift grows with; 1 until it's decided
@@ -164,19 +200,22 @@ const VITALITY_POWER = 0.5;
 const DIVERSITY_POWER = 1.5;
 const PER_NODE = 0.05;
 
-export function passiveAdaptationRate() {
-    if (!evolutionOpen()) return D(0);
-
+function passiveWith(diversity) {
     const reach = vitalityTotal().add(1).log10().sub(VITALITY_FLOOR).max(0);
     if (reach.lte(0)) return D(0);
 
     return D(PASSIVE_BASE)
         .mul(reach.pow(VITALITY_POWER))
-        .mul(Math.pow(diversityMultiplier(), DIVERSITY_POWER))
+        .mul(Math.pow(diversity, DIVERSITY_POWER))
         .mul(1 + PER_NODE * ownedCount())
         .mul(1 + evolutionMod("passive"))
         .mul(boostResource("adaptationPoints"));
 }
+
+export const passiveAdaptationRate = () => evolutionOpen() ? passiveWith(diversityMultiplier()) : D(0);
+
+// The ceiling: passive points if the map's tiles were split evenly between every kind it has held
+export const adaptationCeiling = () => evolutionOpen() ? passiveWith(evenDiversityMultiplier()) : D(0);
 
 
 //    !!! GENERATIONS !!!

@@ -1,0 +1,291 @@
+/* knowledge.css */
+
+.knowledge-canvas > .static-scene { overflow-y: auto; }
+
+.know-page {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: var(--page-pad, 1rem);
+}
+.lore-page { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.innov-page { grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); max-width: 90rem; }
+.innov-manual { grid-column: 1 / -1; }
+
+.know-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    min-width: 0;
+}
+.know-card h3 { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; justify-content: space-between; align-items: baseline; font-size: 0.9375rem; }
+.know-empty { font-size: 0.8125rem; color: var(--text-dim); line-height: 1.5; }
+
+.notion-name { white-space: nowrap; }
+.notion-name .notion-icon { margin-right: 0.2em; vertical-align: -0.15em; color: color-mix(in srgb, var(--notion) 70%, #fff); }
+
+.lore-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.lore-entry { display: flex; flex-direction: column; gap: 0.125rem; padding-left: 0.625rem; border-left: 2px solid #d9b36a; }
+.lore-name { font-size: 0.875rem; font-weight: 600; }
+.lore-text { font-size: 0.75rem; }
+.lore-note { font-size: 0.75rem; color: var(--text-dim); font-style: italic; }
+
+.innov-head { position: relative; display: flex; }
+.innov-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 14rem;
+    max-width: 100%;
+    padding: 0.4375rem 0.75rem;
+    font: inherit;
+    text-align: left;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    color: inherit;
+    cursor: pointer;
+}
+.innov-pick:hover { border-color: #b67ae0; }
+.innov-pick-text { display: flex; flex-direction: column; gap: 0.125rem; flex: 1; min-width: 0; }
+.innov-title { font-size: 1rem; font-weight: 600; }
+.innov-pick-arrow { font-size: 0.875rem; color: var(--text-dim); }
+.innov-pick:hover .innov-pick-arrow { color: #b67ae0; }
+.innov-pick.is-next { border-color: #b67ae0; animation: pick-next 1.6s ease-in-out infinite; }
+.innov-pick.is-next .innov-pick-arrow { color: #b67ae0; }
+.innov-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    z-index: 5;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 17rem;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding: 0.375rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.4);
+}
+.innov-menu.is-open { display: flex; }
+.innov-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    padding: 0.375rem 0.5rem;
+    font: inherit;
+    text-align: left;
+    background: var(--panel-light);
+    border: 1px solid transparent;
+    border-radius: 0.3125rem;
+    color: inherit;
+    cursor: pointer;
+}
+.innov-row:hover { border-color: var(--border); }
+.innov-row.is-active { border-color: #b67ae0; }
+.innov-row.is-locked { opacity: 0.55; }
+.innov-row-name { font-size: 0.8125rem; font-weight: 600; }
+.innov-row-state { font-size: 0.6875rem; color: var(--text-dim); }
+.innov-row.is-open .innov-row-state { color: #c9a8f0; }
+.innov-row.is-done .innov-row-state { color: #7fd46a; }
+
+.innov-effect { font-size: 0.75rem; font-weight: 400; color: var(--text-dim); }
+.innov-status { font-size: 0.8125rem; color: var(--text-dim); line-height: 1.5; }
+.innov-note { width: 100%; height: auto; max-height: calc(100vh - 14rem); min-height: 16rem; margin: 0 auto; user-select: none; }
+.innov-note-card.is-locked .innov-note { opacity: 0.5; pointer-events: none; }
+.innov-note-card.is-finished .innov-note { pointer-events: none; filter: drop-shadow(0 0 0.5rem rgba(127, 212, 106, 0.5)); animation: note-finished 1.8s ease-out; }
+.innov-note-card.is-finished .innov-status { color: #7fd46a; }
+.innov-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8125rem; }
+
+.note-cell polygon {
+    fill: var(--panel-light);
+    stroke: var(--border);
+    stroke-width: 1.5;
+    cursor: pointer;
+}
+.note-cell:hover polygon { stroke: #b67ae0; }
+.note-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    fill: var(--text);
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, 0.6);
+    stroke-width: 2.5px;
+    pointer-events: none;
+}
+.note-cell[style] polygon { fill: color-mix(in srgb, var(--notion) 30%, var(--panel)); stroke: color-mix(in srgb, var(--notion) 60%, var(--border)); }
+.note-cell[style].is-joined polygon { fill: color-mix(in srgb, var(--notion) 55%, var(--panel)); stroke: var(--notion); }
+.note-cell.is-pinned polygon { stroke-width: 3; cursor: default; }
+.note-cell.is-blocked polygon { fill: var(--bg, #111); stroke: transparent; cursor: default; opacity: 0.6; }
+.note-link { stroke: var(--text-dim); stroke-width: 2; stroke-dasharray: 3 3; opacity: 0.6; pointer-events: none; }
+.note-link.is-joined { stroke: #c9a8f0; stroke-dasharray: none; opacity: 0.9; }
+
+.notion-palette { display: flex; flex-wrap: wrap; gap: 0.25rem; padding-bottom: 0.75rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.notion-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.1875rem 0.5rem;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--notion) 60%, var(--panel));
+    border: 1px solid var(--notion);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    border-radius: 1rem;
+    color: inherit;
+    cursor: pointer;
+}
+.notion-chip.is-brush { outline: 2px solid var(--notion); outline-offset: 1px; }
+.notion-chip.is-empty { opacity: 0.45; }
+.notion-count { font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.8); }
+
+.notion-icon { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.notion-chip .notion-icon { width: 1.125em; height: 1.125em; }
+.note-icon { pointer-events: none; }
+.note-icon path { fill: none; stroke: color-mix(in srgb, var(--notion) 45%, #fff); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.note-icon .note-icon-under { stroke: rgba(0, 0, 0, 0.55); stroke-width: 3.5; }
+
+.notion-mix { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.375rem 0.125rem; }
+.mix-combine {
+    padding: 0.4375rem 1rem;
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #f0e2ff;
+    background: color-mix(in srgb, #b67ae0 30%, var(--panel-light));
+    border: 1px solid #b67ae0;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+.mix-combine:hover:not(:disabled) { background: color-mix(in srgb, #b67ae0 45%, var(--panel-light)); box-shadow: 0 0 0.75rem rgba(182, 122, 224, 0.35); }
+.mix-combine:disabled { color: var(--text-dim); background: none; border-style: dashed; border-color: var(--border); cursor: default; }
+.mix-op { font-size: 1rem; color: var(--text-dim); }
+.mix-arrow { position: relative; flex: none; width: 1.75rem; height: 2px; margin: 0 0.625rem 0 0.5rem; background: var(--text-dim); }
+.mix-arrow::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-top: 2px solid var(--text-dim);
+    border-right: 2px solid var(--text-dim);
+    transform: translateY(-50%) rotate(45deg);
+}
+.mix-slot {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 4rem;
+    padding: 0;
+    font: inherit;
+    background: none;
+    border: none;
+    color: color-mix(in srgb, var(--notion, var(--text)) 45%, #fff);
+}
+.mix-hex { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.mix-hex polygon {
+    fill: color-mix(in srgb, var(--notion, transparent) 30%, var(--panel-light));
+    stroke: var(--border);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    vector-effect: non-scaling-stroke;
+}
+.mix-slot[style*="#"] .mix-hex polygon { stroke: var(--notion); stroke-dasharray: none; }
+button.mix-slot { cursor: pointer; }
+button.mix-slot:hover .mix-hex polygon, .mix-slot.is-target .mix-hex polygon { stroke: #b67ae0; stroke-width: 2.5; }
+.mix-body { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.125rem; max-width: 100%; padding: 0 0.25rem; }
+.mix-slot .notion-icon { width: 1.625rem; height: 1.625rem; }
+.mix-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.625rem; font-weight: 600; color: var(--text); }
+.mix-unknown { font-size: 1.25rem; font-weight: 600; color: var(--text-dim); }
+.mix-slot.is-failed::before, .mix-slot.is-failed::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 15%;
+    width: 70%;
+    height: 3px;
+    border-radius: 2px;
+    background: #f05050;
+    z-index: 1;
+}
+.mix-slot.is-failed::before { transform: rotate(45deg); }
+.mix-slot.is-failed::after { transform: rotate(-45deg); }
+.mix-hint { font-size: 0.75rem; color: #c9a8f0; min-height: 1em; }
+.combine-result { font-size: 0.75rem; color: var(--text-dim); min-height: 1em; }
+
+.notion-manual { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0.75rem; }
+.manual-recipe {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.125rem;
+    padding: 0.625rem 0.75rem;
+    font: inherit;
+    color: inherit;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+}
+button.manual-recipe { cursor: pointer; }
+button.manual-recipe:hover { border-color: #b67ae0; }
+.manual-pop {
+    position: absolute;
+    top: 0.375rem;
+    right: 0.375rem;
+    padding: 0.0625rem 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #7fe07a;
+    background: var(--panel);
+    border: 1px solid currentColor;
+    border-radius: 0.25rem;
+    pointer-events: none;
+    animation: manual-pop 1.2s ease-out forwards;
+}
+.manual-pop.is-short { color: #f05050; }
+.mix-slot.is-short { animation: mix-short 1.2s ease-in-out; }
+.mix-slot.is-short .mix-hex polygon { stroke: #f05050; stroke-width: 2.5; stroke-dasharray: none; }
+
+@keyframes manual-pop {
+    0% { opacity: 0; transform: translateY(0.25rem); }
+    15% { opacity: 1; transform: none; }
+    75% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-0.375rem); }
+}
+@keyframes note-finished {
+    0% { filter: drop-shadow(0 0 0 rgba(127, 212, 106, 0)); }
+    30% { filter: drop-shadow(0 0 1.5rem rgba(127, 212, 106, 0.95)); }
+}
+@keyframes pick-next {
+    50% { box-shadow: 0 0 0.875rem rgba(182, 122, 224, 0.6); background: color-mix(in srgb, #b67ae0 18%, var(--panel-light)); }
+}
+@keyframes mix-short {
+    8%, 24% { transform: translateX(-3px); }
+    16%, 32% { transform: translateX(3px); }
+    40% { transform: none; }
+}
+
+@media (max-width: 1100px) {
+    .innov-page { grid-template-columns: minmax(0, 1fr) minmax(13rem, 16rem); }
+}
+@media (max-width: 700px) {
+    .lore-page, .innov-page { grid-template-columns: minmax(0, 1fr); }
+}

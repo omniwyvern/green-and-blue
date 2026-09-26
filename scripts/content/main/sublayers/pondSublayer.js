@@ -11,7 +11,7 @@ import { formatNumber } from "../../../utils/format.js";
 import { setText, setWidth, setDisplay } from "../../../utils/dom.js";
 import { upgradeDescription } from "../../../render/richText.js";
 import { cardBonus, cardActive, unlockCard } from "../systems/cards.js";
-import { traitBonus, traitHas, extendUpgrade, pastCapGain } from "../systems/evolutionTraits.js";
+import { traitBonus, traitHas, extendUpgrade, capOf } from "../systems/evolutionTraits.js";
 import {
     shoreGrassTiles, worldState, claimedTiles, tileKind, adjacentOfKind, countOf,
 } from "../systems/worldMap.js";
@@ -91,18 +91,17 @@ const buddingScale = () => Math.pow(1 + oceanReach(), BUDDING_POWER);
 const pondScale = () => buddingScale() * watershed();
 
 // Rides on total Biomass rather than pond size, so a well-kept pond keeps paying forever
-export function buddingMultiplier() {
+function buddingMultiplier() {
     const s = getLayerState("pond");
     if (!specialMilestone("wellspring") || !coreNodeBought("life") || !(s.capacity > 0)) return D(1);
     const stock = Math.min(1, (s.algae + s.fish) / s.capacity);
     const quality = stock * balanceFactor(s);
     const biomass = getResource("biomass");
     if (quality <= 0 || biomass.lte(1)) return D(1);
-    return biomass.pow(BUDDING_EXPONENT * quality);
+    return biomass.pow(BUDDING_EXPONENT).sub(1).mul(quality).add(1);
 }
 
-registerBoost("Wellspring", (resourceId) =>
-    resourceId === "blueEssence" || resourceId === "biomass" ? buddingMultiplier() : 1);
+registerBoost("Wellspring", (resourceId) => resourceId === "greenEssence" || resourceId === "blueEssence" ? buddingMultiplier() : 1);
 
 const ALGAE_GROWTH = 0.04;
 const ALGAE_PER_LEVEL = 0.25;
@@ -394,7 +393,7 @@ const algaeCeiling = (s) => s.capacity * (1 - Math.min(0.9, cardBonus("fishReser
 
 function production(s) {
     const fromTurbulence = 1 + productionTurbulence(s) * turbulenceBonus(s);
-    const fromUpgrades = (1 + .25 * Math.min(25, getLevel(s, "richerWaters"))) * pastCapGain("richerWaters", getLevel(s, "richerWaters"));
+    const fromUpgrades = 1 + .25 * getLevel(s, "richerWaters");
     return BASE_PRODUCTION.mul(fromTurbulence).mul(fromUpgrades).mul(fishMultiplier(s))
         .mul(1 + cardBonus("pondOutput") + bandBoost(s))
         .mul(1 + cardBonus("roughBlue") * Math.min(1, turbulenceFraction(s)))
@@ -613,7 +612,7 @@ export const POND_VIEW = {
             const budding = el.querySelector(".pond-budding");
             const boost = buddingMultiplier();
             setDisplay(budding, boost.gt(1));
-            if (boost.gt(1)) setText(budding, `Wellspring: ${formatNumber(boost)}x Blue Essence and Biomass everywhere`);
+            if (boost.gt(1)) setText(budding, `Wellspring: ${formatNumber(boost)}x Green and Blue Essence everywhere`);
 
             updateBalance(el.querySelector(".pond-balance"), s);
             updateInhabitants(el, s);
@@ -636,8 +635,8 @@ export const POND_VIEW = {
                 richerWaters: extendUpgrade("richerWaters", {
                     title: "Richer Waters",
                     description: (s) => upgradeDescription(
-                        `The pond passively produces ${Math.round(100 * 0.25 * Math.min(25, getLevel(s, "richerWaters")))}% more, at any turbulence.`,
-                        nextStep(s, "richerWaters", 25, "+25%")),
+                        `The pond passively produces ${Math.round(100 * 0.25 * getLevel(s, "richerWaters"))}% more, at any turbulence.`,
+                        nextStep(s, "richerWaters", capOf("richerWaters"), "+25%")),
                     max: 25,
                     cost: (s, level) => ({ blueEssence: D(50).mul(D(1.35).pow(level)) }),
                 }, (over) => ({ blueEssence: D(1e44).mul(D(10).pow(over)) })),

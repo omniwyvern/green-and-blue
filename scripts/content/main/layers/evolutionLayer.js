@@ -3,7 +3,7 @@
 // One pressure's trait tree, with meters that turn adaptation points into potential
 
 import { registerLayer } from "../../../core/registry.js";
-import { addResource, getResource } from "../../../core/resources.js";
+import { getResource } from "../../../core/resources.js";
 import { markDirty } from "../../../render/canvasRouter.js";
 import { formatNumber, formatWhole } from "../../../utils/format.js";
 import { setText, setHeight, frameLoop, onRelease } from "../../../utils/dom.js";
@@ -11,7 +11,7 @@ import { PRESSURES, PRESSURE_IDS, pressureFelt } from "../systems/pressures.js";
 import {
     BASE_RATE, capacityOf, potentialOf, conversionMod, convertPressure, drainIntoNode, generationsOpen, generationShort,
     missingParents, nodeLocked, nodeProgress, nodeStalled, nodeVisible, leftOn, passiveAdaptationRate,
-    driftPotential, overflowing,
+    driftPotential, overflowing, earnAdaptation, flowingInto, BANK,
 } from "../systems/evolutionTree.js";
 import { meterArt, sceneryHtml } from "../art/pressureArt.js";
 import {
@@ -50,7 +50,13 @@ function stepHold(dt) {
     }
 }
 
-const releaseHold = () => { hold = null; };
+// A quick tap on the meter already being poured into sends earned points to the bank instead
+const STOP_TAP_SECONDS = 0.4;
+
+const releaseHold = () => {
+    if (hold?.stopsFlow && hold.seconds < STOP_TAP_SECONDS) evolutionState().flowing = BANK;
+    hold = null;
+};
 onRelease(releaseHold);
 
 // Holds run off the render clock so the ramp is as smooth as the screen is
@@ -257,7 +263,9 @@ function buildBay(host) {
                 </div>
                 <div class="pressure-readout"></div>
             </div>
-            <button class="pressure-convert" type="button">
+            <button class="pressure-convert" type="button"
+                title="Tap to pour earned points into ${def.name}, and again to bank them instead.
+Hold to also turn banked points into potential, at a quarter of the rate.">
                 <span class="convert-ridge"></span>
                 <span class="convert-name">${def.name}</span>
             </button>
@@ -268,7 +276,11 @@ function buildBay(host) {
         const button = column.querySelector(".pressure-convert");
         button.addEventListener("pointerdown", (e) => {
             e.preventDefault();
+            const s = evolutionState();
+            const stopsFlow = flowingInto(s) === id;
+            s.flowing = id;
             startHold("convert", id);
+            hold.stopsFlow = stopsFlow;
         });
 
         bay.appendChild(column);
@@ -287,6 +299,7 @@ function paint() {
 function paintBay() {
     const points = getResource("adaptationPoints");
     const viewing = viewedTree();
+    const flowing = flowingInto();
 
     for (const column of bayEl.querySelectorAll(".pressure-meter")) {
         const id = column.dataset.pressure;
@@ -299,11 +312,14 @@ function paintBay() {
         const rateEl = column.querySelector(".pressure-rate");
         setText(rateEl, mod > 0 ? `${1 / BASE_RATE} → ${formatNumber(mod, 1)}` : "-");
         rateEl.title = mod > 0
-            ? `x${formatNumber(mod, 2)} off the ground the world has, on ${1 / BASE_RATE} points to one potential`
+            ? `x${formatNumber(mod, 2)} off the ground the world has, on ${1 / BASE_RATE} earned points to one potential`
+                + `
+Banked points convert at a quarter of that`
             : `Nothing on the map is pushing this way`;
 
         const full = held >= capacity;
-        column.classList.toggle("idle", mod <= 0 || points.lte(0) || (full && !overflowing()));
+        column.classList.toggle("idle", mod <= 0 || (points.lte(0) && id !== flowing) || (full && !overflowing()));
+        column.classList.toggle("flowing", id === flowing);
         column.classList.toggle("full", full);
         column.classList.toggle("empty", held <= 0);
         column.classList.toggle("viewing", id === viewing);
@@ -434,12 +450,12 @@ registerLayer("evolution", {
         owned: {},       // { traitId: true }
         paid: {},        // { traitId: { pressureId: amount } }, a trait still being held down
         viewing: null,   // Which pressure's tree is on the canvas
+        flowing: null,   // Which meter earned points pour into
     },
 
     // Adapting stops being the only way to earn points once this is open
     onTick(dt) {
-        const gained = passiveAdaptationRate().mul(dt);
-        if (gained.gt(0)) addResource("adaptationPoints", gained);
+        earnAdaptation(passiveAdaptationRate().mul(dt));
         driftPotential(dt);
     },
 

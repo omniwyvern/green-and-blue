@@ -1,159 +1,135 @@
-Evolution Changes and Reorganization + Misc Fixes: 9/16/26
-	- Each pressure now has its own skill tree for traits instead of just one big one
-	- The evolution layer now has good visuals, since they can be specialized to that environment
-	- The meters have distinct looks to them as well
-	- Lines between generations are easier to see since the background makes them less visible
-	- Added capstone traits, which are bigger branch-related traits with a good amount of requirements
-	- Added apex traits, which are the top of each tree and have a ton of requirements
-	- Organized the CSS files into their own folders for readability
-	- Cleaned up code comments and format
-	- Changed names of upgrades so there weren't reused names across different layers
+Discoveries, Innovations, Evolution Meters and Economy Rebalance: 9/26/26
+	- Added discoveries, found in the land around a settlement, and innovations that build on them
+	- Projects are now improvements the whole settlement builds together, with later ones appearing as innovations are learned
+	- Hafted Tools, Digging Sticks and Controlled Burns multiply Green Essence (x4, x6 and x8), letting settlements grow past 9 people
+	- Knowledge opens with the first discovery, and Innovation after four
+	- Expeditions open by finishing Scout the Surroundings at 8 people, which also widens the world map by one ring
+	- Settlements store up to 300 materials, raised to 1,150 by projects, discoveries and innovations
+	- Projects, discoveries and expeditions cost far more materials
+	- Adaptation Points now pour straight into one chosen pressure meter, and banked points convert at a quarter of the rate
+	- Meters always fit the priciest open trait, and traits cost about three times as much
+	- Green Essence and Blue Essence stay within a few decades of each other up to Humanity, with Biomass well below both
+	- Humanity costs 1e56 of each Essence and 5e10 peak Vitality, and a second settlement costs 1e61 of each and 1,000 materials
+	- Challenges take about 20 minutes each, and Long Winter about 40
+	- Finishing Ice Age melts the Ice Field back to bare ground
+	- Choked Out also rewards x10 Vitality, Stagnation boosts Green Essence instead of Blue, and Sea of Light gives x1.02 per trait
+	- Terrain that can't be unlocked yet no longer shows in the Terrain tab
+
+Language Layer, Melting and Challenge Pacing: 9/25/26
+	- Added the Language layer to Humanity, opened by innovating Language
+	- Each settlement speaks its own language, whose words you guess from what you overhear and the simpler words they're built from
+	- Learning words reaches new stages of speech, which let settlements grow into villages
+	- Settlements make more from their tiles as they grow, up to x10, and rain and snow fill their springs
+	- Some innovations boost the whole world, like Irrigation tripling Blue Essence
+	- Water tiles evaporate after 10 minutes and Snow melts after 15, unless rain or snow tops them up
+	- Wellspring's bonus shrinks smoothly instead of collapsing
+	- Challenges take about 15 to 25 minutes, or 35 to 40 for ones that unlock something
+	- Deadfall also resets weather and marsh upgrades, and Ice Age needs 16 icy tiles instead of 18
+
+Evolution Trees and Cleanup: 9/16/26
+	- Each pressure has its own trait tree, topped by capstone and apex traits
+	- New visuals for the Evolution layer and its meters, with clearer lines between generations
+	- Upgrade names are no longer reused across layers
+	- CSS files organized into folders and code comments cleaned up
 
 Challenge Pacing: 9/14/26
-	- Challenges are rebalanced to take 15 to 20 minutes, or 35 to 40 for ones that unlock sublayers
-	- Challenges now list what they modify, as well as what is missing to unlock the challenge
-	- Challenges have pretty much all been altered to not be as bad
-	- Ecology is moved to be after the ocean and forest nodes on the Cores layer
+	- Challenges take 15 to 20 minutes, or 35 to 40 for ones that unlock sublayers, and are less punishing
+	- Challenges list what they modify and what's missing to unlock them
+	- Ecology moved after the ocean and forest nodes on the Cores layer
 
-Card Banners, Pacing Changes, and Various Fixes: 9/13/26
-	- Added banners for the Marsh and Ice Field sublayers
-	- Added combos for them as well
-	- First unlocks are rebalanced to take as much time as intended
-	- Added some pond unlocks on the Cores layer
-	- First Vitality upgrades are cheaper
-	- Some various upgrades have higher scaling and reduced starting priced
-	- Most upgrades now are paced to be bought throughout the progress in the layer, rather than in large bursts
-	- Ocean ticks make a few currents move to a different regions
-	- Added Budding Life to the Cores layer for the pond, which makes it boost Blue Essence and Biomass production globally based on population equality
-	- Dev menu can deal with commas in numbers (e.g. 40,000) instead of breaking
-	- Settings menu now shows the amount of time played (only when the tab is open)
-	- Rain on the Cores layer is now called precipitation
-	- 
-	
+Card Banners, Pacing Changes and Various Fixes: 9/13/26
+	- Added banners and combos for the Marsh and Ice Field
+	- Added Budding Life to the Cores layer, making the pond boost Blue Essence and Biomass based on population equality
+	- Added more pond unlocks on the Cores layer
+	- Early unlocks and upgrades are rebalanced so upgrades are bought steadily instead of in bursts
+	- Ocean ticks move some currents to different regions
+	- Rain on the Cores layer renamed to Precipitation
+	- Settings shows time played
+	- Dev menu accepts commas in numbers
+
 Reef Sublayer: 9/9/26
-	- The Reef sublayer is implemented, opened by the Clear Water challenge
-	- It has slots where you build types of rocks with features, to meet conditions of the different fish you've unlocked
-	- Fish with met conditions give bonuses
-	- Events occur, which make fish temporarily require different things, and give bonuses when those needs are met
+	- Added the Reef sublayer, opened by the Clear Water challenge
+	- Build rocks with features to meet the needs of your fish, which give bonuses
+	- Events temporarily change what fish need, with bonuses for meeting them
 
 Ice Sublayer: 9/8/26
-	- The Ice Field sublayer is implemented, opened by the Long Winter challenge
-	- Snow falls on the sublayer, which you compact by clicking to increase the pressure
-	- Compacted snow (snow -> packed snow -> ... -> ice) pays more, but each layer is a 5:1 conversion ratio
-	
+	- Added the Ice Field sublayer, opened by the Long Winter challenge
+	- Click falling snow to compact it into denser forms up to ice, each paying more at a 5:1 conversion
+
 Marsh Sublayer: 9/7/26
-	- The Marsh sublayer is implemented, opened by the Waterlogged challenge
-	- Marsh sublayer up to four zones, at 1, 2, 4, and 7 marsh tiles claimed
-	- Without interaction, zones end up equalizing and producing less resources
-	- A healthy marsh boosts the output of the world map tiles next to it
-	- A marsh with one zone pays a quarter of normal, and says it on the sublayer
+	- Added the Marsh sublayer, opened by the Waterlogged challenge
+	- Up to four zones open at 1, 2, 4 and 7 marsh tiles, and a single zone pays a quarter
+	- Zones left alone equalize and produce less
+	- A healthy marsh boosts neighboring world map tiles
 
-Temporary Challenge Reward and Resource Scaling Changes: 9/6/26
+Challenge Rewards and Resource Scaling: 9/6/26
 	- Some challenges unlock tiles and their layers/sublayers
-	- Old saves migrate a little bit better when some layer unlocks are mismatched
-	- The Cores layer has new nodes to increase Pond benefits so that Ocean doesn't make it useless
-	- Biomass production from fish has been heavily reduced, so that Pond isn't just a tiny bit compared to it
-	- More vitality milestones have been added, most are temporary as just resource multipliers
-	- Tree size is increased, and all the forest bonus readouts are more readable
-	- The Forest's vitality multiplier from old growth is softcapped at x30, so it doesn't get out of hand
-	- Tree growth choices are balanced more, so that you can get all the tree types at the same rate as each other
-	- Challenge rewards give higher bonuses, more like x10 to x250 instead of x2 to x10 so it increases decades
-	- Deadfall and Wildwood swap places to match difficulty
-	- Some challenge goals were changed after preliminary testing
-	- Most costs scale better to have short-term and long-term upgrades
-	- Forest has become a sublayer of the new Woodland layer to match with the others
-	- File structure changed, more total folders but category content is sorted into layer, sublayer, and system folders
-	
-Grassy Core, Mobile-Friendly Changes, and Evolution: 9/4/26
-	- Grassy Core upgrade added, it increases Green Core growth speed off of Blue Core consecutive click combo
-	- Green Core tooltip shows the current bonus from the combo once the upgrade is bought
-	- The Pond sublayer doesn't overlap HUD elements on smaller screens
-	- Algae doesn't render off-screen on smaller screens
-	- Burst button elements no longer overlap with the pond production readout
-	- Adaptation card draws match the width of the screen and show in a column instead of row on smaller screens
-	- Adaptation card banners match text size instead of being cut off on smaller screens
-	- The Evolution layer was added, temporarily on a Cores node behind the Ecology layer
-	- Adaptation points can be converted into evolution potential based on tile variety, used to buy various traits
-	
-Changes to Sidebar, Tile Production, Adaptation, and More Challenges: 9/3/26
-	- The sublayer flyout has a pull-out handle beside the layer's tab that folds it away, and back
-	- Clicking the layer you're already on folds its flyout away, clicking a different layer opens it again
-	- The navigation folds away and back with a slide instead of blinking out
-	- The Aquatic tab shows a meter for ocean ticks
-	- A tree waiting on a growth choice keep the Forest tab highlighted instead of flashing it
-	- Production from ponds, oceans, deep oceans, and forests has been changed
-	- Pond tiles increase blue essence production and pond capacity, but are worse when adjacent to each other
-	- Oceans increase ocean tick speed based on the largest region of connected tiles, but adjacent land reduces it
-	- A deep ocean pays per species of fish, raised by open ocean around it and gutted by land
-	- Forests make green essence off of old growth
-	- Ponds and grass beside the woodland grow its trees faster
-	- Woodland counts toward adaptation at a quarter of the rate of grass (since it stays on adaptation reset)
-	- Adaptation point gain scales with tile variety, increased when tiles are of equal amounts
-	- Bare ground, snow, and standing water don't count for tile variety
-	- The Adapt sublayer shows how varied the map is
-	- Added more challenges, number increased to 12 total
-	
+	- Challenge rewards are x10 to x250 instead of x2 to x10, Deadfall and Wildwood swap places, and some goals changed
+	- The Forest is now a sublayer of the new Woodland layer
+	- New Cores nodes boost the Pond so the Ocean doesn't overshadow it, and fish make far less Biomass
+	- Added more Vitality milestones
+	- Old growth's Vitality multiplier is softcapped at x30, and tree types come at an even rate
+	- Bigger trees and more readable forest bonuses
+	- Most costs scale to leave both short- and long-term upgrades
+	- Old saves with mismatched layer unlocks migrate better
+	- File structure reorganized into layer, sublayer and system folders
 
-Ecology Layer and Evolution Rename: 9/1/26
-	- Added the Ecology layer
-	- It allows you to enter challenges, which resets certain things, then disables and blocks certain things, while buffing others
-	- In a challenge, you hit a goal listed on it in exchange for permanent rewards
-	- Silviculture is added as a challenge reward, it lets you make trees stand forever until manually claimed for old growth
-	- Renamed Evolution layer to Adaptation
-	- Old saves are now migrated on load, so the layer + points + Cores nodes that it unlocks will carry over 
+Grassy Core, Evolution and Mobile Fixes: 9/4/26
+	- Added the Evolution layer behind Ecology on the Cores layer, turning Adaptation Points into potential for traits based on tile variety
+	- Added Grassy Core, which speeds Green Core growth off Blue Core click combos
+	- The pond, algae, burst button and adaptation cards fit smaller screens
+
+Sidebar, Tile Production, Adaptation and More Challenges: 9/3/26
+	- Added more challenges, for 12 total
+	- Pond, ocean, deep ocean and forest tiles produce in new ways, mostly based on their neighbors
+	- Adaptation Points scale with tile variety, best when tiles are even, and Woodland counts at a quarter
+	- The Adapt sublayer shows how varied the map is
+	- The sublayer flyout folds away with a handle or by clicking the current layer, and slides instead of blinking
+	- The Aquatic tab shows an ocean tick meter
+	- The Forest tab stays highlighted instead of flashing while a tree waits on a choice
+
+Ecology Layer and Adaptation Rename: 9/1/26
+	- Added the Ecology layer, where challenges restrict progress in exchange for permanent rewards
+	- Silviculture, a challenge reward, lets trees stand until claimed for old growth
+	- Renamed the Evolution layer to Adaptation, with old saves carried over
 
 Forest Layer: 8/31/26
-	- Added the forest layer
-	- The sidebar tab flashes when a tree is waiting on a choice
-	- Added The Forest banner and 9 forest cards
-	- Added combos: Race for Light, Long Memory, Every Ring Counts, and Old Instinct
-	- Added the cross-layer combos Common Ground and Rainforest
-	- The settings, info, and dev buttons now sit in a footer docked at the bottom of the sidebar, so they never cover the tabs
-	- Scrollbars are styled to match the theme
+	- Added the Forest layer, whose tab flashes when a tree waits on a choice
+	- Added The Forest banner, 9 forest cards, and the combos Race for Light, Long Memory, Every Ring Counts, Old Instinct, Common Ground and Rainforest
+	- Settings, info and dev buttons moved to a sidebar footer
+	- Scrollbars match the theme
 
-Optimization, Resource Rendering, & Ocean Cards: 8/27/26
-	- Added the Open Waters banner and 9 ocean cards
-	- Added combos: Running Tides, Seasonal Runs, and the cross-layer Brackish Reach
-	- Resource names and the amount of resource color themselves anywhere they appear
-	- Removed repeated code and put it into a general file
-	- Upgrade descriptions now quietly say what one more level adds after what you already have
-	- Few more optimizations
-	- Fish now only render when there is at least one region
-	- "Max" button added to upgrades to buy as many as you can
-	- Made it a bit more clear when you are hovering over an upgrade button
-	
-Ocean Layer, General Balancing, & Save Changes: 8/25/26
+Ocean Cards and Optimization: 8/27/26
+	- Added the Open Waters banner, 9 ocean cards, and the combos Running Tides, Seasonal Runs and Brackish Reach
+	- Added a Max button to upgrades
+	- Upgrade descriptions show what one more level adds
+	- Resource names and amounts are colored everywhere
+	- Clearer hover on upgrade buttons
+	- Optimizations
+
+Ocean Sublayer and Save Changes: 8/25/26
 	- Added the Ocean sublayer
-	- Prices for multiple upgrades changed (mostly grass sublayer)
-	- Added the "Raze" interaction to remove unwanted tiles
-	- Adaptation resets pond, water, and snow tiles as well as grass
-	- Conglomerated multipliers into one function
-	- Readme changed to be more github-friendly
-	- Saves migrate better, and backups are done
-	- If migration/loading fails, it tells the user and asks to revert to backup
-	- Lock so that multiple tabs of this don't save over each other
+	- Added Raze to remove unwanted tiles
+	- Adaptation also resets pond, water and snow tiles
+	- Changed prices, mostly for grass
+	- Saves are backed up, migrate better, and offer to revert when loading fails
+	- Multiple open tabs no longer overwrite each other's saves
 
-Card, Precipitation, & Grass Changes: 8/24/26
-	- Updating cards to new grass and precipitation mechanics
-	- Pond's biomass equation is more intuitive now
-	- Precipitation blue boost increased, cloud fill cost decreased
-	- Grass and precipitation costs changed to match current production
-	- Comment style being changed so I don't have to think about how I'm commenting
+Card, Precipitation and Grass Changes: 8/24/26
+	- Cards updated for the new grass and precipitation
+	- Precipitation boosts Blue Essence more and cloud fill costs less
+	- Grass and precipitation costs match current production
+	- Clearer pond Biomass formula
 
-Grass Changes: 8/23/26
-	- Reworked grass to be multipliers instead of flat production
-	- Precipitation reworked to match it better
+Grass Rework: 8/23/26
+	- Grass gives multipliers instead of flat production, and precipitation was reworked to match
 
-Pond, Grass, & Rain Changes: 8/22/26
-	- Changed wording on some pond upgrades to be clearer
-	- A few Cores layer number fixes and the Tides upgrade
-	- Cost changes to multiple layers, and grass speed increased
-	- Rain reworked to be the charge + stability system
-	- Pond upgrades changed
+Pond, Grass and Rain Changes: 8/22/26
+	- Rain reworked into the charge and stability system
+	- Pond upgrades changed and reworded to be clearer
+	- Added the Tides upgrade
+	- Costs changed across several layers, and grass grows faster
 
-Initial Commit: 8/21/26
-	- Combined, this was multiple github commits
-	- Starting content up to grass/rain was implemented.
-	- Includes Cores, pond, life, world, and grass/rain
-	- Further commits were just alterations to post-pond content
-	- Visual fixes for light mode and some node appearances
+Initial Release: 8/21/26
+	- Cores, Pond, Life, World, Grass and Rain
+	- Light mode and node appearance fixes

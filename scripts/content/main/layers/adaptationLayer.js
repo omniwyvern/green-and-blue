@@ -4,14 +4,16 @@
 
 import { registerLayer } from "../../../core/registry.js";
 import { getLayerState } from "../../../core/state.js";
-import { addResource, canAfford, spend } from "../../../core/resources.js";
+import { canAfford, spend } from "../../../core/resources.js";
 import { boostResource } from "../../../core/boosts.js";
 import { D } from "../../../utils/decimal.js";
 import { formatNumber, formatWhole } from "../../../utils/format.js";
 import { setText, setDisplay } from "../../../utils/dom.js";
-import { matureTiles, tileDiversity, tileKindCounts, countOf, WOODLAND_KINDS } from "../systems/worldMap.js";
+import {
+    matureTiles, tileDiversity, evenDiversity, tileKindCounts, countOf, WOODLAND_KINDS, keepProtectedGrass, isProtectedTile,
+} from "../systems/worldMap.js";
 import { cardBonus } from "../systems/cards.js";
-import { passiveAdaptationRate } from "../systems/evolutionTree.js";
+import { earnAdaptation, passiveAdaptationRate } from "../systems/evolutionTree.js";
 import { resetGrowingTrees } from "../systems/forestTrees.js";
 import { addCharge } from "../sublayers/precipitationSublayer.js";
 
@@ -44,8 +46,11 @@ const canAdapt = (gain) => gain.gte(ADAPT_MINIMUM) || coreNodeBought("environmen
 const DIVERSITY_SCALE = 0.3;
 const DIVERSITY_POWER = 2.7;
 
-export const diversityMultiplier = (s = getLayerState("world")) =>
-    1 + DIVERSITY_SCALE * Math.pow(Math.max(0, tileDiversity(s) - 1), DIVERSITY_POWER);
+export const multiplierFor = (diversity) => 1 + DIVERSITY_SCALE * Math.pow(Math.max(0, diversity - 1), DIVERSITY_POWER);
+
+export const diversityMultiplier = (s = getLayerState("world")) => multiplierFor(tileDiversity(s));
+
+export const evenDiversityMultiplier = (s = getLayerState("world")) => multiplierFor(evenDiversity(s));
 
 // How evenly the tiles share the map, 1 being a perfectly even split between them
 export const tileEvenness = (s = getLayerState("world")) => {
@@ -111,10 +116,10 @@ function adaptationReset() {
 
     const world = getLayerState("world");
 
-    world.grass = {};
+    world.grass = keepProtectedGrass(world);
     const pondsStay = coreNodeBought("envStanding");
     world.terrain = Object.fromEntries(Object.entries(world.terrain || {})
-        .filter(([, kind]) => !RESET_TERRAIN.has(kind) || (pondsStay && kind === "pond")));
+        .filter(([id, kind]) => !RESET_TERRAIN.has(kind) || (pondsStay && kind === "pond") || isProtectedTile(id)));
 
     // Resets precipitation and buildup
     world.moisture = {};
@@ -139,7 +144,7 @@ function adaptationReset() {
 }
 
 export function runAdaptation(gain = pointsOnAdapt()) {
-    addResource("adaptationPoints", gain);
+    earnAdaptation(gain);
     adaptationReset();
     releaseLoadout();
 }
@@ -255,9 +260,7 @@ registerLayer("adaptation", {
                     const passive = passiveAdaptationRate();
                     const passiveLine = el.querySelector(".adapt-passive");
                     setDisplay(passiveLine, passive.gt(0));
-                    if (passive.gt(0)) {
-                        setText(passiveLine, `Evolving on its own: +${formatNumber(passive, 2)}/s`);
-                    }
+                    if (passive.gt(0)) setText(passiveLine, `Evolving on its own: +${formatNumber(passive, 2)}/s`);
 
                     setText(el.querySelector(".adapt-note"),
                         canAdapt(gain) ? "" : `Adapting needs at least ${ADAPT_MINIMUM} points.`);

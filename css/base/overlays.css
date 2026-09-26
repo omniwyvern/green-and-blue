@@ -163,6 +163,16 @@
 .dev-speed-row { align-items: center; }
 .dev-speed { flex: 1; accent-color: var(--accent); }
 .dev-speed-value { min-width: 3ch; text-align: right; color: var(--text-dim); }
+.dev-settlement {
+    flex: 1;
+    min-width: 10rem;
+    padding: 0.3125rem 0.375rem;
+    font: inherit;
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    border-radius: 0.3125rem;
+    color: inherit;
+}
 
 .dev-resource {
     display: grid;

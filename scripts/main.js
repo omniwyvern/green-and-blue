@@ -20,6 +20,7 @@ import "./content/resourceDefs.js";
 
 // Each category file imports its own layers, so new layers go there rather than here
 import "./content/main/index.js";
+import "./content/humanity/index.js";
 
 // The term list the info button shows, after the layers its entries check against
 import "./content/glossary.js";

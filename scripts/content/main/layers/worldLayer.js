@@ -20,10 +20,12 @@ import {
     terrainOn, moistureOn, buildupOn, tileKind, soak, setTerrain, selectTile, clearTransform, dampGrowth,
     clickTransformTile, isTransformCandidate, isTransformFodder, transformInputs,
     matchedTransform, applyTransform, transformAvailable, transformHint, transformReady, fodderNote,
-    oneSoakedBlue, grassGreenOutput, ADJACENT_SHARE, tileYield, largestOceanStretch,
+    oneSoakedBlue, grassGreenOutput, ADJACENT_SHARE, NEIGHBOR_GRASS_CEILING, soften, tileYield, largestOceanStretch,
     previousTilePrice, chargeCost, RAZE_SECONDS, isRazing, razeProgress, razeLeft, canRaze,
-    startRaze, tickRaze, tickFires, fireOn, keptWetByMarsh
+    startRaze, tickRaze, tickFires, fireOn, keptWetByMarsh, isProtectedTile, isClaimed,
+    tickFading, fadeLeft, fadeProgress
 } from "../systems/worldMap.js";
+import { neighborsOf } from "../../../utils/hex.js";
 import { TERRAIN_ART, kindChip } from "../art/terrainArt.js";
 import { activeType } from "../sublayers/grassSublayer.js";
 import {
@@ -33,7 +35,6 @@ import { challengeBlocks } from "../systems/challenges.js";
 import { PER_POND_TILE, pondBlueShare } from "../sublayers/pondSublayer.js";
 import { oceanSpreadSpeed, deepOceanShare, fishSpecies } from "../sublayers/oceanSublayer.js";
 import { coreNodeBought } from "../../../core/nodes.js";
-
 const CLOUDS_PER_RAZE = 3;
 const DEV_SOAK = 0.99;
 const razeCost = (s) => ({
@@ -43,7 +44,7 @@ const razeCost = (s) => ({
 
 // What the tile adds on top, and the share of that one neighbor keeps
 const bonusNote = (name, bonus) => `+${formatPercent(bonus)} ${name}`
-    + ` (+${formatPercent(bonus * ADJACENT_SHARE)} nearby)`;
+    + ` (+${formatPercent(soften(bonus * ADJACENT_SHARE, NEIGHBOR_GRASS_CEILING))} nearby)`;
 
 const TILE_RESOURCE_NAMES = { greenEssence: "Green", blueEssence: "Blue", biomass: "Biomass" };
 
@@ -233,10 +234,28 @@ function cycleGround(s) {
 const devInteractions = () => !!state.settings.showDevInteractions;
 const availableInteractions = () => INTERACTIONS.filter(i => i.available());
 
+// Other categories draw onto the map through these, so the map never imports them
+const mapOverlays = new Map();
+export const contributeMapOverlay = (id, overlay) => mapOverlays.set(id, overlay);
+const overlays = () => [...mapOverlays.values()];
+const overlayParts = (hook, s, tile) => overlays().map(o => (o[hook] ? o[hook](s, tile) : "") || "");
+
 // Which kind of precipitation the cloud is loaded with
 const loadedKind = () => precipitationKind(getLayerState("world"));
 
 
+
+const tileGroup = (s, id) => isClaimed(s, id) ? TERRAIN[tileKind(s, id)]?.family || tileKind(s, id) : id;
+
+function seams(s, tile) {
+    const group = tileGroup(s, tile.id);
+    const sides = Array(6).fill("transparent");
+    neighborsOf(tile).forEach((n, i) => {
+        if (tileGroup(s, n.id) !== group) sides[(7 - i) % 6] = "var(--hex-border)";
+    });
+    if (!sides.includes("var(--hex-border)")) return "";
+    return `conic-gradient(${sides.map((color, k) => `${color} ${k * 60}deg ${k * 60 + 60}deg`).join(", ")})`;
+}
 registerLayer("world", {
     categoryId: "main",
     group: "origin",
@@ -276,6 +295,9 @@ registerLayer("world", {
         // Tiles actively being razed
         razing: {},
 
+        // Seconds each water or snow tile has spent drying up
+        fading: {},
+
         // Wildfires during the long summer challenge
         fires: {},
         fireSeed: 0,
@@ -288,6 +310,7 @@ registerLayer("world", {
         tickBuildup(s, dt);
         tickPrecipitation(s, dt);
         tickRaze(s, dt);
+        tickFading(s, dt);
         tickFires(s, dt);
         if (coreNodeBought("grass")) tickGrass(dt);
     },
@@ -316,7 +339,7 @@ registerLayer("world", {
             const ground = terrain ? TERRAIN_ART[terrain] : grass ? GRASS_ART[grass.stage] : "";
             const falling = precipitatingOn(s, tile.id) ? fallingKind(s) : null;
             const weather = falling === "snow" ? SNOW_ART : falling ? RAIN_ART : "";
-            return ground + (fireOn(s, tile.id) ? FIRE_ART : "") + weather;
+            return ground + (fireOn(s, tile.id) ? FIRE_ART : "") + weather + overlayParts("content", s, tile).join("");
         },
 
         tileClass(s, tile) {
@@ -334,19 +357,24 @@ registerLayer("world", {
                 transforming && !fodder && isTransformCandidate(s, tile.id) ? "transform-candidate" : "",
                 isRazing(s, tile.id) ? "is-razing" : "",
                 fireOn(s, tile.id) ? "is-burning" : "",
+                ...overlayParts("tileClass", s, tile),
             ].filter(Boolean).join(" ") || null;
         },
 
         // Effects on tiles, like when it's being razed or selected for transformation
         tileVars(s, tile) {
+            const fade = fadeProgress(s, tile.id);
+            const ground = `var(--ground-${terrainOn(s, tile.id) || "bare"})`;
             return {
-                "--ground": `var(--ground-${terrainOn(s, tile.id) || "bare"})`,
+                "--ground": fade > 0 ? `color-mix(in srgb, ${ground}, var(--ground-bare) ${Math.round(fade * 100)}%)` : ground,
+                "--fade": fade.toFixed(3),
                 "--blade": activeType().color,
                 "--moisture": moistureOn(s, tile.id).toFixed(2),
                 "--snowpack": snowOn(s, tile.id).toFixed(2),
-                "--pulse": transformActive(s) ? pulse() : "0",
+                "--pulse": transformActive(s) || overlays().some(o => o.pulsing?.(s)) ? pulse() : "0",
                 "--raze": razeProgress(s, tile.id).toFixed(3),
                 "--burn": fireOn(s, tile.id).toFixed(3),
+                "--seams": seams(s, tile),
             };
         },
 
@@ -377,14 +405,19 @@ registerLayer("world", {
             if (damp !== 1) state.push(`${deltaPercent(damp)} growth`);
             if (precipitatingOn(s, tile.id)) state.push(fallingKind(s) === "snow" ? "snowing" : "raining");
             if (isRazing(s, tile.id)) state.push(`being razed, ${Math.ceil(razeLeft(s, tile.id))}s left`);
+            if (fadeProgress(s, tile.id) > 0) {
+                state.push(`${kind === "snow" ? "melts" : "evaporates"} in ${Math.ceil(fadeLeft(s, tile.id) / 60)}m`);
+            }
             if (fireOn(s, tile.id)) state.push(`on fire, ${Math.round(fireOn(s, tile.id) * 100)}% burned`);
             if (state.length > 0) parts.push(state.join(", "));
+            parts.push(...overlayParts("tooltip", s, tile).filter(Boolean));
 
             return parts.join("\n");
         },
 
         // Clicking a tile you own selects it
         onClick(s, tile, layer) {
+            if (overlays().some(o => o.onClick && o.onClick(s, tile))) return;
             if (canPlant(s, tile.id)) {
                 if (spend(LAND_COST())) plantGrass(s, tile.id);
                 return;
@@ -406,6 +439,26 @@ registerLayer("world", {
     // Clicking on a non-tile part of the map deselects as well
     onCanvasClick(s) {
         clearTransform(s);
+        for (const o of overlays()) if (o.onCanvasClick) o.onCanvasClick(s);
+    },
+
+    scene: {
+        build(el, s) {
+            el.classList.add("world-scene");
+            for (const [id, o] of mapOverlays) {
+                if (!o.scene) continue;
+                const part = document.createElement("div");
+                part.dataset.overlay = id;
+                el.appendChild(part);
+                o.scene.build(part, s);
+            }
+        },
+        update(el, s) {
+            for (const part of el.children) {
+                const o = mapOverlays.get(part.dataset.overlay);
+                if (o && o.scene.update) o.scene.update(part, s);
+            }
+        },
     },
 
     // Drawer in the top right to select interactions with the world, selected option beside it
@@ -420,6 +473,7 @@ registerLayer("world", {
                         <span class="weather-meter"><span class="weather-meter-fill"></span></span>
                     </button>
                 </div>
+                <div class="map-overlay-huds"></div>
                 <div class="world-hud-row">
                     <div class="hud-tool"></div>
                     <div class="hud-drawer open" title="Interactions">
@@ -439,6 +493,15 @@ registerLayer("world", {
             });
 
             el.querySelector(".weather-release").addEventListener("click", () => releaseCloud());
+
+            const overlayHuds = el.querySelector(".map-overlay-huds");
+            for (const [id, o] of mapOverlays) {
+                if (!o.hud) continue;
+                const part = document.createElement("div");
+                part.dataset.overlay = id;
+                overlayHuds.appendChild(part);
+                o.hud.build(part, s);
+            }
 
             const drawer = el.querySelector(".hud-drawer");
             el.querySelector(".hud-drawer-handle")
@@ -517,6 +580,11 @@ registerLayer("world", {
         },
 
         update(el, s, layer) {
+            for (const part of el.querySelector(".map-overlay-huds").children) {
+                const o = mapOverlays.get(part.dataset.overlay);
+                if (o && o.hud.update) o.hud.update(part, s);
+            }
+
             const drawer = el.querySelector(".hud-drawer");
             const choices = availableInteractions();
 
@@ -722,6 +790,7 @@ function updateRazeWindow(el, s, layer) {
 
 function razeNote(s, id, affordable) {
     if (!id) return "Select a tile to raze.";
+    if (isProtectedTile(id)) return PROTECTED_NOTE;
     if (isRazing(s, id)) return `Being razed, ${Math.ceil(razeLeft(s, id))}s of ${RAZE_SECONDS}s left.`;
     if (tileKind(s, id) === "bare") return "That tile is already bare ground.";
     if (!affordable) return "Not enough to pay for it yet.";
@@ -729,8 +798,11 @@ function razeNote(s, id, affordable) {
         + ` over ${RAZE_SECONDS / 60} minutes.`;
 }
 
+const PROTECTED_NOTE = "Historically protected. A settlement's land stays as it was founded.";
+
 function noteFor(kinds, recipe, locked, ready, s) {
     if (kinds.length === 0) return "Select a tile to change.";
+    if (s.selectedTile && isProtectedTile(s.selectedTile)) return PROTECTED_NOTE;
     if (!ready) return "Grass has to be fully grown before it can be transformed.";
     if (!recipe) return kinds.length === 1
         ? "Pick from the flashing tiles around it."

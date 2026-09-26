@@ -2,6 +2,7 @@
 
 .hex-tile.transform-candidate .hex-shape {
     background: color-mix(in srgb, var(--life) calc(var(--pulse, 0) * 100%), var(--hex-border));
+    --edge: 3px;
 }
 
 .hex-tile.transform-fodder .hex-shape { background: var(--life); }

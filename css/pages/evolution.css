@@ -632,5 +632,11 @@
 }
 
 
+.pressure-meter.flowing .pressure-convert {
+    color: var(--text);
+    background: color-mix(in srgb, var(--pressure-color) 22%, var(--panel-light));
+    border-color: var(--pressure-color);
+}
+.pressure-meter.flowing .convert-ridge { opacity: 1; }
 .pressure-meter.idle .pressure-convert { opacity: 0.55; }
 .pressure-meter.full .pressure-shell { border-color: var(--pressure-color); }

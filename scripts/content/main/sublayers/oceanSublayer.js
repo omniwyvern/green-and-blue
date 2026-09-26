@@ -15,7 +15,7 @@ import { setText, setDisplay, setWidth, svgEl } from "../../../utils/dom.js";
 import { slotGrid, fillUpgrade } from "../../../render/upgradePanel.js";
 import { colorResources, costHtml, setRichText, upgradeDescription } from "../../../render/richText.js";
 import { cardBonus, cardActive } from "../systems/cards.js";
-import { traitBonus, traitHas, PAST_CAP, capOf, pastCapGain, pastCapNote } from "../systems/evolutionTraits.js";
+import { traitBonus, traitHas, PAST_CAP, capOf } from "../systems/evolutionTraits.js";
 import {
     worldState, largestOceanStretch, adjacentOcean, adjacentLand, soften, contributeTileOutput,
     countOf,
@@ -157,17 +157,17 @@ const REGION_UPGRADES = {
         title: "Deepen",
         max: 20,
         description: (level, max) => upgradeDescription(
-            `Everything a school produces here is boosted by ${Math.round(25 * Math.min(20, level))}%.`,
-            stepNote(level, 20, "+25%")) + pastCapNote("deepen", level),
-        effect: (level) => (1 + 0.25 * Math.min(20, level)) * pastCapGain("deepen", level),
+            `Everything a school produces here is boosted by ${Math.round(25 * level)}%.`,
+            stepNote(level, max, "+25%")),
+        effect: (level) => 1 + 0.25 * level,
     },
     bed: {
         title: "Nutrient Bed",
         max: 15,
         description: (level, max) => upgradeDescription(
-            `Biomass produced here is boosted by a further ${Math.round(40 * Math.min(15, level))}%.`,
-            stepNote(level, 15, "+40%")) + pastCapNote("bed", level),
-        effect: (level) => (1 + 0.40 * Math.min(15, level)) * pastCapGain("bed", level),
+            `Biomass produced here is boosted by a further ${Math.round(40 * level)}%.`,
+            stepNote(level, max, "+40%")),
+        effect: (level) => 1 + 0.40 * level,
     },
     longer: {
         title: "Lasting Boosts",

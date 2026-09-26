@@ -123,7 +123,7 @@ function defaultState() {
         activeLayer: null,
 
         // Most of these are just dev tools
-        settings: { theme: "dark", autosave: true, hideNav: false, hideFlyout: false, showCanvasCoords: false, showDevInteractions: false, enableFastGrass: false, enableFastTrees: false, enableUnlimitedPotential: false },
+        settings: { theme: "dark", autosave: true, hideNav: false, hideFlyout: false, showCanvasCoords: false, showDevInteractions: false, enableFastGrass: false, enableFastTrees: false, enableUnlimitedPotential: false, enableUnlimitedNotions: false },
         seen: { layers: {}, subLayers: {}, guides: {} },  // Which tabs the player has seen, so they don't flash
         layers: {}, // Per-layer save data
     };
@@ -471,14 +471,20 @@ export function resolveActiveSelection() {
 
     if (!registry.categories[state.activeCategory]) state.activeCategory = orderedCategories[0].id;
 
-    const inCategory = registry.getOrderedLayers(state.activeCategory);
     const current = registry.layers[state.activeLayer];
-    // A locked layer draws nothing, so this falls back to the first open one
+    // A locked layer draws nothing, so this falls back to an open one
     if (!current || current.categoryId !== state.activeCategory
         || !layerUnlocked(current.id)) {
-        const open = inCategory.find(layer => layerUnlocked(layer.id)) || inCategory[0];
-        state.activeLayer = open ? open.id : null;
+        state.activeLayer = defaultLayerId(state.activeCategory);
     }
+}
+
+export function defaultLayerId(categoryId) {
+    const preferred = registry.categories[categoryId].defaultLayer;
+    if (preferred && layerUnlocked(preferred)) return preferred;
+    const inCategory = registry.getOrderedLayers(categoryId);
+    const open = inCategory.find(layer => layerUnlocked(layer.id)) || inCategory[0];
+    return open ? open.id : null;
 }
 
 

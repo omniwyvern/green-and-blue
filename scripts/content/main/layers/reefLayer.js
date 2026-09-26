@@ -21,6 +21,7 @@ registerLayer("reef", {
     initialState: {
         reefSpots: [],
         reefSitesAdded: 0,
+        reefCredit: {},
         reefUnlocks: {},
         reefEvents: [],
         reefEventClock: 45,

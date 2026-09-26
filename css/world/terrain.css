@@ -31,33 +31,40 @@
     --ground-mycelial-network: #241d33;
 }
 
-.hex-unlocked.has-terrain .hex-face { background: var(--ground, var(--ground-bare)); }
+.hex-unlocked.has-terrain { --face: var(--ground, var(--ground-bare)); }
 .hex-unlocked.has-terrain:hover .hex-face, .node:not(.owned):not(.unmet):hover > .node-face {
     filter: brightness(1.12);
 }
 
 .tile-terrain {
-    width: 82%;
-    height: 82%;
+    width: 74%;
+    height: 74%;
     display: block;
 }
+.terrain-art-water,
+.terrain-art-pond { width: 82%; height: 82%; }
 .terrain-art-ocean,
-.terrain-art-deep-ocean,
+.terrain-art-deep-ocean { width: 100%; height: 100%; }
 .terrain-art-reef,
 .terrain-art-coral-reef,
 .terrain-art-great-reef,
 .terrain-art-ice-field,
 .terrain-art-glacier,
 .terrain-art-ice-cap,
-.terrain-art-mycelial-network { width: 100%; height: 100%; }
+.terrain-art-mycelial-network { width: 91%; height: 91%; }
 .terrain-art-forest,
 .terrain-art-dense-forest,
 .terrain-art-ancient-forest,
 .terrain-art-fungal-forest,
-.terrain-art-mangrove { width: 96%; height: 96%; }
+.terrain-art-mangrove { width: 87%; height: 87%; }
 .terrain-art-marsh,
 .terrain-art-swamp,
-.terrain-art-snow { width: 92%; height: 92%; }
+.terrain-art-snow { width: 84%; height: 84%; }
+.terrain-art-water,
+.terrain-art-snow {
+    opacity: calc(1 - var(--fade, 0) * 0.6);
+    transform: scale(calc(1 - var(--fade, 0) * 0.45));
+}
 
 .terrain-soil { fill: rgba(0, 0, 0, 0.28); }
 .terrain-clod {
@@ -337,7 +344,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: rgba(90, 165, 235, calc(var(--moisture, 0) * 0.5));
+    background: rgba(90, 165, 235, calc(var(--moisture, 0) * 0.3));
     transition: background-color 0.3s linear;
 }
 
@@ -350,17 +357,17 @@
     transition: background-color 0.3s linear;
 }
 
-.hex-affordable .hex-face,
-.hex-locked .hex-face { background: #4f5a66; }
+.hex-affordable,
+.hex-locked { --face: #4f5a66; }
 .hex-affordable:hover .hex-shape,
 .hex-locked:hover .hex-shape { transform: scale(1.04); }
-.hex-affordable:hover .hex-face { background: #5c6875; }
+.hex-affordable:hover { --face: #5c6875; }
 
 .hex-unreachable .hex-shape, .weather-jump[data-state="locked"], .card-slot.locked,
 .collection-card.locked, .grove-bed.growing .grove-hit, .grove-bed.mature:not(.fruitable) .grove-hit {
     cursor: default;
 }
-.hex-unreachable .hex-face { background: #38414b; }
+.hex-unreachable { --face: #38414b; }
 
 .hex-lock {
     width: 20px;
@@ -373,9 +380,9 @@
 .hex-lock rect, .transform-lock rect { stroke: none; }
 .hex-unreachable .hex-lock { opacity: 0.45; }
 
-.hex-tile.can-plant .hex-shape { background: #4b7a46; }
-.hex-tile.can-plant .hex-face { background: #46583c; }
-.hex-tile.can-plant:hover .hex-face { background: #52663f; }
+.hex-tile.can-plant .hex-shape { background: #4b7a46; --edge: 3px; }
+.hex-tile.can-plant { --face: #46583c; }
+.hex-tile.can-plant:hover { --face: #52663f; }
 
 .hex-selected .hex-shape { background: var(--gold); }
 .hex-selected .hex-face { inset: 4px; }

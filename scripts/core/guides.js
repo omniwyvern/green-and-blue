@@ -7,7 +7,8 @@ import { getLayerState, hasSeen } from "./state.js";
 
 export const guides = {};
 
-export function registerGuide(id, { layer, subLayer = null, title, body, order = 0, when = null }) {
+export function registerGuide(id, { layer, subLayer = null, title, body, order = 0, when = null,
+    anywhere = false }) {
     if (guides[id]) throw new Error(`Guide "${id}" is registered twice.`);
     if (!layers[layer]) {
         throw new Error(`Guide "${id}" references unknown layer "${layer}". Register the layer first.`);
@@ -15,7 +16,7 @@ export function registerGuide(id, { layer, subLayer = null, title, body, order =
     if (subLayer && !(layers[layer].subLayers && layers[layer].subLayers[subLayer])) {
         throw new Error(`Guide "${id}" references unknown sub-layer "${subLayer}" of layer "${layer}".`);
     }
-    guides[id] = { id, layer, subLayer, title, body, order, when };
+    guides[id] = { id, layer, subLayer, title, body, order, when, anywhere };
 }
 
 // Sorted once per layer, safe since registration finishes at startup
@@ -41,9 +42,18 @@ export function availableGuides(layerId) {
         .filter(guide => !guide.when || guide.when(layerState, layerId));
 }
 
+let anywhereGuides = null;
+
+// Guides from other layers that announce something the moment it happens, whatever is on screen
+const fromElsewhere = (layerId) => {
+    anywhereGuides ??= Object.values(guides).filter(guide => guide.anywhere);
+    return anywhereGuides.filter(guide => guide.layer !== layerId && !hasSeen("guides", guide.id)
+        && (!guide.when || guide.when(getLayerState(guide.layer), guide.layer)));
+};
+
 // A list of guides, since multiple can come on one frame
 export function pendingGuides(layerId) {
-    return availableGuides(layerId).filter(guide => !hasSeen("guides", guide.id));
+    return [...availableGuides(layerId).filter(guide => !hasSeen("guides", guide.id)), ...fromElsewhere(layerId)];
 }
 
 // Glossary terms, left out entirely until when() says the player has met them

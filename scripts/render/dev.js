@@ -29,6 +29,7 @@ let interactionsButton = null;
 let fastGrassButton = null;
 let fastTreesButton = null;
 let unlimitedPotentialButton = null;
+let unlimitedNotionsButton = null;
 
 
 //    !!! THE WINDOW !!!
@@ -62,6 +63,10 @@ function buildWindow() {
             <div class="settings-row view-row"></div>
         </div>
         <div class="settings-section">
+            <div class="settings-label">Settlements</div>
+            <div class="settings-row settlement-row"><select class="dev-settlement"></select></div>
+        </div>
+        <div class="settings-section">
             <div class="settings-label">Game speed</div>
             <div class="settings-row dev-speed-row">
                 <input class="dev-speed" type="range" min="0" max="${SPEEDS.length - 1}" step="1" value="0">
@@ -73,6 +78,7 @@ function buildWindow() {
         if (!open) return;
         setStatus("");
         readResourceFields(); // So the boxes always show what the game currently holds
+        fillSettlementPicker();
     });
     setOpen = built.setOpen;
     const panel = built.panel;
@@ -94,8 +100,15 @@ function buildWindow() {
     fastGrassButton = makeButton("Fast grass", toggleFastGrass);
     fastTreesButton = makeButton("Fast trees", toggleFastTrees);
     unlimitedPotentialButton = makeButton("Unlimited evolution meters", toggleUnlimitedPotential);
-    viewRow.append(coordsButton, interactionsButton, fastGrassButton, fastTreesButton, unlimitedPotentialButton);
+    unlimitedNotionsButton = makeButton("Unlimited notions", toggleUnlimitedNotions);
+    viewRow.append(coordsButton, interactionsButton, fastGrassButton, fastTreesButton, unlimitedPotentialButton, unlimitedNotionsButton);
     refreshToggleButtons();
+
+    settlementPicker = panel.querySelector(".dev-settlement");
+    const settlementRow = panel.querySelector(".settlement-row");
+    settlementRow.appendChild(makeButton("Remove settlement", () => dropSettlement(false)));
+    settlementRow.appendChild(makeButton("Make it die out", () => dropSettlement(true)));
+    settlementRow.appendChild(makeButton("Reset known words", resetKnownWords));
 
     const speed = panel.querySelector(".dev-speed");
     const speedValue = panel.querySelector(".dev-speed-value");
@@ -136,6 +149,40 @@ function unlockAllLayers() {
 
 // Loaded on use rather than imported, to stay out of the content modules' load order
 const challenges = () => import("../content/main/systems/challenges.js");
+const settlementRules = () => import("../content/humanity/systems/settlements.js");
+const languageRules = () => import("../content/humanity/systems/language.js");
+
+let settlementPicker = null;
+
+async function fillSettlementPicker() {
+    const { settlements } = await settlementRules();
+    const list = settlements();
+    settlementPicker.innerHTML = list.length
+        ? list.map(t => `<option value="${t.id}">${t.name} (${t.pops} pop)</option>`).join("")
+        : `<option value="">No settlements</option>`;
+    settlementPicker.disabled = !list.length;
+}
+
+async function dropSettlement(diedOut) {
+    const { removeSettlement } = await settlementRules();
+    const removed = settlementPicker.value && removeSettlement(Number(settlementPicker.value), diedOut);
+    if (!removed) return setStatus("No settlement picked.");
+    await fillSettlementPicker();
+    saveState();
+    setStatus(`${diedOut ? "Let" : "Removed"} ${removed.name}${diedOut ? " die out" : ""}. Its land is no longer protected.`);
+}
+
+// The settlement tab picked on the Language page, not the one in the picker
+async function resetKnownWords() {
+    const [{ activeSettlement }, { languageOf, restartLanguage }] = await Promise.all([settlementRules(), languageRules()]);
+    const t = activeSettlement();
+    const lang = t && languageOf(t);
+    if (!lang) return setStatus("The selected settlement has no language yet.");
+    const had = lang.learned.length;
+    restartLanguage(t);
+    saveState();
+    setStatus(`${t.name} forgot ${had} known word${had === 1 ? "" : "s"}.`);
+}
 
 // Finishes every challenge and hands out what each one gives, the same way claiming one does
 async function completeAllChallenges() {
@@ -380,12 +427,23 @@ function toggleUnlimitedPotential() {
         : "Evolution meters are back to normal.");
 }
 
+// Every notion is known and none run out
+function toggleUnlimitedNotions() {
+    state.settings.enableUnlimitedNotions = !state.settings.enableUnlimitedNotions;
+    refreshToggleButtons();
+    saveState();
+    setStatus(state.settings.enableUnlimitedNotions
+        ? "Notions are unlimited."
+        : "Notions are back to normal.");
+}
+
 function refreshToggleButtons() {
     setToggle(coordsButton, "Canvas coordinates", state.settings.showCanvasCoords);
     setToggle(interactionsButton, "World dev interactions", state.settings.showDevInteractions);
     setToggle(fastGrassButton, "Fast grass", state.settings.enableFastGrass);
     setToggle(fastTreesButton, "Fast trees", state.settings.enableFastTrees);
     setToggle(unlimitedPotentialButton, "Unlimited evolution meters", state.settings.enableUnlimitedPotential);
+    setToggle(unlimitedNotionsButton, "Unlimited notions", state.settings.enableUnlimitedNotions);
 }
 
 function setToggle(button, label, on) {

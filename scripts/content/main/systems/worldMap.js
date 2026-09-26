@@ -8,7 +8,7 @@ import { coreNodeBought, nodeBought } from "../../../core/nodes.js";
 import { D } from "../../../utils/decimal.js";
 import { hexesWithin, neighborsOf } from "../../../utils/hex.js";
 import { cardBonus, cardActive } from "./cards.js";
-import { traitBonus, traitHas, pastCapGain } from "./evolutionTraits.js";
+import { traitBonus, traitHas } from "./evolutionTraits.js";
 import {
     grassSpeedMultiplier, grassOutputMultiplier, earnSpreadGrowth, earnStageGrowth, grassSeedStart,
 } from "../sublayers/grassSublayer.js";
@@ -26,6 +26,11 @@ const radiusSources = new Map();
 export const contributeMapRadius = (id, amount) => radiusSources.set(id, amount);
 export const mapRadius = () => BASE_MAP_RADIUS
     + [...radiusSources.values()].reduce((total, amount) => total + amount(), 0);
+
+// Tiles another category has fixed in place, which nothing on the map is allowed to change
+const tileGuards = new Map();
+export const contributeTileGuard = (id, guard) => tileGuards.set(id, guard);
+export const isProtectedTile = (id) => [...tileGuards.values()].some(guard => guard(id));
 
 // The map is rebuilt whenever the radius changes
 let builtRadius = null;
@@ -59,6 +64,7 @@ export const STAGE_BONUS = [0, 0.25, 1];
 
 export const OUTPUT_PER_LEVEL = 0.2;   // Bonus per level of greener blades
 export const ADJACENT_SHARE = 0.1;
+export const NEIGHBOR_GRASS_CEILING = 9;
 export const GROWTH_PER_LEVEL = 0.1;
 
 
@@ -192,8 +198,8 @@ export const TERRAIN = {
     // Precursor terrain to proper tiles
     bare:   { name: "Bare ground", stored: false, tier: 0 },
     grass:  { name: "Grass",       stored: false, tier: 1, activations: 2 },
-    water:  { name: "Water",       stored: true,  tier: 0, madeOf: "water" },
-    snow:   { name: "Snow",        stored: true,  tier: 0, madeOf: "ice" },
+    water:  { name: "Water",       stored: true,  tier: 0, madeOf: "water", fades: 600 },
+    snow:   { name: "Snow",        stored: true,  tier: 0, madeOf: "ice",   fades: 900 },
 
     // Aquatic, ignores rain
     pond:         { name: "Pond",       stored: true, tier: 1, madeOf: "water", family: "aquatic" },
@@ -242,6 +248,7 @@ export const FUNGUS_KINDS = familyOf("fungus");
 export const TERRAIN_OUTPUT = {};
 const outputSources = new Map();
 const neighborSources = new Map();
+const careSources = new Map();
 
 
 // kind's payout per second as { resourceId: amount }
@@ -250,14 +257,19 @@ export const contributeTileOutput = (kind, amount) => outputSources.set(kind, am
 // Multiplier a tile contributes to its neighbors
 export const contributeNeighborBoost = (id, amount) => neighborSources.set(id, amount);
 
-export function neighborBoost(s, id) {
+// Multiplier on everything one tile makes, grass included
+export const contributeTileCare = (id, amount) => careSources.set(id, amount);
+
+const productOf = (sources, s, id) => {
     let total = 1;
-    for (const amount of neighborSources.values()) total *= amount(s, id) || 1;
+    for (const amount of sources.values()) total *= amount(s, id) || 1;
     return total;
-}
+};
+const neighborBoost = (s, id) => productOf(neighborSources, s, id);
+const tileCare = (s, id) => productOf(careSources, s, id);
 
 // Everything one tile makes per second before weather and the grass around it
-export function tileOutput(s, id) {
+function tileOutput(s, id) {
     const kind = tileKind(s, id);
     const source = outputSources.get(kind);
     return { ...(TERRAIN_OUTPUT[kind] || {}), ...(source ? source(s, id) : {}) };
@@ -278,16 +290,9 @@ const needsChallenge = (challenge, name) => ({
 
 export const SUBLAYER_CHALLENGES = {
     marsh: "waterlogged",
-    swamp: "iceAge",
-    mangrove: "iceAge",
     reef: "clearwater",
-    coralReef: "iceAge",
-    greatReef: "iceAge",
     iceField: "longWinter",
-    glacier: "iceAge",
-    iceCap: "iceAge",
     mushroomGrove: "deadfall",
-
 };
 
 
@@ -533,6 +538,21 @@ export function tileDiversity(s = worldState()) {
     return Math.exp(entropy);
 }
 
+// The diversity the claimed tiles would have split as evenly as they go between every kind the map has held
+export function evenDiversity(s = worldState()) {
+    const tiles = claimedTiles(s).length;
+    const kinds = Math.min(tiles, Object.keys(TERRAIN).filter(kind => !DIVERSITY_IGNORES.has(kind) && hasSeenKind(s, kind)).length);
+    if (kinds <= 0) return 0;
+
+    const low = Math.floor(tiles / kinds);
+    const high = tiles % kinds;
+    let entropy = 0;
+    for (const [count, many] of [[low + 1, high], [low, kinds - high]]) {
+        if (count > 0 && many > 0) entropy -= many * (count / tiles) * Math.log(count / tiles);
+    }
+    return Math.exp(entropy);
+}
+
 
 // Which tiles count as which for adjacency checks, e.g. reefs next to ocean
 export const kindIsWater = (kind) => (TERRAIN[kind] || {}).madeOf === "water";
@@ -614,7 +634,7 @@ function regionSize(s, tile) {
 
 // Open ground beside a tile, which is where its grass can spread next
 const freeNeighbors = (s, tile) =>
-    neighboringTiles(tile).filter(n => canHoldGrass(s, n.id) && !grassOn(s, n.id));
+    neighboringTiles(tile).filter(n => canHoldGrass(s, n.id) && !grassOn(s, n.id) && !isProtectedTile(n.id));
 
 
 //    !!! WEATHER ON A TILE !!!
@@ -654,7 +674,7 @@ export function startPrecipitation(s, id, event) {
     // For the seedstorm card
     if (PRECIPITATION[precipitationKind(s)].growsGrass
         && cardBonus("seedstorm") > 0 && Math.random() < cardBonus("seedstorm")
-        && canHoldGrass(s, id) && !grassOn(s, id) && grassTiles(s).length > 0) {
+        && canHoldGrass(s, id) && !grassOn(s, id) && !isProtectedTile(id) && grassTiles(s).length > 0) {
         plantGrass(s, id);
     }
 }
@@ -708,6 +728,10 @@ export function soak(s, id, amount, kind = "rain") {
     if (!s[store]) s[store] = {};
 
     const level = buildupOn(s, id, kind) + amount;
+    if (isProtectedTile(id)) {
+        s[store][id] = Math.min(level, 0.99);
+        return false;
+    }
     if (level < 1 - 1e-6) {
         s[store][id] = level;
         return false;
@@ -743,6 +767,32 @@ export function tickBuildup(s, dt) {
     }
 }
 
+// Water evaporates and snow melts back to bare ground, unless the weather that made it falls on it again
+const fadeSeconds = (kind) => TERRAIN[kind].fades || 0;
+const faded = (s, id) => (s.fading || {})[id] || 0;
+export const fadeLeft = (s, id) => fadeSeconds(tileKind(s, id)) - faded(s, id);
+export const fadeProgress = (s, id) => {
+    const total = fadeSeconds(tileKind(s, id));
+    return total > 0 ? faded(s, id) / total : 0;
+};
+
+export function tickFading(s, dt) {
+    if (!s.fading) s.fading = {};
+    for (const id in s.fading) if (!fadeSeconds(tileKind(s, id))) delete s.fading[id];
+
+    const falling = fallingKind(s);
+    for (const id of terrainTiles(s)) {
+        const kind = tileKind(s, id);
+        if (!fadeSeconds(kind) || isProtectedTile(id)) continue;
+        if (precipitatingOn(s, id) && PRECIPITATION[falling].becomes === kind) {
+            delete s.fading[id];
+            continue;
+        }
+        s.fading[id] = (s.fading[id] || 0) + dt * challengeMod("drying");
+        if (s.fading[id] >= fadeSeconds(kind)) setTerrain(s, id, "bare");
+    }
+}
+
 
 //    !!! FIRES !!!
 
@@ -767,7 +817,8 @@ export const burningTiles = (s) => Object.keys(s.fires || {});
 // Fires start in woodland and spread to grass beside it, or catch grass directly once no woodland is left
 const willBurn = (kind) => !!WOODLAND_KINDS[kind] || kind === "grass";
 const canCatch = (s, id) =>
-    isClaimed(s, id) && willBurn(tileKind(s, id)) && !fireOn(s, id) && buildupTotalOn(s, id) <= 0;
+    isClaimed(s, id) && willBurn(tileKind(s, id)) && !fireOn(s, id) && buildupTotalOn(s, id) <= 0
+    && !isProtectedTile(id);
 
 const beingDoused = (s, id) => precipitatingOn(s, id) || buildupTotalOn(s, id) > 0;
 
@@ -843,12 +894,14 @@ export function tickFires(s, dt) {
 //    !!! CHANGING WHAT A TILE IS !!!
 
 export function setTerrain(s, id, kind) {
+    if (isProtectedTile(id)) return;
     if (!s.terrain) s.terrain = {};
     if (kind === "bare") delete s.terrain[id];
     else { s.terrain[id] = kind; seeTerrain(s, kind); }
 
     if (s.grass) delete s.grass[id];
     if (s.fires) delete s.fires[id];
+    if (s.fading) delete s.fading[id];
     for (const weather of PRECIPITATION_KINDS) {
         const store = s[PRECIPITATION[weather].store];
         if (store) delete store[id];
@@ -887,7 +940,7 @@ export function tileYield(s, id, bonuses = grassBonuses(s)) {
         if (!amount.gt(0)) continue;
         const share = GRASS_SHARE[resourceId]
             ? neighborGrassMultiplier(s, id, bonuses[GRASS_SHARE[resourceId]]) : 1;
-        yielded[resourceId] = amount.mul(boost).mul(share).mul(neighborBoost(s, id));
+        yielded[resourceId] = amount.mul(boost).mul(share).mul(neighborBoost(s, id) * tileCare(s, id));
     }
     return yielded;
 }
@@ -917,11 +970,11 @@ export function terrainProduction(s) {
 function neighborGrassMultiplier(s, id, bonusOf) {
     const tile = tileById(id);
     if (!tile) return 1;
-    let total = 1;
+    let total = 0;
     for (const n of neighboringTiles(tile)) {
-        if (grassOn(s, n.id)) total *= 1 + ADJACENT_SHARE * bonusOf(n.id);
+        if (grassOn(s, n.id)) total += bonusOf(n.id);
     }
-    return total;
+    return 1 + soften(ADJACENT_SHARE * total, NEIGHBOR_GRASS_CEILING);
 }
 
 // Every kind is listed even at zero, so a caller can read a count without checking first
@@ -949,7 +1002,7 @@ export const razeLeft = (s, id) => Math.max(0, RAZE_SECONDS - razeElapsed(s, id)
 
 // Bare ground has nothing left to take, and one already going doesn't start again.
 export const canRaze = (s, id) =>
-    isClaimed(s, id) && !isRazing(s, id) && tileKind(s, id) !== "bare";
+    isClaimed(s, id) && !isRazing(s, id) && tileKind(s, id) !== "bare" && !isProtectedTile(id);
 
 export function startRaze(s, id) {
     if (!canRaze(s, id)) return false;
@@ -982,7 +1035,7 @@ function strip(s, id) {
 
 // Only mature grass can be transformed, and not while it's being razed
 export function canTransformTile(s, id) {
-    if (!isClaimed(s, id) || isRazing(s, id)) return false;
+    if (!isClaimed(s, id) || isRazing(s, id) || isProtectedTile(id)) return false;
     const grass = grassOn(s, id);
     return !grass || grass.stage === MATURE;
 }
@@ -1160,10 +1213,9 @@ const CARPET_PER_TILE = 0.01;
 const CARPET_CEILING = 0.5;
 
 // The bits every tile shares are worked out once, then it hands back what one tile is worth
-export function grassOutputs(s) {
-    const perLevel = (1 + 0.2 * Math.min(10, level("greenerBlades")) + cardBonus("grassOutput"))
+function grassOutputs(s) {
+    const perLevel = (1 + OUTPUT_PER_LEVEL * level("greenerBlades") + cardBonus("grassOutput"))
         * (coreNodeBought("grassSodLayer") ? 1.2 : 1);
-    const pastCap = pastCapGain("greenerBlades", level("greenerBlades"));
     // For the fertile waters card
     const fromAlgae = cardBonus("shoreExchange") > 0
         ? cardBonus("shoreExchange") * (getLayerState("pond").algae || 0) : 0;
@@ -1175,7 +1227,8 @@ export function grassOutputs(s) {
     return (id) => {
         const shore = fromAlgae > 0 && onShore(s, id) ? fromAlgae : 0;
         return STAGE_BONUS[s.grass[id].stage] * (perLevel + ageBonus(s, id) + shore)
-            * (1 + weatherBoostOn(s, id)) * fromGrass * pastCap * (s.grass[id].stage === MATURE ? (1 + carpet) * matureWorth : 1);
+            * (1 + weatherBoostOn(s, id)) * fromGrass * (s.grass[id].stage === MATURE ? (1 + carpet) * matureWorth : 1)
+            * tileCare(s, id);
     };
 }
 
@@ -1197,14 +1250,14 @@ export const grassGreenOutput = (s, id) => grassOn(s, id) ? grassBonuses(s).gree
 export const oneSoakedBlue = (s, id) => grassOn(s, id) ? grassBonuses(s).blue(id) : 0;
 
 // All the grass in the world together, as the fraction it adds to the multiplier
-export function greenBonus(s) {
+function greenBonus(s) {
     const { green } = grassBonuses(s);
     let total = 0;
     for (const id of grassTiles(s)) total += green(id);
     return total;
 }
 
-export function blueBonus(s) {
+function blueBonus(s) {
     const { blue } = grassBonuses(s);
     let total = 0;
     for (const id of grassTiles(s)) total += blue(id);
@@ -1216,11 +1269,19 @@ export const grassBlueMultiplier = (s = worldState()) => 1 + blueBonus(s) * chal
 
 
 // With grass unlocked but none in the world, the first seed is planted by hand on bare ground
-export const canPlant = (s, id) => grassTiles(s).length === 0 && canHoldGrass(s, id) && !grassOn(s, id) && coreNodeBought("grass");
+export const canPlant = (s, id) => grassTiles(s).length === 0 && canHoldGrass(s, id) && !grassOn(s, id)
+    && !isProtectedTile(id) && coreNodeBought("grass");
 
 export function plantGrass(s, id) {
     if (!s.grass) s.grass = {};
     s.grass[id] = { stage: SEED, progress: 0 };
+}
+
+// Resets wipe grass, except on protected tiles, which go back to seed
+export function keepProtectedGrass(s) {
+    const kept = {};
+    for (const id of grassTiles(s)) if (isProtectedTile(id)) kept[id] = { stage: SEED, progress: 0 };
+    return kept;
 }
 
 // Dev tool, jumps grass straight to mature

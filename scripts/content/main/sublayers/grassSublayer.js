@@ -11,7 +11,7 @@ import { formatNumber, formatWhole, formatPercent } from "../../../utils/format.
 import { setText, setWidth } from "../../../utils/dom.js";
 import { setRichText, upgradeDescription } from "../../../render/richText.js";
 import {
-    mapTiles, SEED, GROWING, MATURE, STAGE_NAMES, ADJACENT_SHARE,
+    mapTiles, SEED, GROWING, MATURE, STAGE_NAMES, ADJACENT_SHARE, NEIGHBOR_GRASS_CEILING,
     worldState, grassOn, grassTiles, growableTiles, growthRate, matureTiles,
     grassGreenMultiplier, grassBlueMultiplier, grassBonuses,
     GROWTH_PER_LEVEL as SOIL_PER_LEVEL, OUTPUT_PER_LEVEL as BLADES_PER_LEVEL,
@@ -19,7 +19,7 @@ import {
 import { canSacrificeStage, sacrificeValue, sacrificeStage, sacrificeFatigue } from "../layers/coresLayer.js";
 import { challengeDone } from "../systems/challenges.js";
 import { coreNodeBought } from "../../../core/nodes.js";
-import { extendUpgrade, traitBonus } from "../systems/evolutionTraits.js";
+import { extendUpgrade, traitBonus, capOf } from "../systems/evolutionTraits.js";
 
 const grassState = () => getLayerState("grass");
 const level = levelsIn("grass");
@@ -153,8 +153,8 @@ export const VITALITY_MILESTONES = [
     { at: 70000, title: "Fescue", effect: "A grass that keeps going through the cold.", unlocks: "fescue" },
 
     // Placeholders past the previous end of the track
-    { at: 100000, title: "Wellspring", special: "wellspring", effect: "The pond makes 100x Blue Essence. While it's full and balanced, all Blue"
-        + " Essence and Biomass are multiplied by the fourth root of your Biomass." },
+    { at: 100000, title: "Wellspring", special: "wellspring", effect: "The pond makes 100x Blue Essence. All Green and Blue Essence is multiplied"
+        + " by up to the fourth root of your Biomass, the fuller and more balanced the pond is." },
     { at: 120000, title: "Rich Turf", effect: "Every grassy tile is worth four times as much.", output: 4 },
     { at: 150000, title: "Meadow", effect: "Everything produces ten times the Blue Essence.", blue: 10 },
     { at: 250000, title: "Grassland", effect: "Everything produces twelve times the Green Essence.", green: 12 },
@@ -163,18 +163,18 @@ export const VITALITY_MILESTONES = [
     { at: 2000000, title: "Savanna", effect: "Every grassy tile is worth five times as much.", output: 5 },
 
     // Stretches Evolution traits open up
-    { at: 1e10, band: 1, title: "Tallgrass", effect: "Everything pays three times the Vitality.", vitality: 3 },
-    { at: 5e10, band: 1, title: "Wild Meadow", effect: "Everything produces ten times the Green Essence.", green: 10 },
-    { at: 3e11, band: 1, title: "Grass Sea", effect: "Every grassy tile is worth four times as much.", output: 4 },
-    { at: 2e12, band: 1, title: "Pampas", effect: "Everything produces ten times the Blue Essence.", blue: 10 },
-    { at: 1e13, band: 1, title: "Rolling Plains", effect: "Everything pays five times the Vitality.", vitality: 5 },
-    { at: 1e14, band: 1, title: "Endless Green", effect: "Grass grows three times as fast.", speed: 3 },
-    { at: 1e15, band: 2, title: "Root Mat", effect: "Everything pays ten times the Vitality.", vitality: 10 },
-    { at: 1e16, band: 2, title: "Old Sward", effect: "Every grassy tile is worth eight times as much.", output: 8 },
-    { at: 1e17, band: 2, title: "Green World", effect: "Everything produces ten times the Green Essence.", green: 10 },
-    { at: 1e18, band: 2, title: "Blue Horizon", effect: "Everything produces ten times the Blue Essence.", blue: 10 },
-    { at: 1e20, band: 2, title: "Living Carpet", effect: "Everything pays ten times the Vitality.", vitality: 10 },
-    { at: 1e22, band: 2, title: "Ever-Meadow", effect: "Everything produces ten times the Blue and Green Essence.", green: 10, blue: 10 },
+    { at: 1.5e9, band: 1, title: "Tallgrass", effect: "Everything pays three times the Vitality.", vitality: 3 },
+    { at: 2e9, band: 1, title: "Wild Meadow", effect: "Everything produces ten times the Green Essence.", green: 10 },
+    { at: 3e9, band: 1, title: "Grass Sea", effect: "Every grassy tile is worth four times as much.", output: 4 },
+    { at: 4e9, band: 1, title: "Pampas", effect: "Everything produces ten times the Blue Essence.", blue: 10 },
+    { at: 6e9, band: 1, title: "Rolling Plains", effect: "Everything pays five times the Vitality.", vitality: 5 },
+    { at: 1e10, band: 1, title: "Endless Green", effect: "Grass grows three times as fast.", speed: 3 },
+    { at: 2e10, band: 2, title: "Root Mat", effect: "Everything pays ten times the Vitality.", vitality: 10 },
+    { at: 5e10, band: 2, title: "Old Sward", effect: "Every grassy tile is worth eight times as much.", output: 8 },
+    { at: 1e11, band: 2, title: "Green World", effect: "Everything produces ten times the Green Essence.", green: 10 },
+    { at: 2e11, band: 2, title: "Blue Horizon", effect: "Everything produces ten times the Blue Essence.", blue: 10 },
+    { at: 5e11, band: 2, title: "Living Carpet", effect: "Everything pays ten times the Vitality.", vitality: 10 },
+    { at: 2e12, band: 2, title: "Ever-Meadow", effect: "Everything produces ten times the Blue and Green Essence.", green: 10, blue: 10 },
 ];
 
 const milestoneOpen = (milestone) => !milestone.band || traitBonus("milestones") >= milestone.band;
@@ -222,8 +222,8 @@ export const grassOutputMultiplier = () =>
     temper(activeType().output, level("hardyStrains")) * fromMilestones("output")
     * (1 + FINGERS_PER_LEVEL * level("greenFingers"));
 
-export const greenMultiplier = () => fromMilestones("green") * grassGreenMultiplier(worldState());
-export const blueMultiplier = () => fromMilestones("blue") * grassBlueMultiplier(worldState());
+const greenMultiplier = () => fromMilestones("green") * grassGreenMultiplier(worldState());
+const blueMultiplier = () => fromMilestones("blue") * grassBlueMultiplier(worldState());
 
 registerBoost("Grass", (resourceId) => resourceId === "greenEssence" ? greenMultiplier()
     : resourceId === "blueEssence" ? blueMultiplier() : 1);
@@ -422,10 +422,10 @@ export const GRASS_VIEW = {
             title: "Greener Blades",
             description: (s, lvl) => upgradeDescription(
                 `Every grassy tile is worth +${soFar(BLADES_PER_LEVEL, lvl)} more, whichever type it is.`,
-                stepGain(lvl, 10, BLADES_PER_LEVEL)),
+                stepGain(lvl, capOf("greenerBlades"), BLADES_PER_LEVEL)),
             max: 10,
             cost: (s, lvl) => ({ greenEssence: D("2e7").mul(D(1.6).pow(lvl)) }),
-        }, (over) => ({ greenEssence: D("1e38").mul(D(1000).pow(over)) })),
+        }, (over) => ({ greenEssence: D("1e38").mul(D(100).pow(over)) })),
     },
 };
 
@@ -465,8 +465,8 @@ function updateYield(el) {
         ? "to all Blue Essence" : "Blue needs wet grass");
 
     setText(el.querySelector(".yield-share"),
-        `Every tile gives ${Math.round(ADJACENT_SHARE * 100)}% of its bonus to `
-        + ` neighboring tiles.`);
+        `Every tile gives ${Math.round(ADJACENT_SHARE * 100)}% of its bonus to`
+        + ` neighboring tiles, up to x${NEIGHBOR_GRASS_CEILING + 1}.`);
 
     const breakdown = breakdownMarkup(world);
     const target = el.querySelector(".yield-breakdown");

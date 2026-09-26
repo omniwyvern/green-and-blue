@@ -221,19 +221,19 @@ export function sapRate(s = groveState()) {
 
 //    !!! WHAT THE MAP GETS OUT OF IT !!!
 
-const GROVE_GREEN_BASE = 2e11;
+const GROVE_GREEN_BASE = 6e7;
 const GROVE_PER_MATURE = 1.5;
 
 export const matureCount = (s = groveState()) => beds(s).slice(0, bedCount(s)).filter(isMature).length;
 
-export function groveOutput(world, id) {
+function groveOutput(world, id) {
     if (tileKind(world, id) !== GROVE) return {};
     return { greenEssence: GROVE_GREEN_BASE * (1 + GROVE_PER_MATURE * matureCount()) };
 }
 
 contributeTileOutput(GROVE, groveOutput);
 
-export function groveNeighborBoost(world, id) {
+function groveNeighborBoost(world, id) {
     if (!kindActive("adjacency")) return 1;
     const tile = tileById(id);
     if (!tile) return 1;

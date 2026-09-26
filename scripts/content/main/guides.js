@@ -209,14 +209,16 @@ registerGuide("evolution-intro", {
     body: `
         <p>You now earn Adaptation Points over time, without adapting.</p>
         <p>Each of the six terrain families puts environmental pressure on what lives there. The
-        meters at the bottom hold potential for each pressure. Hold the button under a meter to
-        turn Adaptation Points into potential.</p>
-        <p>25 Adaptation Points make one potential, adjusted by that pressure.</p>
+        meters at the bottom hold potential for each pressure. Tap the button under a meter to pour
+        the Adaptation Points you earn into it, and tap it again to bank them instead. Whatever a meter
+        can't hold is banked.</p>
+        <p>25 earned Adaptation Points make one potential, adjusted by that pressure. Holding the button
+        also turns banked points into potential, but at a quarter of the rate.</p>
         <p>Each pressure has its own trait tree, which you click the pressure's meter to open. Some traits need more
         than one kind of potential. Hover a trait to see which meters it uses, and hold it to fill
         it from them.</p>
-        <p>A new generation of traits opens once you own enough from the one before, and each generation
-        doubles that meter's capacity.</p>
+        <p>A new generation of traits opens once you own enough from the one before. A meter always has
+        room for the priciest trait that's open, plus spare room that doubles with each generation.</p>
         <p>Each branch ends in a capstone with a special effect. Get all three capstones in a tree
         to open its apex trait.</p>
     `,

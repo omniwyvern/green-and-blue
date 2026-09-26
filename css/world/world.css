@@ -38,24 +38,40 @@
 
 .hex-shape {
     position: absolute;
-    inset: 0;
+    inset: -1px;
     clip-path: var(--hex);
-    background: var(--hex-border);
     pointer-events: auto;
     cursor: pointer;
     transition: transform 0.16s ease;
 }
+:where(.hex-tile:hover) .hex-shape { background: #d7e6ee; --edge: 3px; }
+.hex-shape::after {
+    --w: 2px;
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: var(--seams, none);
+    clip-path: polygon(evenodd,
+        50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%, 50% 0%,
+        50% calc(var(--w) * 1.155), var(--w) calc(25% + var(--w) * 0.577), var(--w) calc(75% - var(--w) * 0.577),
+        50% calc(100% - var(--w) * 1.155), calc(100% - var(--w)) calc(75% - var(--w) * 0.577),
+        calc(100% - var(--w)) calc(25% + var(--w) * 0.577), 50% calc(var(--w) * 1.155));
+    pointer-events: none;
+}
+.hex-tile:is(:hover, .can-plant, .hex-selected, .transform-candidate, .transform-fodder) .hex-shape::after { display: none; }
 
 .hex-face {
     position: absolute;
-    inset: 2px;
+    inset: var(--edge, 0px);
     clip-path: var(--hex);
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     padding: 8px;
-    transition: background-color 0.2s ease;
+    background: var(--face);
+    transition: background-color 0.2s ease, inset 0.12s ease;
 }
 
 .hex-label {
@@ -66,10 +82,10 @@
     font-variant-numeric: tabular-nums;
 }
 
-.hex-unlocked .hex-face { background: #4d4c3b; }
-.hex-unlocked:hover .hex-face { background: #555444; }
-.hex-unlocked.grass-stage-1 .hex-face { background: #3a4e3b; }
-.hex-unlocked.grass-stage-2 .hex-face { background: #334e2b; }
+.hex-unlocked { --face: #4d4c3b; }
+.hex-unlocked:hover { --face: #555444; }
+.hex-unlocked.grass-stage-1 { --face: #3a4e3b; }
+.hex-unlocked.grass-stage-2 { --face: #334e2b; }
 
 .hex-tile.is-razing .hex-face::after {
     content: "";
@@ -112,8 +128,8 @@
 }
 
 .tile-grass {
-    width: 72%;
-    height: 72%;
+    width: 65%;
+    height: 65%;
     display: block;
 }
 .grass-soil { fill: rgba(0, 0, 0, 0.28); }

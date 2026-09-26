@@ -2,7 +2,7 @@
 //
 // The seabed with its sites and one fish per Ocean species; scrolls when wide
 
-import { canAfford, stepNote } from "../../../core/resources.js";
+import { stepNote } from "../../../core/resources.js";
 import { D } from "../../../utils/decimal.js";
 import { setText, setDisplay, setVar, setAttr, setClass, frameLoop } from "../../../utils/dom.js";
 import { clamp01 } from "../../../utils/math.js";
@@ -14,7 +14,7 @@ import { focusSchool } from "./oceanSublayer.js";
 import { pieceArt, BOOK_ICON } from "../art/reefArt.js";
 import {
     PIECES, PIECE_IDS, TRAITS, TRAIT_IDS, SIZES, HABITAT, HABITAT_IDS, SITES,
-    reefState, reefOpen, siteCount, spotAt, placePiece, clearSpot, toggleTrait, traitBlocked,
+    reefState, reefOpen, reefCanAfford, siteCount, spotAt, placePiece, clearSpot, toggleTrait, traitBlocked,
     traitCost, slotsOf, isUnlocked, unlockHint, habitatReport, needProgress, needText,
     speciesName, speciesColor, unlockedSpecies, activeEvents, eventDef, eventAnswered, eventRoom,
     nextEventIn, boostMultiplier, settledMultiplier, settledMax, settledStreak,
@@ -487,7 +487,7 @@ function pickerHtml(i, s) {
                 const piece = PIECES[id];
                 const locked = !isUnlocked(id, s);
                 const here = current && current.piece === id;
-                const poor = !locked && !canAfford(piece.cost);
+                const poor = !locked && !reefCanAfford(piece.cost);
                 const state = locked ? "locked" : here ? "here" : poor ? "poor" : "";
                 return `
                 <button class="reef-card ${state} ${locked || here || poor ? "inactive" : ""}" type="button"
@@ -502,7 +502,7 @@ function pickerHtml(i, s) {
                 </button>`;
             }).join("")}
         </div>
-        ${current ? `<p class="reef-small">Whatever was here, and its characteristics, is refunded.</p>` : ""}`;
+        ${current ? `<p class="reef-small">Whatever was here, and its characteristics, is refunded. During a challenge, refunds can only be spent on the reef.</p>` : ""}`;
 }
 
 const groupLabel = (group) => {
@@ -566,7 +566,7 @@ function modifyHtml(i, s) {
                 const locked = !isUnlocked(id, s);
                 const clash = !on && traitBlocked(spot, id);
                 const full = !on && spot.traits.length >= room;
-                const poor = !on && !canAfford(cost);
+                const poor = !on && !reefCanAfford(cost);
                 const note = on ? "On. Click to take off"
                     : locked ? `Unlock: ${unlockHint(id)}`
                     : clash ? `Can't be ${TRAITS[trait.clash].name.toLowerCase()} too`

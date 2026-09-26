@@ -227,7 +227,7 @@ const HUMANITY_NEEDS = [
     pastCap("Richer Waters", "richerWaters", () => levelOf("pond", "richerWaters"), 10),
     pastCap("Varied Life", "keystone", () => levelOf("wetlands", "keystone"), 8),
     pastCap("Greener Blades", "greenerBlades", () => levelOf("grass", "greenerBlades"), 6),
-    { text: "1e18 peak Vitality", met: () => D(getLayerState("grass").vitalityPeak || 0).gte(1e18) },
+    { text: "5e10 peak Vitality", met: () => D(getLayerState("grass").vitalityPeak || 0).gte(5e10) },
 ];
 
 const missingHint = (lead, needs) => `${lead} Still missing:\n`
@@ -1059,7 +1059,8 @@ registerLayer("cores", {
             description: "Something in the world has started to change it on purpose.",
             prereq: (s) => owned(s, "evolution") && HUMANITY_NEEDS.every(need => need.met()),
             hint: () => missingHint("The world has not evolved far enough yet.", HUMANITY_NEEDS),
-            cost: () => ({ greenEssence: D(1e62), blueEssence: D(1e65), adaptationPoints: D(2e5) }),
+            cost: () => ({ greenEssence: D(1e56), blueEssence: D(1e56), adaptationPoints: D(2e5) }),
+            onPurchase() { unlockLayer("settlement"); },
         },
     },
 });

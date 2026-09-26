@@ -79,7 +79,7 @@ function resolveResources(label, declared) {
 
 //    !!! CATEGORIES !!!
 
-export function registerCategory(id, { name, order = 0, groups = null }) {
+export function registerCategory(id, { name, order = 0, groups = null, defaultLayer = null }) {
     const declared = groups || { [DEFAULT_GROUP]: {} };
 
     const built = {};
@@ -96,7 +96,7 @@ export function registerCategory(id, { name, order = 0, groups = null }) {
         index++;
     }
 
-    categories[id] = { id, name, order, layerIds: [], groups: built };
+    categories[id] = { id, name, order, defaultLayer, layerIds: [], groups: built };
 }
 
 export function getOrderedGroups(categoryId) {

@@ -13,7 +13,7 @@ import {
 } from "./worldMap.js";
 import { clamp, clamp01 } from "../../../utils/math.js";
 import { cardBonus, cardActive } from "./cards.js";
-import { traitBonus, traitHas, pastCapGain } from "./evolutionTraits.js";
+import { traitBonus, traitHas } from "./evolutionTraits.js";
 import { challengeMod } from "./challenges.js";
 import { coreNodeBought } from "../../../core/nodes.js";
 
@@ -366,7 +366,7 @@ export const diversityBonus = (s = marshState(), world = worldState()) =>
 export const communitiesHeld = (s = marshState(), world = worldState()) =>
     new Set(activeZones(s, world).filter(zone => plantOf(zone).rank > 0).map(zone => zone.plant)).size;
 
-export const communityMultiplier = () => 1 + KEYSTONE_PER_LEVEL * Math.min(8, level("keystone"));
+export const communityMultiplier = () => 1 + KEYSTONE_PER_LEVEL * level("keystone");
 
 export const keystoneBonus = (s = marshState(), world = worldState()) =>
     varietyBonus(communitiesHeld(s, world), communityMultiplier());
@@ -552,16 +552,15 @@ function baseStageProduction(plant, stage, scale) {
     }
 }
 
-export function stageProduction(plant, stage, scale) {
+function stageProduction(plant, stage, scale) {
     const output = baseStageProduction(plant, stage, scale);
     const cards = (1 + cardBonus("marshOutput")) * (1 + traitBonus("marshOutput")) * challengeMod("marshOutput")
-        * (coreNodeBought("ecoBogMat") ? 1.3 : 1)
-        * pastCapGain("keystone", level("keystone"));
+        * (coreNodeBought("ecoBogMat") ? 1.3 : 1);
     for (const resourceId in output) output[resourceId] = output[resourceId].mul(cards);
     return output;
 }
 
-export const zoneProduction = (s, zone, world = worldState()) =>
+const zoneProduction = (s, zone, world = worldState()) =>
     stageProduction(plantOf(zone), stageOf(zone), zoneScale(s, world) * zoneTraits(zone));
 
 // Mud Builders pays for the silt a zone holds, Floating Roots for a zone with nowhere left to grow
@@ -599,7 +598,7 @@ export function zoneProductionBoosted(s, zone, world = worldState()) {
 //    !!! WHAT THE MAP GETS OUT OF IT !!!
 
 // What a marsh tile produces per second, increased by water level variety
-const MARSH_GREEN_BASE = 1e11;
+const MARSH_GREEN_BASE = 3e7;
 
 // What a fully grown marsh is worth to its own tiles over a bare one
 const HEALTH_WORTH = 150;
@@ -623,7 +622,7 @@ export function marshNeighborShare(world = worldState()) {
 }
 
 // How much one tile is boosted by neighboring marshes
-export function marshNeighborBoost(world, id) {
+function marshNeighborBoost(world, id) {
     if (tileKind(world, id) === MARSH) return 1;
 
     const touching = adjacentOfKind(world, id, MARSH);

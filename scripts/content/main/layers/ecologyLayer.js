@@ -194,6 +194,7 @@ const CONFIRM = `
             <div class="confirm-note">Nothing else is touched. Giving up resets the same things
                 again, so nothing earned inside comes back out with you. Reaching the goal does
                 not, so finish it and you keep everything you made getting there.</div>
+            <div class="confirm-note confirm-on-claim"></div>
             <div class="confirm-note confirm-adapts">Crossing either way counts as an adaptation: you are paid
                 the points the map is worth, and your equipped cards come off their lock to be
                 picked again for the rules you are going in under.</div>
@@ -252,7 +253,12 @@ const CHALLENGE_SCENE = {
             state.confirming = null;
         });
 
-        el.querySelector(".active-claim").addEventListener("click", claimChallenge);
+        const claim = el.querySelector(".active-claim");
+        claim.addEventListener("click", () => {
+            if (CHALLENGES[activeChallenge()]?.onClaim && !claim.dataset.armed) { claim.dataset.armed = "1"; return; }
+            delete claim.dataset.armed;
+            claimChallenge();
+        });
 
         const leave = el.querySelector(".active-leave");
         leave.addEventListener("click", () => {
@@ -270,9 +276,10 @@ const CHALLENGE_SCENE = {
 
         const active = el.querySelector(".challenge-active");
         const leave = active.querySelector(".active-leave");
+        const claim = active.querySelector(".active-claim");
         const ready = challengeReady();
         setDisplay(active, !!id);
-        setDisplay(active.querySelector(".active-claim"), ready);
+        setDisplay(claim, ready);
         setDisplay(leave, !!id && !ready);
         if (id) {
             const def = CHALLENGES[id];
@@ -287,8 +294,10 @@ const CHALLENGE_SCENE = {
             }
             renderGoals(active.querySelector(".goal-list"), id);
             setText(leave, leave.dataset.armed ? "Give up? This resets it all again" : "Give up");
+            setText(claim, claim.dataset.armed ? `Complete? ${def.onClaim}` : "Complete Challenge");
         } else {
             delete leave.dataset.armed;
+            delete claim.dataset.armed;
         }
 
         const lists = el.querySelector(".challenge-lists");
@@ -312,6 +321,8 @@ const CHALLENGE_SCENE = {
         if (confirming) {
             setText(box.querySelector(".confirm-head"), `Start ${CHALLENGES[confirming].name}?`);
             setDisplay(box.querySelector(".confirm-adapts"), !CHALLENGES[confirming].keepsAdaptation);
+            setText(box.querySelector(".confirm-on-claim"), CHALLENGES[confirming].onClaim || "");
+            setDisplay(box.querySelector(".confirm-on-claim"), !!CHALLENGES[confirming].onClaim);
             const resets = box.querySelector(".confirm-resets");
             if (resets.dataset.key !== confirming) {
                 resets.dataset.key = confirming;

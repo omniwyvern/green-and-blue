@@ -3,7 +3,7 @@
 // Sites hold rocks and kelp, each feature meets one fish need, and events give boosts
 
 import { getLayerState } from "../../../core/state.js";
-import { spend, addResource, levelsIn } from "../../../core/resources.js";
+import { spend, canAfford, addResource, levelsIn } from "../../../core/resources.js";
 import { registerBoost } from "../../../core/boosts.js";
 import { traitBonus } from "./evolutionTraits.js";
 import { D } from "../../../utils/decimal.js";
@@ -13,6 +13,7 @@ import {
     contributeTileOutput, contributeNeighborBoost, soften, REEF_KINDS,
 } from "./worldMap.js";
 import { SPECIES, unlockedSchools, drawInSchool } from "../sublayers/oceanSublayer.js";
+import { activeChallenge } from "./challenges.js";
 
 export const reefState = () => getLayerState("reef");
 const level = levelsIn("reef");
@@ -113,7 +114,7 @@ const pieceNeed = (count, piece) => ({ count, piece });
 
 export const HABITAT = {
     cod: {
-        needs: [need(2, "small", "crevice"), need(1, "small", "sheltered")],
+        needs: [need(1, "small", "crevice"), need(1, "small", "sheltered")],
         settled: { name: "Home Waters", resource: "blueEssence", base: 1.9 },
         boost: { name: "Teeming Shoals", resource: "biomass", base: 3 },
         events: {
@@ -218,7 +219,36 @@ export const spotAt = (i, s = reefState()) => spots(s)[i] || null;
 const placedCount = (s = reefState()) =>
     spots(s).slice(0, siteCount(s)).filter(Boolean).length;
 
-const refund = (cost) => { for (const id in cost) addResource(id, cost[id]); };
+const credit = (s = reefState()) => s.reefCredit ??= {};
+
+// Inside a challenge, what comes off the reef can only go back into the reef
+const refund = (cost) => {
+    const held = activeChallenge() && credit();
+    for (const id in cost) {
+        if (held) held[id] = D(held[id] || 0).add(cost[id]).toString();
+        else addResource(id, cost[id]);
+    }
+};
+
+const afterCredit = (cost) => {
+    const held = credit(), rest = {};
+    for (const id in cost) rest[id] = D(cost[id]).sub(held[id] || 0).max(0);
+    return rest;
+};
+
+export const reefCanAfford = (cost) => canAfford(afterCredit(cost));
+
+const pay = (cost) => {
+    if (!spend(afterCredit(cost))) return false;
+    const held = credit();
+    for (const id in cost) {
+        if (!held[id]) continue;
+        const left = D(held[id]).sub(cost[id]);
+        if (left.gt(0)) held[id] = left.toString();
+        else delete held[id];
+    }
+    return true;
+};
 
 const spotValue = (spot) => {
     const cost = { ...PIECES[spot.piece].cost };
@@ -243,8 +273,8 @@ export function placePiece(i, pieceId, s = reefState()) {
     const old = spotAt(i, s);
     if (old && old.piece === pieceId) return false;
     if (old) refund(spotValue(old));
-    if (!spend(PIECES[pieceId].cost)) {
-        if (old) spend(spotValue(old));
+    if (!pay(PIECES[pieceId].cost)) {
+        if (old) pay(spotValue(old));
         return false;
     }
     spots(s)[i] = { piece: pieceId, traits: [] };
@@ -266,7 +296,7 @@ export function toggleTrait(i, traitId, s = reefState()) {
     }
     if (!isUnlocked(traitId, s) || traitBlocked(spot, traitId)) return false;
     if (spot.traits.length >= slotsOf(spot.piece)) return false;
-    if (!spend(traitCost(spot.piece, traitId))) return false;
+    if (!pay(traitCost(spot.piece, traitId))) return false;
     spot.traits = [...spot.traits, traitId];
     return true;
 }
@@ -507,6 +537,10 @@ export function tickReef(dt, s = reefState()) {
         liveSettled = {};
         s.reefSettledStreak = {};
         return;
+    }
+    if (!activeChallenge() && Object.keys(credit(s)).length) {
+        for (const id in s.reefCredit) addResource(id, D(s.reefCredit[id]));
+        s.reefCredit = {};
     }
     const step = Math.min(dt, MAX_STEP);
     if (!s.reefSettledTime || typeof s.reefSettledTime !== "object") s.reefSettledTime = {};

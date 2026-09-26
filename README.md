@@ -83,6 +83,8 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
             ecology.css                  Challenges, the running challenge and its goals, and the "start challenge" warning  
             evolution.css                The evolution tree, its nodes, and the meters under it  
             evolution-scenery.css        What sits behind each pressure's tree  
+            settlement.css               Settlement pages, their tabs, jobs, projects, and siting one on the map  
+            language.css                 Each settlement's speech: overheard phrases, words, and guessing at them  
         
     scripts/  
         core/  
@@ -165,6 +167,24 @@ I also use "Javascript (ES6) code snippets" but that's mostly for the coding sid
                     cardArt.js                  Each card's picture, and each banner's badge (built from shared pieces)
                     mushroomArt.js              One drawing per mushroom, all on the same ground line
                     pressureArt.js              Each pressure's meter surface and the scenery behind its evolution tree
+
+            humanity/
+                index.js                    Imports the category, then every layer in it
+                category.js                 Registers the Humanity category
+                guides.js                   The text for Humanity's guides
+
+                layers/
+                    settlementLayer.js          Each settlement's page, the tabs between them, and the button to find a site
+                    settlementSiting.js         Settlements on the world map, candidate sites, borders, and the founding confirmation
+                    languageLayer.js            Listening in on each settlement's speech and guessing what its words mean
+
+                systems/
+                    settlements.js              Where a settlement can go, what kind it becomes, its people, jobs, projects, and dying out
+                    settlementNames.js          Generated names, built from halves that match the settlement's types
+                    language.js                 Speech stages, concepts and scenes, seeded words for each settlement, and guessing
+
+                art/
+                    settlementArt.js            Map sprites and village scenes by size (tents, huts, houses)
         
         utils/  						General utility functions, used throughout many places
             break_eternity.min.js         Big number library for Decimals, written by Patashu under MIT license  

@@ -159,6 +159,7 @@ export function switchToLayer(layerId) {
     getLayerContainer(layerId).wrapper.style.display = "flex";
 
     state.activeLayer = layerId;
+    state.activeCategory = layer.categoryId;
     markDirty(layerId);
     renderActiveLayer(true); 
 }

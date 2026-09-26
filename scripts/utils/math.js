@@ -12,3 +12,6 @@ export const seededRandom = (seed, salt) => {
     const x = Math.sin((seed + 1) * 12.9898 + salt * 78.233) * 43758.5453;
     return x - Math.floor(x);
 };
+
+// A stable number from a string, to salt seededRandom with
+export const hashText = (text) => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 1000003, 7);

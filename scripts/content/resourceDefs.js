@@ -13,4 +13,5 @@ registerResources({
     adaptationPoints: { name: "Adaptation Points", short: "AP",    color: "#b06ad0", holder: "adaptation" },
     coral:            { name: "Coral",             short: "CRL",   color: "#e0736f", holder: "reef" },
     spores:           { name: "Spores",            short: "SPR",   color: "#c9a8e0", holder: "fungi" },
+    food:             { name: "Food",              short: "FD",    color: "#e2a55a", holder: "settlement" },
 });
