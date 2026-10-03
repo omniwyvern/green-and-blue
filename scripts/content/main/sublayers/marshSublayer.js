@@ -845,27 +845,29 @@ const HUD_MARKUP = `
                 <div class="meter-note water-note"></div>
             </div>
             <button class="marsh-release" type="button"></button>
-            <div class="marsh-card marsh-readouts">
-                <div class="marsh-readout"><span>Variety</span><span class="marsh-variety"></span>
-                    <span class="marsh-hint">How many of the four stages your zones are in, and the
-                        bonus for it. Zones drift into sync over time - flood one at a time to split them up.</span></div>
-                <div class="marsh-readout marsh-keystone-row"><span>Communities</span><span class="marsh-keystone"></span>
-                    <span class="marsh-hint">How many different plant communities are growing, and
-                        the bonus for it. Keep zones at different water levels to grow different plants.</span></div>
-                <div class="marsh-readout"><span>Vegetation</span><span class="marsh-health"></span>
-                    <span class="marsh-hint">How well each zone's plants suit its water level. Plants
-                        grow while the water is in their range and die back outside it.</span></div>
-                <div class="marsh-readout"><span>Marsh</span><span class="marsh-size"></span>
-                    <span class="marsh-hint">How many zones the marsh has. More marsh tiles on the
-                        world map make it bigger and sometimes add a zone.</span></div>
-                <div class="marsh-readout"><span>Neighbors</span><span class="marsh-adjacent"></span>
-                    <span class="marsh-hint">Bonus from marsh tiles next to each other. Keep marsh
-                        tiles together on the world map.</span></div>
-                <div class="marsh-next"></div>
-            </div>
-            <div class="marsh-card marsh-total">
-                <div class="marsh-total-head">Everything the zones pay</div>
-                <div class="marsh-total-lines"></div>
+            <div class="marsh-info">
+                <div class="marsh-card marsh-readouts">
+                    <div class="marsh-readout"><span>Variety</span><span class="marsh-variety"></span>
+                        <span class="marsh-hint">How many of the four stages your zones are in, and the
+                            bonus for it. Zones drift into sync over time - flood one at a time to split them up.</span></div>
+                    <div class="marsh-readout marsh-keystone-row"><span>Communities</span><span class="marsh-keystone"></span>
+                        <span class="marsh-hint">How many different plant communities are growing, and
+                            the bonus for it. Keep zones at different water levels to grow different plants.</span></div>
+                    <div class="marsh-readout"><span>Vegetation</span><span class="marsh-health"></span>
+                        <span class="marsh-hint">How well each zone's plants suit its water level. Plants
+                            grow while the water is in their range and die back outside it.</span></div>
+                    <div class="marsh-readout"><span>Marsh</span><span class="marsh-size"></span>
+                        <span class="marsh-hint">How many zones the marsh has. More marsh tiles on the
+                            world map make it bigger and sometimes add a zone.</span></div>
+                    <div class="marsh-readout"><span>Neighbors</span><span class="marsh-adjacent"></span>
+                        <span class="marsh-hint">Bonus from marsh tiles next to each other. Keep marsh
+                            tiles together on the world map.</span></div>
+                    <div class="marsh-next"></div>
+                </div>
+                <div class="marsh-card marsh-total">
+                    <div class="marsh-total-head">Everything the zones pay</div>
+                    <div class="marsh-total-lines"></div>
+                </div>
             </div>
             <details class="marsh-card marsh-plants">
                 <summary>What grows here</summary>
