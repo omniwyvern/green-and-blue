@@ -458,7 +458,7 @@ function tagLines(bed) {
 function paintHint(el, s) {
     const hint = el.querySelector(".grove-hint");
     let text = "";
-    if (selected) text = `Planting ${SPECIES[selected].name}. Pick an empty bed.`;
+    if (selected) text = `${SPECIES[selected].name}. When fruited: ${boostText(selected)} for ${fruitSeconds()}s. Sheds ${formatNumber(SPECIES[selected].spores * sporeMultiplier())} Spores a second once grown.`;
     else if (bedAt(0, s)?.species === "inkCap" && !isMature(bedAt(0, s))) text = "Something is coming up on its own.";
     setText(hint, text);
     hint.classList.toggle("on", !!text);
