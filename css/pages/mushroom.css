@@ -537,6 +537,9 @@
     .grove-boosts { gap: 0.6rem; flex-wrap: wrap; }
     .grove-boost { max-width: 5.5rem; }
     .grove-tag { min-width: 9rem; max-width: 12rem; font-size: 0.72rem; }
+    .grove-bottom { left: var(--toggle-clear); right: 0.5rem; }
+    .grove-basket { width: 100%; }
+    .grove-hint { width: 100%; padding: 0.3rem 0.6rem; border-radius: 0.6rem; font-style: normal; line-height: 1.3; }
 }
 
 @media (prefers-reduced-motion: reduce) {
