@@ -255,6 +255,7 @@
 }
 
 .marsh-live { display: flex; flex-direction: column; gap: 0.5rem; }
+.marsh-info { display: contents; }
 
 .meter-head { display: flex; justify-content: space-between; gap: 0.5rem; font-weight: 600; }
 .marsh-live .meter-track {
@@ -376,3 +377,39 @@
     font-variant-numeric: tabular-nums;
 }
 
+@media (max-width: 700px) {
+    .marsh-panel {
+        left: var(--toggle-clear);
+        width: auto;
+        pointer-events: none;
+    }
+    .marsh-panel > :not(.marsh-live), .marsh-live > * { pointer-events: auto; }
+    .marsh-live {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+        grid-template-areas: "info water" ". release" ". plants";
+        align-items: start;
+        gap: 0.375rem;
+    }
+    .marsh-live > .marsh-card:first-child { grid-area: water; }
+    .marsh-live .meter-head { flex-direction: column; gap: 0; }
+    .marsh-release { grid-area: release; }
+    .marsh-plants { grid-area: plants; }
+    .marsh-info {
+        grid-area: info;
+        align-self: stretch;
+        contain: size;
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        padding: 0.4375em 0.5625em;
+        border-radius: 0.5rem;
+        background: var(--panel);
+        border: 1px solid var(--border);
+    }
+    .marsh-info > .marsh-card { padding: 0; border: 0; border-radius: 0; background: none; }
+    .marsh-total-head, .marsh-plants > summary { font-size: 1em; }
+    .marsh-info > .marsh-total { order: -1; padding-bottom: 0.375rem; border-bottom: 1px solid var(--border); }
+}
